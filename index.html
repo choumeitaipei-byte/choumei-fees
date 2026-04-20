@@ -346,6 +346,10 @@
     <div style="padding:28px;display:grid;gap:16px">
       <input type="hidden" id="edit-member-id">
       <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">社友編號（可自訂，例如 CM-001）</label>
+        <input class="inp mono" type="text" id="edit-custom-id" placeholder="留空則自動產生">
+      </div>
+      <div>
         <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">姓名</label>
         <input class="inp" type="text" id="edit-name" placeholder="社友姓名">
       </div>
@@ -791,7 +795,9 @@ function copyText(text) {
 function openMemberModal(mId) {
   document.getElementById('member-modal-title').textContent = mId ? '編輯社友' : '新增社友';
   const m = mId ? members.find(x => x.id === mId) : null;
-  document.getElementById('edit-member-id').value = mId || ('M-' + Date.now());
+  const newId = 'M-' + Date.now();
+  document.getElementById('edit-member-id').value = mId || newId;
+  document.getElementById('edit-custom-id').value = mId || '';
   document.getElementById('edit-name').value = m?.name || '';
   document.getElementById('edit-nickname').value = m?.nickname || '';
   document.getElementById('edit-prev-due').value = m?.accounting?.previous_due || 0;
@@ -803,10 +809,15 @@ function closeMemberModal() {
 }
 
 async function saveMemberModal() {
-  const id = document.getElementById('edit-member-id').value;
+  const originalId = document.getElementById('edit-member-id').value;
+  const customId = document.getElementById('edit-custom-id').value.trim();
   const name = document.getElementById('edit-name').value.trim();
   if (!name) return alert('請輸入姓名');
-  const existing = members.find(x => x.id === id);
+  const existing = members.find(x => x.id === originalId);
+  // 新增社友時可以用自訂編號；編輯時維持原編號
+  const id = existing ? originalId : (customId || originalId);
+  // 檢查自訂編號是否已被使用
+  if (!existing && customId && members.find(x => x.id === customId)) return alert('此編號已被使用，請換一個！');
   const m = existing || {
     id, name: '', nickname: '',
     fixedA: {}, fixedB: { monthly_split: 0 },
