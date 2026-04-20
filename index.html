@@ -222,7 +222,37 @@
         <h1 style="font-size:24px;font-weight:900;color:var(--navy)">帳單管理</h1>
         <p style="font-size:13px;color:#888;margin-top:2px">預覽、下載、分享帳單</p>
       </div>
-      <button onclick="exportAllBills()" class="btn-gold">📦 批次匯出全體 ZIP</button>
+      <div style="display:flex;gap:10px">
+        <button onclick="exportAllBills()" class="btn-gold">📦 批次匯出全體 ZIP</button>
+        <button onclick="openReportModal()" class="btn-primary">📊 匯出報表</button>
+      </div>
+    </div>
+
+    <!-- 報表匯出區塊 -->
+    <div id="report-panel" class="card" style="padding:24px;margin-bottom:24px;display:none">
+      <h3 style="font-size:15px;font-weight:900;color:var(--navy);margin-bottom:16px">📊 報表匯出</h3>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">報表類型</label>
+          <select class="inp" id="report-type" onchange="updateReportOptions()" style="width:160px">
+            <option value="monthly">月結報表</option>
+            <option value="yearly">年度報表</option>
+          </select>
+        </div>
+        <div id="report-month-wrap">
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇月份</label>
+          <select class="inp" id="report-month" style="width:160px"></select>
+        </div>
+        <div id="report-year-wrap" style="display:none">
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇年度</label>
+          <select class="inp" id="report-year" style="width:120px"></select>
+        </div>
+        <div style="align-self:flex-end;display:flex;gap:8px">
+          <button onclick="exportReport('excel')" class="btn-primary" style="background:#16a34a">📋 匯出 CSV</button>
+          <button onclick="closeReportPanel()" style="background:#f5f2ec;border:none;padding:10px 16px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">關閉</button>
+        </div>
+      </div>
+      <div id="report-preview" style="margin-top:20px;overflow-x:auto"></div>
     </div>
     <div id="bills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
   </div>
@@ -929,6 +959,13 @@ async function executeCarryOver() {
     if (mo > 12) { mo = 1; y++; }
     settings.currentMonth = `${y}年${String(mo).padStart(2,'0')}月`;
   }
+  // 結轉前先儲存歷史快照
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  history.unshift({ month: settings.currentMonth, members: JSON.parse(JSON.stringify(members)), savedAt: new Date().toISOString() });
+  // 只保留最近 24 個月
+  if (history.length > 24) history.pop();
+  localStorage.setItem('choumei_history', JSON.stringify(history));
+
   await pushToCloud('saveMembers', { members });
   await pushToCloud('saveSettings', { settings });
   closeCarryOverlay();
@@ -940,6 +977,185 @@ async function executeCarryOver() {
 // ══════════════════════════════════════════
 // 備份
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// 報表匯出
+// ══════════════════════════════════════════
+function openReportModal() {
+  const panel = document.getElementById('report-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') {
+    updateReportOptions();
+    generateReportPreview();
+  }
+}
+
+function closeReportPanel() {
+  document.getElementById('report-panel').style.display = 'none';
+}
+
+function updateReportOptions() {
+  const type = document.getElementById('report-type').value;
+  document.getElementById('report-month-wrap').style.display = type === 'monthly' ? 'block' : 'none';
+  document.getElementById('report-year-wrap').style.display = type === 'yearly' ? 'block' : 'none';
+
+  // 從備份歷史或現有月份產生選項
+  const monthSel = document.getElementById('report-month');
+  const yearSel = document.getElementById('report-year');
+
+  // 月份選項：從 localStorage 的歷史記錄取得
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const months = [...new Set([settings.currentMonth, ...history.map(h => h.month)])].filter(Boolean);
+  
+  monthSel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+  
+  // 年度選項：從月份中提取年份
+  const years = [...new Set(months.map(m => {
+    const match = m.match(/(\d+)年/);
+    return match ? match[1] : null;
+  }).filter(Boolean))];
+  yearSel.innerHTML = years.map(y => `<option value="${y}">${y} 年度</option>`).join('');
+
+  generateReportPreview();
+}
+
+function getReportData() {
+  const type = document.getElementById('report-type').value;
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+
+  if (type === 'monthly') {
+    const month = document.getElementById('report-month').value;
+    // 找歷史記錄，或用現在的資料
+    const snap = history.find(h => h.month === month);
+    const data = snap ? snap.members : members;
+    return { type: 'monthly', month, members: data };
+  } else {
+    const year = document.getElementById('report-year').value;
+    const yearMonths = history.filter(h => h.month && h.month.startsWith(year + '年'));
+    return { type: 'yearly', year, history: yearMonths };
+  }
+}
+
+function generateReportPreview() {
+  const data = getReportData();
+  const preview = document.getElementById('report-preview');
+
+  if (data.type === 'monthly') {
+    const rows = (data.members || members).map(m => {
+      const f = calcFees(m);
+      return `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;font-weight:700">${m.name}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:center">${m.nickname||''}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${f.sumA.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${f.sumB.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${Number(m.accounting?.previous_due||0).toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-weight:900;color:${calcFees(m).finalH>0?'#dc2626':'#16a34a'}">$${f.finalH.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+
+    const total = (data.members || members).reduce((acc, m) => {
+      const f = calcFees(m);
+      return { sumA: acc.sumA + f.sumA, sumB: acc.sumB + f.sumB, finalH: acc.finalH + f.finalH };
+    }, { sumA: 0, sumB: 0, finalH: 0 });
+
+    preview.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 月結報表預覽</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f5f2ec">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">姓名</th>
+            <th style="padding:8px 12px;text-align:center;font-size:11px;color:#888">暱稱</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">經常費(A)</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">服務經費(B)</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">前期餘額</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">未付款(H)</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr style="background:#002147;color:white">
+            <td colspan="2" style="padding:10px 12px;font-weight:900">合計</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${total.sumA.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${total.sumB.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right"></td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${total.finalH.toLocaleString()}</td>
+          </tr>
+        </tfoot>
+      </table>`;
+  } else {
+    // 年度報表
+    if (!data.history || data.history.length === 0) {
+      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無 ${data.year} 年度的歷史資料<br><small>每次結轉後系統會自動記錄</small></div>`;
+      return;
+    }
+    const rows = data.history.map(snap => {
+      const total = (snap.members || []).reduce((acc, m) => {
+        const f = calcFees(m);
+        return { sumA: acc.sumA + f.sumA, sumB: acc.sumB + f.sumB, finalH: acc.finalH + f.finalH };
+      }, { sumA: 0, sumB: 0, finalH: 0 });
+      return `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;font-weight:700">${snap.month}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${total.sumA.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${total.sumB.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-weight:900;color:#dc2626">$${total.finalH.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+
+    preview.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表預覽</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f5f2ec">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">月份</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">經常費(A)合計</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">服務經費(B)合計</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">未付款(H)合計</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+}
+
+function exportReport(format) {
+  const data = getReportData();
+  let csv = '';
+
+  if (data.type === 'monthly') {
+    const mList = data.members || members;
+    csv = '姓名,暱稱,社友編號,經常費(A),服務經費(B),前期未付款,本期未付款(H)\n';
+    mList.forEach(m => {
+      const f = calcFees(m);
+      csv += `"${m.name}","${m.nickname||''}","${m.id}",${f.sumA},${f.sumB},${Number(m.accounting?.previous_due||0)},${f.finalH}\n`;
+    });
+    const total = mList.reduce((acc, m) => {
+      const f = calcFees(m);
+      return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, finalH: acc.finalH+f.finalH };
+    }, { sumA:0, sumB:0, finalH:0 });
+    csv += `"合計","","",${total.sumA},${total.sumB},,${total.finalH}\n`;
+    downloadCSV(csv, `洲美月結報表_${data.month}.csv`);
+  } else {
+    csv = '月份,經常費(A)合計,服務經費(B)合計,未付款(H)合計\n';
+    (data.history || []).forEach(snap => {
+      const total = (snap.members||[]).reduce((acc, m) => {
+        const f = calcFees(m);
+        return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, finalH: acc.finalH+f.finalH };
+      }, { sumA:0, sumB:0, finalH:0 });
+      csv += `"${snap.month}",${total.sumA},${total.sumB},${total.finalH}\n`;
+    });
+    downloadCSV(csv, `洲美年度報表_${data.year}年.csv`);
+  }
+}
+
+function downloadCSV(csv, filename) {
+  // 加 BOM 讓 Excel 正確顯示中文
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
 function exportData() {
   const blob = new Blob([JSON.stringify({ members, settings }, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
