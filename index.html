@@ -265,6 +265,22 @@
     </div>
 
     <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">📌 每月固定費用預設</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">結轉時自動套用到所有社友，不需每月重新輸入</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">月費 (經常費A) 預設金額</label>
+          <input class="inp mono" type="number" id="cfg-default-monthly" placeholder="0" style="font-size:18px;font-weight:700">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">固定分攤費 (服務費B) 預設金額</label>
+          <input class="inp mono" type="number" id="cfg-default-split" placeholder="0" style="font-size:18px;font-weight:700">
+        </div>
+      </div>
+      <p style="font-size:11px;color:#f59e0b;margin-top:12px;font-weight:700">⚡ 結轉後，下個月所有社友會自動套用這個金額。若個別社友金額不同，結轉後再個別修改即可。</p>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">自訂費用科目</h3>
       <p style="font-size:12px;color:#888;margin-bottom:16px">新增帳務錄入時的下拉選項</p>
       <div style="display:flex;gap:12px;margin-bottom:16px">
@@ -499,6 +515,8 @@ function render() {
   document.getElementById('cfg-contact-name').value = settings.financialContact?.name || '';
   document.getElementById('cfg-contact-phone').value = settings.financialContact?.phone || '';
   document.getElementById('cfg-month').value = settings.currentMonth || '';
+  document.getElementById('cfg-default-monthly').value = settings.defaultMonthly || 0;
+  document.getElementById('cfg-default-split').value = settings.defaultSplit || 0;
 }
 
 function renderMemberSelect() {
@@ -591,7 +609,7 @@ function updateItemOptions() {
   if (cat === 'advance_pay') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
   } else if (cat === 'receipt') {
-    wrap.innerHTML = '<select class="inp" id="qi-item"><option value="already_paid">本期已收款</option></select>';
+    wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
   } else {
     const items = settings.feeStructure[cat]?.items || {};
     wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
@@ -631,7 +649,7 @@ async function submitQuickInput() {
     else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
     else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
     else if (cat === 'advance_pay') { entry.desc = item; m.variable.advance_pay_list.push(entry); }
-    else if (cat === 'receipt') { m.variable.receipt_list.push(entry); }
+    else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
   });
 
   await pushToCloud('saveMembers', { members });
@@ -639,6 +657,24 @@ async function submitQuickInput() {
   document.getElementById('qi-amount').value = '';
 }
 
+
+// ══════════════════════════════════════════
+// 刪除明細項目
+// ══════════════════════════════════════════
+async function deleteEntry(mId, listKey, entryId) {
+  if (!confirm('確定刪除此筆明細？')) return;
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+  if (listKey === 'fixedA_monthly') { m.fixedA = m.fixedA || {}; m.fixedA.monthly = 0; }
+  else if (listKey === 'fixedB_monthly_split') { m.fixedB = m.fixedB || {}; m.fixedB.monthly_split = 0; }
+  else { m.variable[listKey] = (m.variable[listKey] || []).filter(i => i.id !== entryId); }
+  await pushToCloud('saveMember', { member: m });
+  render();
+  // 如果帳單預覽是開著的，重新渲染
+  if (currentBillMemberId === mId) {
+    document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
+  }
+}
 // ══════════════════════════════════════════
 // 帳單
 // ══════════════════════════════════════════
@@ -648,16 +684,21 @@ function buildBillHTML(m) {
   const fs = settings.feeStructure;
   let rows = '';
   Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
-    if (v(m.fixedA?.[k]) > 0) rows += `<div class="bill-row"><span>[經常費] ${label}</span><span class="mono">$${v(m.fixedA[k]).toLocaleString()}</span></div>`;
+    if (v(m.fixedA?.[k]) > 0) rows += `<div class="bill-row"><span>[經常費] ${label}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedA[k]).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_monthly','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
   });
-  (m.variable?.fixedA_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[經常費] ${i.desc}</span><span class="mono">$${v(i.amount).toLocaleString()}</span></div>`; });
-  (m.variable?.advance_pay_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[代付款] ${i.desc}</span><span class="mono">$${v(i.amount).toLocaleString()}</span></div>`; });
+  (m.variable?.fixedA_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[經常費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
+  (m.variable?.advance_pay_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[代付款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','advance_pay_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
   rows += `<div class="bill-sub"><span>(A) 經常費小計</span><span class="mono">$${f.sumA.toLocaleString()}</span></div>`;
-  if (v(m.fixedB?.monthly_split) > 0) rows += `<div class="bill-row"><span>[服務費] 固定分攤費</span><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span></div>`;
-  (m.variable?.service_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[服務費] ${i.desc}</span><span class="mono">$${v(i.amount).toLocaleString()}</span></div>`; });
+  if (v(m.fixedB?.monthly_split) > 0) rows += `<div class="bill-row"><span>[服務費] 固定分攤費</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedB_monthly_split','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+  (m.variable?.service_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[服務費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','service_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
   rows += `<div class="bill-sub"><span>(B) 服務費小計</span><span class="mono">$${f.sumB.toLocaleString()}</span></div>`;
   if (v(m.accounting?.previous_due) !== 0) rows += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
-  (m.variable?.receipt_list||[]).forEach(i => { rows += `<div class="bill-row" style="color:#16a34a"><span>[收款錄入] ${i.desc||'本期收款'}</span><span class="mono">-$${v(i.amount).toLocaleString()}</span></div>`; });
+  (m.variable?.receipt_list||[]).forEach(i => {
+    const isCard = i.type === 'receipt_card';
+    const label = isCard ? '信用卡收款' : '匯款收款';
+    const color = isCard ? '#7c3aed' : '#16a34a';
+    rows += `<div class="bill-row" style="color:${color}"><span>[${label}]</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">-$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','receipt_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+  });
 
   return `<div class="bill-wrap" id="bill-render-${m.id}">
     <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid var(--navy)">
@@ -819,6 +860,8 @@ async function saveSettings() {
     phone: document.getElementById('cfg-contact-phone').value
   };
   settings.currentMonth = document.getElementById('cfg-month').value;
+  settings.defaultMonthly = Number(document.getElementById('cfg-default-monthly').value) || 0;
+  settings.defaultSplit = Number(document.getElementById('cfg-default-split').value) || 0;
   await pushToCloud('saveSettings', { settings });
   render();
   alert('✅ 設定已儲存');
@@ -854,8 +897,9 @@ async function executeCarryOver() {
     const { finalH } = calcFees(m);
     m.accounting = { previous_due: finalH, already_paid: 0, credit_card: 0 };
     m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] };
-    m.fixedA = {};
-    m.fixedB = { monthly_split: 0 };
+    // 自動套用固定費用預設
+    m.fixedA = settings.defaultMonthly ? { monthly: settings.defaultMonthly } : {};
+    m.fixedB = { monthly_split: settings.defaultSplit || 0 };
   });
   const nums = (settings.currentMonth || '').match(/\d+/g);
   if (nums?.length >= 2) {
