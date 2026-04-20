@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>洲美扶輪社 — 帳務管理系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --navy: #002147;
+    --navy-mid: #003366;
+    --gold: #C9A84C;
+    --gold-light: #f0d080;
+    --cream: #faf7f2;
+    --ink: #1a1a2e;
+  }
+  * { font-family: 'Noto Sans TC', sans-serif; }
+  body { background: var(--cream); color: var(--ink); min-height: 100vh; }
+  .mono { font-family: 'DM Mono', monospace; }
+
+  /* API 設定提示橫幅 */
+  #api-banner { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+
+  /* 側欄 */
+  #sidebar { background: var(--navy); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100; }
+  #main-content { margin-left: 240px; }
+
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 12px; cursor: pointer; color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 700; transition: all 0.2s; margin: 2px 12px; }
+  .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+  .nav-item.active { background: var(--gold); color: var(--navy); }
+  .nav-icon { width: 18px; height: 18px; opacity: 0.8; }
+
+  /* 卡片 */
+  .card { background: white; border-radius: 20px; border: 1px solid #e8e4da; box-shadow: 0 2px 12px rgba(0,33,71,0.06); }
+
+  /* 按鈕 */
+  .btn-primary { background: var(--navy-mid); color: white; padding: 10px 24px; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary:hover { background: var(--navy); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-gold { background: var(--gold); color: var(--navy); padding: 10px 24px; border-radius: 12px; font-weight: 900; font-size: 13px; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .btn-danger:hover { background: #fee2e2; }
+
+  /* 輸入框 */
+  .inp { width: 100%; padding: 10px 14px; border: 1.5px solid #e2ddd4; border-radius: 12px; font-size: 14px; font-weight: 500; outline: none; background: #faf8f4; transition: border-color 0.2s; }
+  .inp:focus { border-color: var(--navy-mid); background: white; }
+  select.inp { cursor: pointer; }
+
+  /* 帳單樣式 */
+  .bill-wrap { background: white; width: 620px; margin: 0 auto; padding: 40px; border-radius: 24px; }
+  .bill-head { background: var(--navy); color: white; padding: 14px 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; }
+  .bill-row { display: flex; justify-content: space-between; padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #f5f2ec; }
+  .bill-sub { background: #eef4ff; padding: 8px 20px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; color: var(--navy-mid); }
+  .bill-total { background: var(--navy); color: var(--gold); display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-radius: 0 0 12px 12px; margin-top: 4px; }
+
+  /* 狀態標籤 */
+  .badge-due { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 900; }
+  .badge-ok  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 900; }
+
+  /* 同步提示 */
+  .sync-toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; background: var(--navy); color: #4ade80; padding: 10px 20px; border-radius: 99px; font-size: 12px; font-weight: 900; box-shadow: 0 8px 30px rgba(0,33,71,0.25); display: none; }
+  .sync-toast.show { display: flex; align-items: center; gap: 8px; }
+
+  /* 彈窗 */
+  .overlay { position: fixed; inset: 0; background: rgba(0,33,71,0.7); backdrop-filter: blur(8px); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .overlay.show { display: flex; }
+  .modal { background: white; border-radius: 28px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 40px 80px rgba(0,33,71,0.3); }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  thead th { background: #f5f2ec; padding: 12px 16px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #6b6358; }
+  thead th:first-child { border-radius: 12px 0 0 0; }
+  thead th:last-child { border-radius: 0 12px 0 0; }
+  tbody tr { transition: background 0.15s; }
+  tbody tr:hover { background: #faf8f4; }
+  tbody td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid #f0ece4; }
+
+  /* 月份標籤 */
+  .month-badge { background: rgba(201,168,76,0.15); border: 1.5px solid var(--gold); color: var(--navy); padding: 5px 16px; border-radius: 99px; font-size: 12px; font-weight: 900; mono; }
+
+  @media print {
+    #sidebar, .no-print, #api-banner { display: none !important; }
+    #main-content { margin-left: 0 !important; }
+    .bill-wrap { width: 100%; box-shadow: none; padding: 20px; }
+  }
+  @media (max-width: 768px) {
+    #sidebar { display: none; }
+    #main-content { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- API 設定提示 -->
+<div id="api-banner" class="hidden text-white text-center py-3 px-4 text-sm font-bold" style="font-family:'Noto Sans TC',sans-serif">
+  ⚠️ 尚未設定 Google Apps Script API 網址，請前往「系統設定」填入後儲存。目前為離線展示模式。
+</div>
+
+<!-- 側欄 -->
+<div id="sidebar">
+  <div style="padding:28px 20px 20px">
+    <div style="color:var(--gold);font-size:11px;font-weight:900;letter-spacing:0.15em;margin-bottom:4px">CHOU MEI ROTARY</div>
+    <div style="color:white;font-size:18px;font-weight:900;line-height:1.2">洲美扶輪社<br>帳務系統</div>
+  </div>
+  <div style="padding:0 12px;margin-bottom:8px">
+    <div id="month-display" class="month-badge" style="display:inline-block;margin-left:8px">載入中...</div>
+  </div>
+  <div style="height:1px;background:rgba(255,255,255,0.08);margin:12px 20px"></div>
+  <nav>
+    <div class="nav-item active" onclick="switchTab('accounting')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      帳務錄入
+    </div>
+    <div class="nav-item" onclick="switchTab('members')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      社友主檔
+    </div>
+    <div class="nav-item" onclick="switchTab('bills')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      帳單管理
+    </div>
+    <div class="nav-item" onclick="switchTab('settings')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      系統設定
+    </div>
+  </nav>
+  <div style="position:absolute;bottom:24px;left:0;right:0;padding:0 20px">
+    <button onclick="triggerCarryOver()" class="btn-gold w-full" style="width:calc(100% - 0px)">⇒ 啟動月份結轉</button>
+  </div>
+</div>
+
+<!-- 主內容 -->
+<div id="main-content" style="padding:32px">
+
+  <!-- 帳務錄入 -->
+  <div id="tab-accounting" class="tab-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <h1 style="font-size:24px;font-weight:900;color:var(--navy)">帳務錄入</h1>
+        <p style="font-size:13px;color:#888;margin-top:2px">快速新增各類費用項目</p>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="all-members-toggle" onchange="toggleAllMembers()" style="width:16px;height:16px;accent-color:var(--navy-mid)">
+        <span style="font-size:12px;font-weight:700;color:#555">全體同步模式</span>
+      </label>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 1fr auto;gap:12px;align-items:end">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">指定社友</label>
+          <select class="inp" id="qi-member">
+            <option value="">-- 選擇社友 --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">費用類別</label>
+          <select class="inp" id="qi-category" onchange="updateItemOptions()">
+            <option value="fixedA">經常費 (A)</option>
+            <option value="fixedB">服務費 (B)</option>
+            <option value="advance_pay">代付款 (C)</option>
+            <option value="receipt">收款錄入</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">項目說明</label>
+          <div id="qi-item-wrap">
+            <select class="inp" id="qi-item"></select>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">金額 (NTD)</label>
+          <input class="inp mono" type="number" id="qi-amount" placeholder="0" style="font-size:18px;font-weight:700">
+        </div>
+        <button onclick="submitQuickInput()" class="btn-primary" style="height:44px;white-space:nowrap">錄入雲端</button>
+      </div>
+    </div>
+
+    <div class="card" style="overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px;font-weight:700">社友帳務總覽</span>
+        <span id="member-count" style="font-size:12px;color:#888">0 位社友</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left">社友姓名</th>
+            <th style="text-align:center">經常費(A)</th>
+            <th style="text-align:center">服務費(B)</th>
+            <th style="text-align:center">前期餘額</th>
+            <th style="text-align:center">本期未付款</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody id="members-table-body">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:#bbb">載入中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 社友主檔 -->
+  <div id="tab-members" class="tab-panel" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <h1 style="font-size:24px;font-weight:900;color:var(--navy)">社友主檔</h1>
+        <p style="font-size:13px;color:#888;margin-top:2px">管理社友基本資料</p>
+      </div>
+      <button onclick="openMemberModal(null)" class="btn-primary">+ 新增社友</button>
+    </div>
+    <div id="members-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+  </div>
+
+  <!-- 帳單管理 -->
+  <div id="tab-bills" class="tab-panel" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <h1 style="font-size:24px;font-weight:900;color:var(--navy)">帳單管理</h1>
+        <p style="font-size:13px;color:#888;margin-top:2px">預覽、下載、分享帳單</p>
+      </div>
+      <button onclick="exportAllBills()" class="btn-gold">📦 批次匯出全體 ZIP</button>
+    </div>
+    <div id="bills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+  </div>
+
+  <!-- 系統設定 -->
+  <div id="tab-settings" class="tab-panel" style="display:none">
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:24px;font-weight:900;color:var(--navy)">系統設定</h1>
+      <p style="font-size:13px;color:#888;margin-top:2px">API 連線與全域配置</p>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">🔌 Google Apps Script API 網址</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">部署 Code.gs 後，將「網頁應用程式」的 URL 貼到這裡</p>
+      <div style="display:flex;gap:12px">
+        <input class="inp" type="url" id="api-url-input" placeholder="https://script.google.com/macros/s/..." style="flex:1">
+        <button onclick="saveApiUrl()" class="btn-primary">儲存連線</button>
+        <button onclick="testApi()" style="background:#f5f2ec;color:var(--navy);padding:10px 20px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;border:none">測試連線</button>
+      </div>
+      <div id="api-status" style="margin-top:12px;font-size:12px;color:#888"></div>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:16px;color:var(--navy)">全域配置</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">財務負責人</label>
+          <input class="inp" type="text" id="cfg-contact-name">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">聯絡電話</label>
+          <input class="inp" type="text" id="cfg-contact-phone">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">對帳月份</label>
+          <input class="inp" type="text" id="cfg-month">
+        </div>
+      </div>
+      <button onclick="saveSettings()" class="btn-primary">儲存設定</button>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">自訂費用科目</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">新增帳務錄入時的下拉選項</p>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <select class="inp" id="new-sub-cat" style="flex:0 0 160px">
+          <option value="fixedA">經常費 (A)</option>
+          <option value="fixedB">服務費 (B)</option>
+        </select>
+        <input class="inp" type="text" id="new-sub-label" placeholder="輸入科目名稱" style="flex:1">
+        <button onclick="addSubject()" class="btn-primary">+ 新增</button>
+      </div>
+      <div id="subjects-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+
+    <div class="card" style="padding:28px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:16px;color:var(--navy)">資料備份與還原</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="background:#f5f2ec;padding:20px;border-radius:16px">
+          <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px">下載備份</div>
+          <p style="font-size:11px;color:#888;margin-bottom:12px">將目前資料下載為 JSON 備份檔</p>
+          <button onclick="exportData()" style="background:var(--navy-mid);color:white;padding:10px 20px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;border:none;width:100%">下載備份 JSON</button>
+        </div>
+        <div style="background:#1a1a2e;padding:20px;border-radius:16px">
+          <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">還原備份</div>
+          <p style="font-size:11px;color:#555;margin-bottom:12px">從 JSON 檔案覆蓋還原資料</p>
+          <input type="file" accept=".json" onchange="importData(event)" style="font-size:11px;color:#aaa;width:100%">
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 同步提示 -->
+<div class="sync-toast" id="sync-toast">
+  <div style="width:8px;height:8px;background:#4ade80;border-radius:50%;animation:pulse 1s infinite"></div>
+  <span id="sync-msg">同步中...</span>
+</div>
+
+<!-- 帳單預覽彈窗 -->
+<div class="overlay" id="bill-overlay">
+  <div class="modal" style="max-width:700px">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:20px;font-weight:900;color:var(--navy)">帳單預覽</h2>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button onclick="copyShareLink()" style="background:#f5f2ec;border:none;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy)">🔗 複製分享連結</button>
+        <button onclick="downloadBillImage()" class="btn-primary" style="font-size:12px">↓ 下載 PNG</button>
+        <button onclick="closeBillOverlay()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+      </div>
+    </div>
+    <div style="padding:28px;background:#f5f2ec;overflow-y:auto;max-height:75vh">
+      <div id="bill-preview-container"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 社友編輯彈窗 -->
+<div class="overlay" id="member-overlay">
+  <div class="modal">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)" id="member-modal-title">編輯社友</h2>
+      <button onclick="closeMemberModal()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:28px;display:grid;gap:16px">
+      <input type="hidden" id="edit-member-id">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">姓名</label>
+        <input class="inp" type="text" id="edit-name" placeholder="社友姓名">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">暱稱</label>
+        <input class="inp" type="text" id="edit-nickname" placeholder="暱稱 / 英文名">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:rgb(234,88,12);display:block;margin-bottom:6px">前期未付款 (E)</label>
+        <input class="inp mono" type="number" id="edit-prev-due" value="0" style="font-size:20px;font-weight:700">
+      </div>
+      <div style="display:flex;gap:12px;padding-top:8px">
+        <button onclick="saveMemberModal()" class="btn-primary" style="flex:1;padding:14px">儲存</button>
+        <button onclick="closeMemberModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 結轉確認彈窗 -->
+<div class="overlay" id="carry-overlay">
+  <div class="modal" style="max-width:420px;text-align:center">
+    <div style="padding:40px 32px">
+      <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+      <h2 style="font-size:22px;font-weight:900;color:var(--navy);margin-bottom:12px">啟動月份結轉？</h2>
+      <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:16px;margin:16px 0;text-align:left">
+        <p style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px">此操作將執行：</p>
+        <p style="font-size:12px;color:#555;line-height:1.8">① 全體本期未付款結轉為「前期餘額」<br>② 清空所有變動明細<br>③ 月份自動推進 1 個月</p>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button onclick="closeCarryOverlay()" style="flex:1;padding:14px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+        <button onclick="executeCarryOver()" class="btn-gold" style="flex:1;padding:14px">確定結轉</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .tab-panel { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+</style>
+
+<script>
+// ══════════════════════════════════════════
+// 核心資料與狀態
+// ══════════════════════════════════════════
+let API_URL = localStorage.getItem('choumei_api_url') || '';
+let members = JSON.parse(localStorage.getItem('choumei_members') || '[]');
+let settings = JSON.parse(localStorage.getItem('choumei_settings') || 'null') || {
+  currentMonth: "114年02月",
+  financialContact: { name: "Joey Ku", phone: "0921-111565" },
+  feeStructure: {
+    fixedA: { items: { monthly: "月費" } },
+    fixedB: { items: { monthly_split: "服務費分攤" } }
+  }
+};
+let currentBillMemberId = null;
+
+// ── 初始化 ──
+window.onload = async () => {
+  document.getElementById('api-url-input').value = API_URL;
+  if (!API_URL) {
+    document.getElementById('api-banner').classList.remove('hidden');
+  } else {
+    await loadFromCloud();
+  }
+  render();
+};
+
+// ══════════════════════════════════════════
+// API 通訊
+// ══════════════════════════════════════════
+async function callApi(data) {
+  if (!API_URL) throw new Error('API 網址未設定');
+  // 用 GET + URL 參數方式呼叫，避免 CORS 問題
+  const payload = encodeURIComponent(JSON.stringify(data));
+  const url = API_URL + '?action=' + (data.action || 'getAll') + '&payload=' + payload;
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function loadFromCloud() {
+  try {
+    showSync('從雲端載入...');
+    const r = await callApi({ action: 'getAll' });
+    if (r.ok) {
+      members = r.members || members;
+      if (r.settings) settings = r.settings;
+      saveLocal();
+    }
+    hideSync();
+  } catch(e) {
+    hideSync();
+    console.log('離線模式:', e.message);
+  }
+}
+
+async function pushToCloud(action, data) {
+  if (!API_URL) { saveLocal(); return; }
+  try {
+    showSync('同步至雲端...');
+    const r = await callApi({ action, ...data });
+    if (!r.ok) throw new Error(r.error);
+    saveLocal();
+    hideSync();
+    return r;
+  } catch(e) {
+    hideSync();
+    alert('雲端同步失敗：' + e.message + '\n資料已暫存在本機。');
+  }
+}
+
+function saveLocal() {
+  localStorage.setItem('choumei_members', JSON.stringify(members));
+  localStorage.setItem('choumei_settings', JSON.stringify(settings));
+}
+
+// ══════════════════════════════════════════
+// 核心計算
+// ══════════════════════════════════════════
+function calcFees(m) {
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  const sumA = v(m?.fixedA?.monthly)
+    + (m?.variable?.fixedA_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (m?.variable?.advance_pay_list || []).reduce((a,i) => a + v(i.amount), 0);
+  const sumB = v(m?.fixedB?.monthly_split)
+    + (m?.variable?.service_list || []).reduce((a,i) => a + v(i.amount), 0);
+  const sumF = (m?.variable?.receipt_list || []).reduce((a,i) => a + v(i.amount), 0);
+  const sumG = (m?.variable?.credit_card_list || []).reduce((a,i) => a + v(i.amount), 0) + v(m?.accounting?.credit_card);
+  const H = (sumA + sumB) + v(m?.accounting?.previous_due) - sumF - sumG;
+  return { sumA, sumB, finalH: H };
+}
+
+// ══════════════════════════════════════════
+// 渲染
+// ══════════════════════════════════════════
+function render() {
+  document.getElementById('month-display').textContent = settings.currentMonth;
+  renderMemberSelect();
+  renderMembersTable();
+  renderMembersGrid();
+  renderBillsGrid();
+  renderSubjects();
+  updateItemOptions();
+  // 設定頁
+  document.getElementById('cfg-contact-name').value = settings.financialContact?.name || '';
+  document.getElementById('cfg-contact-phone').value = settings.financialContact?.phone || '';
+  document.getElementById('cfg-month').value = settings.currentMonth || '';
+}
+
+function renderMemberSelect() {
+  const sel = document.getElementById('qi-member');
+  const sorted = [...members].sort((a,b) => a.name.localeCompare(b.name, 'zh-TW'));
+  sel.innerHTML = '<option value="">-- 選擇社友 --</option>' +
+    sorted.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+}
+
+function renderMembersTable() {
+  const sorted = [...members].sort((a,b) => a.name.localeCompare(b.name, 'zh-TW'));
+  document.getElementById('member-count').textContent = sorted.length + ' 位社友';
+  const fs = settings.feeStructure;
+  document.getElementById('members-table-body').innerHTML = sorted.map(m => {
+    const f = calcFees(m);
+    const due = f.finalH;
+    const badge = due > 0
+      ? `<span class="badge-due">$${due.toLocaleString()}</span>`
+      : `<span class="badge-ok">$${due.toLocaleString()}</span>`;
+    return `<tr>
+      <td><div style="font-weight:700">${m.name}</div><div style="font-size:11px;color:#bbb">${m.nickname || ''}</div></td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">$${f.sumA.toLocaleString()}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">$${f.sumB.toLocaleString()}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#888">$${Number(m.accounting?.previous_due||0).toLocaleString()}</td>
+      <td style="text-align:center">${badge}</td>
+      <td style="text-align:right">
+        <button onclick="openBill('${m.id}')" class="btn-primary" style="font-size:11px;padding:6px 16px">查看帳單</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:40px;color:#bbb">尚無社友資料</td></tr>';
+}
+
+function renderMembersGrid() {
+  document.getElementById('members-grid').innerHTML = [...members]
+    .sort((a,b) => a.name.localeCompare(b.name,'zh-TW'))
+    .map(m => `
+    <div class="card" style="padding:20px;position:relative">
+      <div style="font-size:22px;font-weight:900;color:var(--navy)">${m.name}</div>
+      <div style="font-size:11px;color:#bbb;margin-bottom:16px">${m.nickname || ''} · ${m.id}</div>
+      <div style="background:#f5f2ec;padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:#888">前期未付款</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--navy)">${Number(m.accounting?.previous_due||0).toLocaleString()}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="openMemberModal('${m.id}')" class="btn-primary" style="flex:1;font-size:12px;padding:8px">編輯</button>
+        <button onclick="deleteMember('${m.id}')" class="btn-danger">刪除</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderBillsGrid() {
+  document.getElementById('bills-grid').innerHTML = [...members]
+    .sort((a,b) => a.name.localeCompare(b.name,'zh-TW'))
+    .map(m => {
+      const f = calcFees(m);
+      const shareUrl = `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,''  )}/view.html?id=${m.id}`;
+      return `<div class="card" style="padding:20px">
+        <div style="font-size:18px;font-weight:900;color:var(--navy);margin-bottom:4px">${m.name}</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">${settings.currentMonth}</div>
+        <div style="background:${f.finalH>0?'#fef2f2':'#f0fdf4'};padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;margin-bottom:16px">
+          <span style="font-size:12px;color:#888">本期未付款</span>
+          <span style="font-family:'DM Mono',monospace;font-weight:900;font-size:18px;color:${f.finalH>0?'#dc2626':'#16a34a'}">${f.finalH.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="openBill('${m.id}')" class="btn-primary" style="flex:1;font-size:12px;padding:8px">預覽帳單</button>
+          <button onclick="copyText('${shareUrl}')" style="background:#f5f2ec;border:none;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">🔗 分享</button>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function renderSubjects() {
+  const fs = settings.feeStructure;
+  const all = [
+    ...Object.entries(fs.fixedA?.items||{}).map(([k,l]) => ({k,l,cat:'fixedA',label:'A'})),
+    ...Object.entries(fs.fixedB?.items||{}).map(([k,l]) => ({k,l,cat:'fixedB',label:'B'}))
+  ];
+  document.getElementById('subjects-list').innerHTML = all.map(s =>
+    `<div style="background:#f5f2ec;padding:6px 14px;border-radius:99px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px">
+      <span style="background:var(--navy);color:white;padding:1px 6px;border-radius:4px;font-size:10px">${s.label}</span>
+      ${s.l}
+      <button onclick="removeSubject('${s.cat}','${s.k}')" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:14px">×</button>
+    </div>`
+  ).join('');
+}
+
+function updateItemOptions() {
+  const cat = document.getElementById('qi-category').value;
+  const wrap = document.getElementById('qi-item-wrap');
+  if (cat === 'advance_pay') {
+    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
+  } else if (cat === 'receipt') {
+    wrap.innerHTML = '<select class="inp" id="qi-item"><option value="already_paid">本期已收款</option></select>';
+  } else {
+    const items = settings.feeStructure[cat]?.items || {};
+    wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// 帳務錄入
+// ══════════════════════════════════════════
+let allMembersMode = false;
+function toggleAllMembers() {
+  allMembersMode = document.getElementById('all-members-toggle').checked;
+  document.getElementById('qi-member').disabled = allMembersMode;
+}
+
+async function submitQuickInput() {
+  const cat = document.getElementById('qi-category').value;
+  const item = document.getElementById('qi-item').value;
+  const amount = Number(document.getElementById('qi-amount').value);
+  const memberId = document.getElementById('qi-member').value;
+  if (isNaN(amount)) return alert('請輸入正確金額');
+  if (!allMembersMode && !memberId) return alert('請選擇社友');
+
+  const targetIds = allMembersMode ? members.map(m=>m.id) : [memberId];
+
+  targetIds.forEach(mId => {
+    const m = members.find(x => x.id === mId);
+    if (!m) return;
+    if (!m.variable) m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] };
+    if (!m.accounting) m.accounting = {};
+
+    const label = settings.feeStructure[cat]?.items?.[item] || item || '項目';
+    const entry = { id: 'T' + Date.now() + Math.random().toString(36).substr(2,4), desc: label, amount };
+
+    if (cat === 'fixedA' && item === 'monthly') { m.fixedA = m.fixedA||{}; m.fixedA.monthly = amount; }
+    else if (cat === 'fixedB' && item === 'monthly_split') { m.fixedB = m.fixedB||{}; m.fixedB.monthly_split = amount; }
+    else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
+    else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
+    else if (cat === 'advance_pay') { entry.desc = item; m.variable.advance_pay_list.push(entry); }
+    else if (cat === 'receipt') { m.variable.receipt_list.push(entry); }
+  });
+
+  await pushToCloud('saveMembers', { members });
+  render();
+  document.getElementById('qi-amount').value = '';
+}
+
+// ══════════════════════════════════════════
+// 帳單
+// ══════════════════════════════════════════
+function buildBillHTML(m) {
+  const f = calcFees(m);
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  const fs = settings.feeStructure;
+  let rows = '';
+  Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
+    if (v(m.fixedA?.[k]) > 0) rows += `<div class="bill-row"><span>[經常費] ${label}</span><span class="mono">$${v(m.fixedA[k]).toLocaleString()}</span></div>`;
+  });
+  (m.variable?.fixedA_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[經常費] ${i.desc}</span><span class="mono">$${v(i.amount).toLocaleString()}</span></div>`; });
+  (m.variable?.advance_pay_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[代付款] ${i.desc}</span><span class="mono">$${v(i.amount).toLocaleString()}</span></div>`; });
+  rows += `<div class="bill-sub"><span>(A) 經常費小計</span><span class="mono">$${f.sumA.toLocaleString()}</span></div>`;
+  if (v(m.fixedB?.monthly_split) > 0) rows += `<div class="bill-row"><span>[服務費] 固定分攤費</span><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span></div>`;
+  (m.variable?.service_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[服務費] ${i.desc}</span><span class="mono">$${v(i.amount).toLocaleString()}</span></div>`; });
+  rows += `<div class="bill-sub"><span>(B) 服務費小計</span><span class="mono">$${f.sumB.toLocaleString()}</span></div>`;
+  if (v(m.accounting?.previous_due) !== 0) rows += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
+  (m.variable?.receipt_list||[]).forEach(i => { rows += `<div class="bill-row" style="color:#16a34a"><span>[收款錄入] ${i.desc||'本期收款'}</span><span class="mono">-$${v(i.amount).toLocaleString()}</span></div>`; });
+
+  return `<div class="bill-wrap" id="bill-render-${m.id}">
+    <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid var(--navy)">
+      <div style="color:var(--navy);font-size:20px;font-weight:900;letter-spacing:0.1em">${settings.currentMonth} 會費對帳單</div>
+      <div style="font-size:12px;color:#888;margin-top:4px">社團法人臺北市洲美扶輪社</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#f5f2ec;padding:16px 20px;border-radius:14px;margin-bottom:20px">
+      <div>
+        <div style="font-size:24px;font-weight:900">${m.name}</div>
+        <div style="font-size:12px;color:#aaa">${m.nickname||''}</div>
+      </div>
+      <div style="background:var(--navy);color:white;padding:4px 14px;border-radius:99px;font-size:11px;font-weight:700">${m.id}</div>
+    </div>
+    <div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:12px">
+      <div class="bill-head"><span>項目說明</span><span>金額 (NTD)</span></div>
+      ${rows}
+    </div>
+    <div class="bill-total">
+      <div style="font-size:13px;font-weight:700;letter-spacing:0.05em">本期未付款合計 (H)</div>
+      <div class="mono" style="font-size:36px;font-weight:900">$${f.finalH.toLocaleString()}</div>
+    </div>
+    <div style="margin-top:16px;padding-top:16px;border-top:1.5px solid #f0ece4;font-size:11px;color:#888;display:flex;justify-content:space-between">
+      <span>匯款：國泰世華 (013) 201-03-500245-1 | 戶名：社團法人臺北市洲美扶輪社</span>
+    </div>
+    <div style="font-size:12px;color:var(--navy);font-weight:700;margin-top:4px">
+      財務聯絡：${settings.financialContact?.name} ${settings.financialContact?.phone}
+    </div>
+  </div>`;
+}
+
+function openBill(mId) {
+  currentBillMemberId = mId;
+  const m = members.find(x => x.id === mId);
+  document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
+  document.getElementById('bill-overlay').classList.add('show');
+}
+
+function closeBillOverlay() {
+  document.getElementById('bill-overlay').classList.remove('show');
+}
+
+async function downloadBillImage() {
+  const mId = currentBillMemberId;
+  const node = document.getElementById('bill-render-' + mId);
+  const m = members.find(x => x.id === mId);
+  const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
+  const link = document.createElement('a');
+  link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
+  link.href = dataUrl; link.click();
+}
+
+async function exportAllBills() {
+  showSync('產生全體帳單...');
+  const zip = new JSZip();
+  for (const m of members) {
+    // 建臨時 DOM
+    const tmp = document.createElement('div');
+    tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:680px';
+    tmp.innerHTML = buildBillHTML(m);
+    document.body.appendChild(tmp);
+    try {
+      const dataUrl = await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
+      const base64 = dataUrl.split(',')[1];
+      zip.file(`洲美帳單_${m.name}.png`, base64, { base64: true });
+    } catch(e) {}
+    document.body.removeChild(tmp);
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.download = `洲美全體帳單_${settings.currentMonth}.zip`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  hideSync();
+}
+
+function copyShareLink() {
+  const m = members.find(x => x.id === currentBillMemberId);
+  const base = location.href.replace('index.html','').replace(/\?.*$/,'');
+  const url = base + 'view.html?id=' + m.id + '&data=' + encodeURIComponent(JSON.stringify({ m, settings }));
+  navigator.clipboard.writeText(url).then(() => alert('✅ 分享連結已複製！\n對方用手機或電腦打開即可查看帳單。'));
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => alert('✅ 連結已複製'));
+}
+
+// ══════════════════════════════════════════
+// 社友管理
+// ══════════════════════════════════════════
+function openMemberModal(mId) {
+  document.getElementById('member-modal-title').textContent = mId ? '編輯社友' : '新增社友';
+  const m = mId ? members.find(x => x.id === mId) : null;
+  document.getElementById('edit-member-id').value = mId || ('M-' + Date.now());
+  document.getElementById('edit-name').value = m?.name || '';
+  document.getElementById('edit-nickname').value = m?.nickname || '';
+  document.getElementById('edit-prev-due').value = m?.accounting?.previous_due || 0;
+  document.getElementById('member-overlay').classList.add('show');
+}
+
+function closeMemberModal() {
+  document.getElementById('member-overlay').classList.remove('show');
+}
+
+async function saveMemberModal() {
+  const id = document.getElementById('edit-member-id').value;
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) return alert('請輸入姓名');
+  const existing = members.find(x => x.id === id);
+  const m = existing || {
+    id, name: '', nickname: '',
+    fixedA: {}, fixedB: { monthly_split: 0 },
+    variable: { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] },
+    accounting: { previous_due: 0 }
+  };
+  m.name = name;
+  m.nickname = document.getElementById('edit-nickname').value.trim();
+  m.accounting = { ...(m.accounting||{}), previous_due: Number(document.getElementById('edit-prev-due').value) };
+  if (!existing) members.push(m);
+  await pushToCloud('saveMember', { member: m });
+  closeMemberModal();
+  render();
+}
+
+async function deleteMember(mId) {
+  const m = members.find(x => x.id === mId);
+  if (!confirm(`確定刪除 ${m?.name}？`)) return;
+  members = members.filter(x => x.id !== mId);
+  await pushToCloud('deleteMember', { id: mId });
+  render();
+}
+
+// ══════════════════════════════════════════
+// 設定
+// ══════════════════════════════════════════
+function saveApiUrl() {
+  API_URL = document.getElementById('api-url-input').value.trim();
+  localStorage.setItem('choumei_api_url', API_URL);
+  document.getElementById('api-banner').classList.toggle('hidden', !!API_URL);
+  if (API_URL) loadFromCloud().then(render);
+  alert('API 網址已儲存！');
+}
+
+async function testApi() {
+  const url = document.getElementById('api-url-input').value.trim();
+  if (!url) return alert('請先輸入 API 網址');
+  document.getElementById('api-status').textContent = '測試中...';
+  try {
+    const r = await fetch(url + '?action=getAll');
+    const d = await r.json();
+    document.getElementById('api-status').textContent = d.ok ? '✅ 連線成功！' : '❌ 回應異常：' + d.error;
+  } catch(e) {
+    document.getElementById('api-status').textContent = '❌ 連線失敗：' + e.message;
+  }
+}
+
+async function saveSettings() {
+  settings.financialContact = {
+    name: document.getElementById('cfg-contact-name').value,
+    phone: document.getElementById('cfg-contact-phone').value
+  };
+  settings.currentMonth = document.getElementById('cfg-month').value;
+  await pushToCloud('saveSettings', { settings });
+  render();
+  alert('✅ 設定已儲存');
+}
+
+function addSubject() {
+  const cat = document.getElementById('new-sub-cat').value;
+  const label = document.getElementById('new-sub-label').value.trim();
+  if (!label) return;
+  settings.feeStructure[cat].items['sub_' + Date.now()] = label;
+  document.getElementById('new-sub-label').value = '';
+  renderSubjects();
+}
+
+function removeSubject(cat, key) {
+  delete settings.feeStructure[cat].items[key];
+  renderSubjects();
+}
+
+// ══════════════════════════════════════════
+// 結轉
+// ══════════════════════════════════════════
+function triggerCarryOver() {
+  document.getElementById('carry-overlay').classList.add('show');
+}
+function closeCarryOverlay() {
+  document.getElementById('carry-overlay').classList.remove('show');
+}
+
+async function executeCarryOver() {
+  showSync('執行結轉...');
+  members.forEach(m => {
+    const { finalH } = calcFees(m);
+    m.accounting = { previous_due: finalH, already_paid: 0, credit_card: 0 };
+    m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] };
+    m.fixedA = {};
+    m.fixedB = { monthly_split: 0 };
+  });
+  const nums = (settings.currentMonth || '').match(/\d+/g);
+  if (nums?.length >= 2) {
+    let y = parseInt(nums[0]), mo = parseInt(nums[1]) + 1;
+    if (mo > 12) { mo = 1; y++; }
+    settings.currentMonth = `${y}年${String(mo).padStart(2,'0')}月`;
+  }
+  await pushToCloud('saveMembers', { members });
+  await pushToCloud('saveSettings', { settings });
+  closeCarryOverlay();
+  render();
+  hideSync();
+  alert('✅ 月份結轉完成！');
+}
+
+// ══════════════════════════════════════════
+// 備份
+// ══════════════════════════════════════════
+function exportData() {
+  const blob = new Blob([JSON.stringify({ members, settings }, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.download = `洲美備份_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.json`;
+  link.href = URL.createObjectURL(blob); link.click();
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file || !confirm('確定還原？本機資料將被覆蓋！')) return;
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    try {
+      const data = JSON.parse(evt.target.result);
+      members = data.members || members;
+      settings = data.settings || settings;
+      await pushToCloud('saveMembers', { members });
+      await pushToCloud('saveSettings', { settings });
+      render();
+      alert('✅ 還原成功！');
+    } catch(e) { alert('匯入失敗：' + e.message); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════
+// UI 輔助
+// ══════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  event.currentTarget.classList.add('active');
+  if (tab === 'bills') renderBillsGrid();
+}
+
+function showSync(msg) {
+  const t = document.getElementById('sync-toast');
+  document.getElementById('sync-msg').textContent = msg;
+  t.classList.add('show');
+}
+function hideSync() {
+  setTimeout(() => document.getElementById('sync-toast').classList.remove('show'), 1000);
+}
+</script>
+</body>
+</html>
