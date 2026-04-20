@@ -447,7 +447,7 @@ async function pushToCloud(action, data) {
   if (!API_URL) { saveLocal(); return; }
   try {
     showSync('同步至雲端...');
-    const payload = JSON.stringify({ action, ...data });
+    const payload = JSON.stringify(data);
     const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload);
     const res = await fetch(url);
     const r = await res.json();
