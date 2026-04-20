@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>洲美扶輪社 — 帳單查看</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #002147;
+    --navy-mid: #003366;
+    --gold: #C9A84C;
+    --cream: #faf7f2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Noto Sans TC', sans-serif; }
+  body { background: var(--cream); min-height: 100vh; padding: 20px 16px 40px; }
+  .mono { font-family: 'DM Mono', monospace; }
+
+  .header { text-align: center; padding: 20px 0 28px; }
+  .header-badge { background: var(--navy); color: var(--gold); padding: 4px 16px; border-radius: 99px; font-size: 11px; font-weight: 900; letter-spacing: 0.15em; display: inline-block; margin-bottom: 10px; }
+  .header-title { font-size: 15px; color: #888; font-weight: 500; }
+
+  .bill-card { background: white; border-radius: 24px; max-width: 480px; margin: 0 auto; overflow: hidden; box-shadow: 0 8px 40px rgba(0,33,71,0.12); }
+
+  .bill-top { background: var(--navy); padding: 24px; color: white; }
+  .bill-month { font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 700; margin-bottom: 6px; letter-spacing: 0.05em; }
+  .bill-member-name { font-size: 28px; font-weight: 900; line-height: 1; }
+  .bill-member-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; }
+
+  .bill-body { padding: 0; }
+
+  .section-label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: #aaa; padding: 14px 20px 6px; }
+
+  .bill-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #f5f2ec; }
+  .bill-row-label { font-size: 13px; color: #444; }
+  .bill-row-amount { font-size: 14px; font-weight: 700; }
+  .bill-row.credit { color: #16a34a; }
+  .bill-row.credit .bill-row-amount::before { content: '−'; }
+
+  .subtotal { background: #eef4ff; padding: 10px 20px; display: flex; justify-content: space-between; }
+  .subtotal-label { font-size: 11px; font-weight: 900; color: var(--navy-mid); }
+  .subtotal-amount { font-size: 13px; font-weight: 900; color: var(--navy-mid); }
+
+  .total-box { background: var(--navy); padding: 24px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .total-label { font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 700; letter-spacing: 0.05em; }
+  .total-amount { font-size: 38px; font-weight: 900; color: var(--gold); line-height: 1; }
+
+  .bill-footer { padding: 16px 20px; }
+  .footer-row { font-size: 11px; color: #888; line-height: 1.8; }
+  .footer-contact { font-size: 13px; font-weight: 700; color: var(--navy); margin-top: 8px; }
+
+  .share-btn { display: block; max-width: 480px; margin: 20px auto 0; background: white; border: 1.5px solid #e8e4da; border-radius: 14px; padding: 14px; text-align: center; font-size: 13px; font-weight: 700; color: var(--navy); cursor: pointer; text-decoration: none; }
+  .share-btn:active { background: #f5f2ec; }
+
+  .error-box { max-width: 480px; margin: 60px auto; text-align: center; }
+  .error-icon { font-size: 48px; margin-bottom: 16px; }
+  .error-msg { font-size: 16px; font-weight: 700; color: #555; }
+
+  @media (max-width: 360px) {
+    .bill-member-name { font-size: 24px; }
+    .total-amount { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">CHOU MEI ROTARY</div>
+  <div class="header-title">洲美扶輪社 會費對帳單</div>
+</div>
+
+<div id="content">
+  <div class="error-box">
+    <div class="error-icon">🔄</div>
+    <div class="error-msg">載入中...</div>
+  </div>
+</div>
+
+<script>
+function getV(x) { return isNaN(Number(x)) ? 0 : Number(x); }
+
+function calcFees(m, fs) {
+  const sumA = getV(m?.fixedA?.monthly)
+    + (m?.variable?.fixedA_list||[]).reduce((a,i)=>a+getV(i.amount),0)
+    + (m?.variable?.advance_pay_list||[]).reduce((a,i)=>a+getV(i.amount),0);
+  const sumB = getV(m?.fixedB?.monthly_split)
+    + (m?.variable?.service_list||[]).reduce((a,i)=>a+getV(i.amount),0);
+  const sumF = (m?.variable?.receipt_list||[]).reduce((a,i)=>a+getV(i.amount),0);
+  const H = (sumA + sumB) + getV(m?.accounting?.previous_due) - sumF;
+  return { sumA, sumB, finalH: H };
+}
+
+function renderBill(m, settings) {
+  const f = calcFees(m, settings.feeStructure);
+  const fs = settings.feeStructure;
+  let rowsA = '', rowsB = '', rowsF = '';
+
+  Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
+    if (getV(m.fixedA?.[k]) > 0)
+      rowsA += `<div class="bill-row"><span class="bill-row-label">${label}</span><span class="bill-row-amount mono">$${getV(m.fixedA[k]).toLocaleString()}</span></div>`;
+  });
+  (m.variable?.fixedA_list||[]).forEach(i => {
+    rowsA += `<div class="bill-row"><span class="bill-row-label">[經常費] ${i.desc}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+  (m.variable?.advance_pay_list||[]).forEach(i => {
+    rowsA += `<div class="bill-row"><span class="bill-row-label">[代付款] ${i.desc}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+
+  if (getV(m.fixedB?.monthly_split) > 0)
+    rowsB += `<div class="bill-row"><span class="bill-row-label">固定分攤費</span><span class="bill-row-amount mono">$${getV(m.fixedB.monthly_split).toLocaleString()}</span></div>`;
+  (m.variable?.service_list||[]).forEach(i => {
+    rowsB += `<div class="bill-row"><span class="bill-row-label">${i.desc}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+
+  if (getV(m.accounting?.previous_due) !== 0)
+    rowsF += `<div class="bill-row"><span class="bill-row-label" style="color:#888">前期未付款</span><span class="bill-row-amount mono" style="color:#888">$${getV(m.accounting.previous_due).toLocaleString()}</span></div>`;
+  (m.variable?.receipt_list||[]).forEach(i => {
+    rowsF += `<div class="bill-row credit"><span class="bill-row-label">${i.desc||'本期收款'}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+
+  document.getElementById('content').innerHTML = `
+    <div class="bill-card">
+      <div class="bill-top">
+        <div class="bill-month">${settings.currentMonth} 會費對帳單</div>
+        <div class="bill-member-name">${m.name}</div>
+        <div class="bill-member-sub">${m.nickname ? m.nickname + ' · ' : ''}${m.id}</div>
+      </div>
+      <div class="bill-body">
+        ${rowsA ? `<div class="section-label">經常費 A</div>${rowsA}` : ''}
+        <div class="subtotal">
+          <span class="subtotal-label">(A) 經常費小計</span>
+          <span class="subtotal-amount mono">$${f.sumA.toLocaleString()}</span>
+        </div>
+        ${rowsB ? `<div class="section-label">服務費 B</div>${rowsB}` : ''}
+        <div class="subtotal">
+          <span class="subtotal-label">(B) 服務費小計</span>
+          <span class="subtotal-amount mono">$${f.sumB.toLocaleString()}</span>
+        </div>
+        ${rowsF ? `<div class="section-label">調整項目</div>${rowsF}` : ''}
+        <div class="total-box">
+          <div class="total-label">本期未付款合計 (H)</div>
+          <div class="total-amount mono">$${f.finalH.toLocaleString()}</div>
+        </div>
+        <div class="bill-footer">
+          <div class="footer-row">匯款：國泰世華 (013) 201-03-500245-1</div>
+          <div class="footer-row">戶名：社團法人臺北市洲美扶輪社</div>
+          <div class="footer-contact">財務聯絡：${settings.financialContact?.name} ${settings.financialContact?.phone}</div>
+        </div>
+      </div>
+    </div>
+    <button class="share-btn" onclick="shareThis()">📤 分享此帳單</button>
+  `;
+}
+
+function shareThis() {
+  if (navigator.share) {
+    navigator.share({ title: '洲美扶輪社帳單', url: location.href });
+  } else {
+    navigator.clipboard.writeText(location.href).then(() => alert('✅ 連結已複製'));
+  }
+}
+
+// 從 URL 參數讀取資料
+function init() {
+  const params = new URLSearchParams(location.search);
+
+  // 方式1：URL 直接帶資料（離線分享）
+  const rawData = params.get('data');
+  if (rawData) {
+    try {
+      const { m, settings } = JSON.parse(decodeURIComponent(rawData));
+      renderBill(m, settings);
+      return;
+    } catch(e) {}
+  }
+
+  // 方式2：從 API 讀取（需要 API_URL）
+  const memberId = params.get('id');
+  const apiUrl = localStorage.getItem('choumei_api_url');
+
+  if (memberId && apiUrl) {
+    fetch(apiUrl + '?action=getAll')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) throw new Error(data.error);
+        const m = data.members.find(x => x.id === memberId);
+        if (!m) throw new Error('找不到社友資料');
+        renderBill(m, data.settings);
+      })
+      .catch(err => {
+        document.getElementById('content').innerHTML = `
+          <div class="error-box">
+            <div class="error-icon">⚠️</div>
+            <div class="error-msg">無法載入帳單資料<br><small style="font-size:12px;color:#aaa;margin-top:8px;display:block">${err.message}</small></div>
+          </div>`;
+      });
+    return;
+  }
+
+  // 方式3：從本機 localStorage 讀取
+  if (memberId) {
+    const members = JSON.parse(localStorage.getItem('choumei_members')||'[]');
+    const settings = JSON.parse(localStorage.getItem('choumei_settings')||'null');
+    const m = members.find(x => x.id === memberId);
+    if (m && settings) { renderBill(m, settings); return; }
+  }
+
+  document.getElementById('content').innerHTML = `
+    <div class="error-box">
+      <div class="error-icon">🔍</div>
+      <div class="error-msg">找不到帳單資料<br><small style="font-size:12px;color:#aaa;margin-top:8px;display:block">請確認連結是否正確</small></div>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>
