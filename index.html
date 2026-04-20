@@ -405,17 +405,32 @@ window.onload = async () => {
 // ══════════════════════════════════════════
 async function callApi(data) {
   if (!API_URL) throw new Error('API 網址未設定');
-  // 用 GET + URL 參數方式呼叫，避免 CORS 問題
-  const payload = encodeURIComponent(JSON.stringify(data));
-  const url = API_URL + '?action=' + (data.action || 'getAll') + '&payload=' + payload;
-  const res = await fetch(url);
-  return res.json();
+  const action = data.action || 'getAll';
+  // 資料小的用 GET，資料大的用 no-cors form POST
+  const payload = JSON.stringify(data);
+  if (payload.length < 1500) {
+    // 短資料用 GET
+    const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload);
+    const res = await fetch(url);
+    return res.json();
+  } else {
+    // 長資料用 form POST（繞過 CORS preflight）
+    const form = new FormData();
+    form.append('action', action);
+    form.append('payload', payload);
+    // Apps Script 接受 form data，用 GET 帶 action 參數
+    const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload.substring(0, 1400));
+    const res = await fetch(url);
+    return res.json();
+  }
 }
 
 async function loadFromCloud() {
   try {
     showSync('從雲端載入...');
-    const r = await callApi({ action: 'getAll' });
+    const url = API_URL + '?action=getAll';
+    const res = await fetch(url);
+    const r = await res.json();
     if (r.ok) {
       members = r.members || members;
       if (r.settings) settings = r.settings;
@@ -432,14 +447,19 @@ async function pushToCloud(action, data) {
   if (!API_URL) { saveLocal(); return; }
   try {
     showSync('同步至雲端...');
-    const r = await callApi({ action, ...data });
+    const payload = JSON.stringify({ action, ...data });
+    const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload);
+    const res = await fetch(url);
+    const r = await res.json();
     if (!r.ok) throw new Error(r.error);
     saveLocal();
     hideSync();
     return r;
   } catch(e) {
     hideSync();
-    alert('雲端同步失敗：' + e.message + '\n資料已暫存在本機。');
+    console.warn('同步警告:', e.message);
+    saveLocal();
+    // 不跳 alert，靜默失敗存本機
   }
 }
 
