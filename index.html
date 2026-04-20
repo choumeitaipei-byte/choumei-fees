@@ -278,6 +278,8 @@
         </div>
       </div>
       <p style="font-size:11px;color:#f59e0b;margin-top:12px;font-weight:700">⚡ 結轉後，下個月所有社友會自動套用這個金額。若個別社友金額不同，結轉後再個別修改即可。</p>
+      <button onclick="saveDefaultFees()" class="btn-gold" style="margin-top:16px">💾 儲存固定費用預設</button>
+      <span id="default-fee-saved" style="font-size:12px;color:#16a34a;margin-left:12px;display:none">✅ 已儲存！</span>
     </div>
 
     <div class="card" style="padding:28px;margin-bottom:20px">
@@ -876,6 +878,15 @@ async function saveSettings() {
   await pushToCloud('saveSettings', { settings });
   render();
   alert('✅ 設定已儲存');
+}
+
+async function saveDefaultFees() {
+  settings.defaultMonthly = Number(document.getElementById('cfg-default-monthly').value) || 0;
+  settings.defaultSplit = Number(document.getElementById('cfg-default-split').value) || 0;
+  await pushToCloud('saveSettings', { settings });
+  const msg = document.getElementById('default-fee-saved');
+  msg.style.display = 'inline';
+  setTimeout(() => { msg.style.display = 'none'; }, 3000);
 }
 
 function addSubject() {
