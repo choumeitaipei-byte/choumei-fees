@@ -161,7 +161,7 @@
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">費用類別</label>
           <select class="inp" id="qi-category" onchange="updateItemOptions()">
             <option value="fixedA">經常費 (A)</option>
-            <option value="fixedB">服務費 (B)</option>
+            <option value="fixedB">服務經費 (B)</option>
             <option value="advance_pay">代付款 (C)</option>
             <option value="receipt">收款錄入</option>
           </select>
@@ -190,7 +190,7 @@
           <tr>
             <th style="text-align:left">社友姓名</th>
             <th style="text-align:center">經常費(A)</th>
-            <th style="text-align:center">服務費(B)</th>
+            <th style="text-align:center">服務經費(B)</th>
             <th style="text-align:center">前期餘額</th>
             <th style="text-align:center">本期未付款</th>
             <th style="text-align:right">操作</th>
@@ -286,7 +286,7 @@
       <div style="display:flex;gap:12px;margin-bottom:16px">
         <select class="inp" id="new-sub-cat" style="flex:0 0 160px">
           <option value="fixedA">經常費 (A)</option>
-          <option value="fixedB">服務費 (B)</option>
+          <option value="fixedB">服務經費 (B)</option>
         </select>
         <input class="inp" type="text" id="new-sub-label" placeholder="輸入科目名稱" style="flex:1">
         <button onclick="addSubject()" class="btn-primary">+ 新增</button>
@@ -400,7 +400,7 @@ let settings = JSON.parse(localStorage.getItem('choumei_settings') || 'null') ||
   financialContact: { name: "Joey Ku", phone: "0921-111565" },
   feeStructure: {
     fixedA: { items: { monthly: "月費" } },
-    fixedB: { items: { monthly_split: "服務費分攤" } }
+    fixedB: { items: { monthly_split: "服務經費分攤" } }
   }
 };
 let currentBillMemberId = null;
@@ -689,9 +689,9 @@ function buildBillHTML(m) {
   (m.variable?.fixedA_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[經常費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
   (m.variable?.advance_pay_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[代付款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','advance_pay_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
   rows += `<div class="bill-sub"><span>(A) 經常費小計</span><span class="mono">$${f.sumA.toLocaleString()}</span></div>`;
-  if (v(m.fixedB?.monthly_split) > 0) rows += `<div class="bill-row"><span>[服務費] 固定分攤費</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedB_monthly_split','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
-  (m.variable?.service_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[服務費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','service_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
-  rows += `<div class="bill-sub"><span>(B) 服務費小計</span><span class="mono">$${f.sumB.toLocaleString()}</span></div>`;
+  if (v(m.fixedB?.monthly_split) > 0) rows += `<div class="bill-row"><span>[服務經費] 固定分攤費</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedB_monthly_split','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+  (m.variable?.service_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[服務經費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','service_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
+  rows += `<div class="bill-sub"><span>(B) 服務經費小計</span><span class="mono">$${f.sumB.toLocaleString()}</span></div>`;
   if (v(m.accounting?.previous_due) !== 0) rows += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
   (m.variable?.receipt_list||[]).forEach(i => {
     const isCard = i.type === 'receipt_card';
