@@ -142,8 +142,18 @@ function renderBill(m, settings) {
           <div class="total-amount mono">$${f.finalH.toLocaleString()}</div>
         </div>
         <div class="bill-footer">
-          <div class="footer-row">匯款：國泰世華 (013) 201-03-500245-1</div>
-          <div class="footer-row">戶名：社團法人臺北市洲美扶輪社</div>
+          <p style="margin-bottom:6px;font-size:12px;color:#333">親愛的洲美扶輪社社友您好：</p>
+          <p style="margin-bottom:6px;font-size:12px;color:#333">您 <strong>${settings.currentMonth}</strong> 會費總計為 <strong style="color:#002147">NT $${f.finalH.toLocaleString()}</strong>，煩請核對，若有錯誤請於7天內告知。謝謝！</p>
+          <p style="font-size:11px;color:#555;margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因：＿＿＿＿＿＿＿＿</p>
+          <p style="font-size:11px;color:#555;margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿</p>
+          <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#444;line-height:1.8">
+            <strong style="color:#002147">※ 繳費方式</strong><br>
+            1.【信用卡】國泰世華（每月15日扣款）<br>
+            2.【匯　款】請來電 0972-701003 或Line告知卡號後五碼<br>
+            戶名：社團法人臺北市洲美扶輪社<br>
+            銀行：國泰世華銀行仁愛分行｜帳號：201-03-500245-1｜代碼：013
+          </div>
+          <p style="font-size:11px;color:#888;margin-bottom:6px">款項若有錯誤或信用卡扣款金額不符，請立即告知社辦副知財務，將於一週內處理。</p>
           <div class="footer-contact">財務聯絡：${settings.financialContact?.name} ${settings.financialContact?.phone}</div>
         </div>
       </div>
