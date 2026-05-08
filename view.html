@@ -143,7 +143,7 @@ function renderBill(m, settings) {
         </div>
         <div class="bill-footer">
           <p style="margin-bottom:6px;font-size:12px;color:#333">親愛的洲美扶輪社社友您好：</p>
-          <p style="margin-bottom:6px;font-size:12px;color:#333">您 <strong>${settings.currentMonth}</strong> 會費總計為 <strong style="color:#002147">NT $${f.finalH.toLocaleString()}</strong>，煩請核對，若有錯誤請於7天內告知。謝謝！</p>
+          <p style="margin-bottom:6px;font-size:12px;color:#333">您 <strong>${settings.currentMonth}</strong> 本月費用合計為 <strong style="color:#002147">NT $${(f.sumA+f.sumB).toLocaleString()}</strong>，本期未付款為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'}">NT $${f.finalH.toLocaleString()}</strong>，煩請核對，若有錯誤請於7天內告知。謝謝！</p>
           <p style="font-size:11px;color:#555;margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因：＿＿＿＿＿＿＿＿</p>
           <p style="font-size:11px;color:#555;margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿</p>
           <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#444;line-height:1.8">
