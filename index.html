@@ -153,7 +153,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 1fr auto;gap:12px;align-items:end">
         <div>
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">指定社友</label>
-          <select class="inp" id="qi-member">
+          <select class="inp" id="qi-member" onchange="onMemberChange()">
             <option value="">-- 選擇社友 --</option>
           </select>
         </div>
@@ -807,6 +807,36 @@ function updateItemOptions() {
 // 帳務錄入
 // ══════════════════════════════════════════
 let allMembersMode = false;
+function onMemberChange() {
+  // 如果類別是信用卡，自動更新金額
+  const cat = document.getElementById('qi-category').value;
+  if (cat === 'creditcard') {
+    const mId = document.getElementById('qi-member').value;
+    if (mId) {
+      const m = members.find(x => x.id === mId);
+      if (m) {
+        const f = calcFees(m);
+        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
+      }
+    }
+  }
+}
+
+function onMemberChange() {
+  // 如果目前類別是信用卡，自動帶入應付款金額
+  const cat = document.getElementById('qi-category').value;
+  if (cat === 'creditcard') {
+    const mId = document.getElementById('qi-member').value;
+    if (mId) {
+      const m = members.find(x => x.id === mId);
+      if (m) {
+        const f = calcFees(m);
+        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
+      }
+    }
+  }
+}
+
 function toggleAllMembers() {
   allMembersMode = document.getElementById('all-members-toggle').checked;
   document.getElementById('qi-member').disabled = allMembersMode;
@@ -930,7 +960,7 @@ function buildBillHTML(m) {
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1.5px solid #eee;font-size:11px;color:#333;line-height:1.9">
       <p style="margin-bottom:6px">親愛的洲美扶輪社社友您好：</p>
-      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本月費用合計（經常費＋服務費）為 <strong style="color:var(--navy);font-size:13px">NT $${(f.sumA+f.sumB).toLocaleString()}</strong>，本期未付款為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對，若有錯誤務必請將回條簽名回傳至辦事處。謝謝您！！</p>
+      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本月費用合計（經常費＋服務費）為 <strong style="color:var(--navy);font-size:13px">NT $${(f.sumA+f.sumB).toLocaleString()}</strong>，本期未付款為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對會費內容，確定無誤後請簽名回傳。若有錯誤務必於7天內告知。謝謝！！</p>
       <p style="margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於7天內告知）：＿＿＿＿＿＿＿＿＿＿＿＿</p>
       <p style="margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿＿＿＿</p>
 
