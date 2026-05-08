@@ -165,6 +165,7 @@
             <option value="advance_pay">代付款 (C)</option>
             <option value="donation">社友捐款</option>
             <option value="receipt">收款錄入</option>
+            <option value="creditcard">信用卡扣款（自動帶入應付款）</option>
           </select>
         </div>
         <div>
@@ -779,7 +780,18 @@ function renderSubjects() {
 function updateItemOptions() {
   const cat = document.getElementById('qi-category').value;
   const wrap = document.getElementById('qi-item-wrap');
-  if (cat === 'advance_pay') {
+  if (cat === 'creditcard') {
+    // 自動帶入選定社友的應付款金額
+    wrap.innerHTML = '<input class="inp" id="qi-item" value="信用卡扣款" readonly style="background:#f0f9ff">';
+    const mId = document.getElementById('qi-member').value;
+    if (mId) {
+      const m = members.find(x => x.id === mId);
+      if (m) {
+        const f = calcFees(m);
+        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
+      }
+    }
+  } else if (cat === 'advance_pay') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
   } else if (cat === 'donation') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="捐款說明（例：例會捐款）" value="社友捐款">';
@@ -828,6 +840,11 @@ async function submitQuickInput() {
       if (!m.variable.donation_list) m.variable.donation_list = [];
       entry.desc = item || '社友捐款'; 
       m.variable.donation_list.push(entry); 
+    }
+    else if (cat === 'creditcard') {
+      entry.desc = '信用卡扣款';
+      entry.type = 'receipt_card';
+      m.variable.receipt_list.push(entry);
     }
     else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
   });
@@ -913,7 +930,7 @@ function buildBillHTML(m) {
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1.5px solid #eee;font-size:11px;color:#333;line-height:1.9">
       <p style="margin-bottom:6px">親愛的洲美扶輪社社友您好：</p>
-      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth.replace('年','年').replace('月','月')}</strong> 會費總計為 <strong style="color:var(--navy);font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對會費內容，確定會費金額後，若有錯誤務必請將回條簽名回傳至辦事處。謝謝您！！</p>
+      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本月費用合計（經常費＋服務費）為 <strong style="color:var(--navy);font-size:13px">NT $${(f.sumA+f.sumB).toLocaleString()}</strong>，本期未付款為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對，若有錯誤務必請將回條簽名回傳至辦事處。謝謝您！！</p>
       <p style="margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於7天內告知）：＿＿＿＿＿＿＿＿＿＿＿＿</p>
       <p style="margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿＿＿＿</p>
 
@@ -1298,10 +1315,9 @@ function updateReportOptions() {
   const monthSel = document.getElementById('report-month');
   const yearSel = document.getElementById('report-year');
 
-  // 月份選項：從 localStorage 的歷史記錄取得
+  // 月份選項：現在的月份 + 歷史記錄
   const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
   const months = [...new Set([settings.currentMonth, ...history.map(h => h.month)])].filter(Boolean);
-  
   monthSel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
   
   // 年度選項：從月份中提取年份
