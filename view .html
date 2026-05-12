@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>洲美扶輪社 — 帳單查看</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #002147;
+    --navy-mid: #003366;
+    --gold: #C9A84C;
+    --cream: #faf7f2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Noto Sans TC', sans-serif; }
+  body { background: var(--cream); min-height: 100vh; padding: 20px 16px 40px; }
+  .mono { font-family: 'DM Mono', monospace; }
+
+  .header { text-align: center; padding: 20px 0 28px; }
+  .header-badge { background: var(--navy); color: var(--gold); padding: 4px 16px; border-radius: 99px; font-size: 11px; font-weight: 900; letter-spacing: 0.15em; display: inline-block; margin-bottom: 10px; }
+  .header-title { font-size: 15px; color: #888; font-weight: 500; }
+
+  .bill-card { background: white; border-radius: 24px; max-width: 480px; margin: 0 auto; overflow: hidden; box-shadow: 0 8px 40px rgba(0,33,71,0.12); }
+
+  .bill-top { background: var(--navy); padding: 24px; color: white; }
+  .bill-month { font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 700; margin-bottom: 6px; letter-spacing: 0.05em; }
+  .bill-member-name { font-size: 28px; font-weight: 900; line-height: 1; }
+  .bill-member-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; }
+
+  .bill-body { padding: 0; }
+
+  .section-label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: #aaa; padding: 14px 20px 6px; }
+
+  .bill-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #f5f2ec; }
+  .bill-row-label { font-size: 13px; color: #444; }
+  .bill-row-amount { font-size: 14px; font-weight: 700; }
+  .bill-row.credit { color: #16a34a; }
+  .bill-row.credit .bill-row-amount::before { content: '−'; }
+
+  .subtotal { background: #eef4ff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .subtotal-label { font-size: 11px; font-weight: 900; color: var(--navy-mid); white-space: nowrap; flex: 1; }
+  .subtotal-amount { font-size: 13px; font-weight: 900; color: var(--navy-mid); white-space: nowrap; flex-shrink: 0; }
+
+  .total-box { background: var(--navy); padding: 24px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .total-label { font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 700; white-space: nowrap; }
+  .total-amount { font-size: 38px; font-weight: 900; color: var(--gold); line-height: 1; white-space: nowrap; flex-shrink: 0; }
+
+  .bill-footer { padding: 16px 20px; }
+  .footer-row { font-size: 11px; color: #888; line-height: 1.8; }
+  .footer-contact { font-size: 13px; font-weight: 700; color: var(--navy); margin-top: 8px; }
+
+  .share-btn { display: block; max-width: 480px; margin: 20px auto 0; background: white; border: 1.5px solid #e8e4da; border-radius: 14px; padding: 14px; text-align: center; font-size: 13px; font-weight: 700; color: var(--navy); cursor: pointer; text-decoration: none; }
+  .share-btn:active { background: #f5f2ec; }
+
+  .error-box { max-width: 480px; margin: 60px auto; text-align: center; }
+  .error-icon { font-size: 48px; margin-bottom: 16px; }
+  .error-msg { font-size: 16px; font-weight: 700; color: #555; }
+
+  @media (max-width: 360px) {
+    .bill-member-name { font-size: 24px; }
+    .total-amount { font-size: 28px; }
+    .subtotal-label { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">CHOU MEI ROTARY</div>
+  <div class="header-title">洲美扶輪社 會費對帳單</div>
+</div>
+
+<div id="content">
+  <div class="error-box">
+    <div class="error-icon">🔄</div>
+    <div class="error-msg">載入中...</div>
+  </div>
+</div>
+
+<script>
+function getV(x) { return isNaN(Number(x)) ? 0 : Number(x); }
+
+function calcFees(m, fs) {
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  const sumA = v(m?.fixedA?.monthly)
+    + (m?.variable?.fixedA_list||[]).reduce((a,i)=>a+v(i.amount),0);
+  const sumB_adv = (m?.variable?.advance_pay_list||[]).reduce((a,i)=>a+v(i.amount),0);
+  const sumC = v(m?.fixedB?.monthly_split)
+    + (m?.variable?.service_list||[]).reduce((a,i)=>a+v(i.amount),0);
+  const sumD = sumA + sumB_adv + sumC;
+  const sumE = v(m?.accounting?.previous_due);
+  const sumF = (m?.variable?.receipt_list||[]).filter(i=>i.type!=='receipt_card').reduce((a,i)=>a+v(i.amount),0);
+  const sumG = (m?.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+v(i.amount),0)
+    + (m?.variable?.credit_card_list||[]).reduce((a,i)=>a+v(i.amount),0)
+    + v(m?.accounting?.credit_card);
+  const H = sumD + sumE - sumF - sumG;
+  return { sumA, sumB: sumB_adv, sumC, sumD, sumE, sumF, sumG, finalH: H };
+}
+
+function renderBill(m, settings) {
+  const f = calcFees(m, settings.feeStructure);
+  const fs = settings.feeStructure;
+  let rowsA = '', rowsB = '', rowsC = '', rowsReceipt = '';
+
+  // A: 經常費
+  Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
+    if (getV(m.fixedA?.[k]) > 0)
+      rowsA += `<div class="bill-row"><span class="bill-row-label">${label}</span><span class="bill-row-amount mono">$${getV(m.fixedA[k]).toLocaleString()}</span></div>`;
+  });
+  (m.variable?.fixedA_list||[]).forEach(i => {
+    rowsA += `<div class="bill-row"><span class="bill-row-label">[經常費] ${i.desc}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+
+  // B: 代付款
+  (m.variable?.advance_pay_list||[]).forEach(i => {
+    rowsB += `<div class="bill-row"><span class="bill-row-label">[代付款] ${i.desc}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+
+  // C: 服務經費
+  if (getV(m.fixedB?.monthly_split) > 0)
+    rowsC += `<div class="bill-row"><span class="bill-row-label">固定分攤費</span><span class="bill-row-amount mono">$${getV(m.fixedB.monthly_split).toLocaleString()}</span></div>`;
+  (m.variable?.service_list||[]).forEach(i => {
+    rowsC += `<div class="bill-row"><span class="bill-row-label">${i.desc}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+
+  // E/F/G
+  if (getV(m.accounting?.previous_due) !== 0)
+    rowsReceipt += `<div class="bill-row"><span class="bill-row-label" style="color:#888">前期未付款 (E)</span><span class="bill-row-amount mono" style="color:#888">$${getV(m.accounting.previous_due).toLocaleString()}</span></div>`;
+  (m.variable?.receipt_list||[]).forEach(i => {
+    const isCard = i.type === 'receipt_card';
+    const label = isCard ? '已收信用卡扣款 (G)' : '已收匯款 (F)';
+    const color = isCard ? '#7c3aed' : '#16a34a';
+    rowsReceipt += `<div class="bill-row credit" style="color:${color}"><span class="bill-row-label">${label}</span><span class="bill-row-amount mono">$${getV(i.amount).toLocaleString()}</span></div>`;
+  });
+
+  const deadlineText = settings.paymentDeadline ? settings.paymentDeadline : '__月__日';
+
+  document.getElementById('content').innerHTML = `
+    <div class="bill-card">
+      <div class="bill-top">
+        <div class="bill-month">${settings.currentMonth} 會費對帳單</div>
+        <div class="bill-member-name">${m.name}</div>
+        <div class="bill-member-sub">${m.nickname ? m.nickname + ' · ' : ''}${m.id}</div>
+      </div>
+      <div class="bill-body">
+        ${rowsA ? `<div class="section-label">經常費</div>${rowsA}` : ''}
+        <div class="subtotal">
+          <span class="subtotal-label">經常費合計 (A)</span>
+          <span class="subtotal-amount mono">$${f.sumA.toLocaleString()}</span>
+        </div>
+        ${rowsB ? `<div class="section-label">代付款</div>${rowsB}` : ''}
+        <div class="subtotal">
+          <span class="subtotal-label">代付款合計 (B)</span>
+          <span class="subtotal-amount mono">$${f.sumB.toLocaleString()}</span>
+        </div>
+        ${rowsC ? `<div class="section-label">服務經費</div>${rowsC}` : ''}
+        <div class="subtotal">
+          <span class="subtotal-label">服務經費合計 (C)</span>
+          <span class="subtotal-amount mono">$${f.sumC.toLocaleString()}</span>
+        </div>
+        <div class="subtotal" style="background:#002147;color:#C9A84C">
+          <span class="subtotal-label" style="color:#C9A84C">本期社費 (D = A+B+C)</span>
+          <span class="subtotal-amount mono" style="color:#C9A84C">$${f.sumD.toLocaleString()}</span>
+        </div>
+        ${rowsReceipt ? `<div class="section-label">調整項目</div>${rowsReceipt}` : ''}
+        <div class="total-box">
+          <div class="total-label">本期未付款 (H = D+E−F−G)</div>
+          <div class="total-amount mono">$${f.finalH.toLocaleString()}</div>
+        </div>
+        <div class="bill-footer">
+          <p style="margin-bottom:6px;font-size:12px;color:#333">親愛的洲美扶輪社社友您好：</p>
+          <p style="margin-bottom:6px;font-size:12px;color:#333">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D) 為 <strong style="color:#002147">NT $${f.sumD.toLocaleString()}</strong>，本期未付款 (H) 為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'}">NT $${f.finalH.toLocaleString()}</strong>，煩請核對，若有錯誤請於<strong>三天內</strong>告知。謝謝！</p>
+          <p style="margin-bottom:6px;font-size:12px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineText}</strong> 前繳清，以避免會籍被終止，謝謝！</p>
+          <p style="font-size:11px;color:#555;margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因：＿＿＿＿＿＿＿＿</p>
+          <p style="font-size:11px;color:#555;margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿</p>
+          <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#444;line-height:1.8">
+            <strong style="color:#002147">※ 繳費方式</strong><br>
+            1.【信用卡】國泰世華（每月15日扣款）<br>
+            2.【匯　款】請來電 0972-701003 或Line告知卡號後五碼<br>
+            戶名：社團法人臺北市洲美扶輪社<br>
+            銀行：國泰世華銀行仁愛分行｜帳號：201-03-500245-1｜代碼：013
+          </div>
+          <p style="font-size:11px;color:#888;margin-bottom:6px">款項若有錯誤或信用卡扣款金額不符，請立即告知社辦副知財務，將於一週內處理。</p>
+          <div class="footer-contact">財務聯絡：${settings.financialContact?.name} ${settings.financialContact?.phone}</div>
+        </div>
+      </div>
+    </div>
+    <button class="share-btn" onclick="shareThis()">📤 分享此帳單</button>
+  `;
+}
+
+function shareThis() {
+  if (navigator.share) {
+    navigator.share({ title: '洲美扶輪社帳單', url: location.href });
+  } else {
+    navigator.clipboard.writeText(location.href).then(() => alert('✅ 連結已複製'));
+  }
+}
+
+// 從 URL 參數讀取資料
+function init() {
+  const params = new URLSearchParams(location.search);
+
+  // 方式1：URL 直接帶資料（離線分享）
+  const rawData = params.get('data');
+  if (rawData) {
+    try {
+      const { m, settings } = JSON.parse(decodeURIComponent(rawData));
+      renderBill(m, settings);
+      return;
+    } catch(e) {}
+  }
+
+  // 方式2：從 API 讀取（需要 API_URL）
+  const memberId = params.get('id');
+  const apiUrl = localStorage.getItem('choumei_api_url');
+
+  if (memberId && apiUrl) {
+    fetch(apiUrl + '?action=getAll')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) throw new Error(data.error);
+        const m = data.members.find(x => x.id === memberId);
+        if (!m) throw new Error('找不到社友資料');
+        renderBill(m, data.settings);
+      })
+      .catch(err => {
+        document.getElementById('content').innerHTML = `
+          <div class="error-box">
+            <div class="error-icon">⚠️</div>
+            <div class="error-msg">無法載入帳單資料<br><small style="font-size:12px;color:#aaa;margin-top:8px;display:block">${err.message}</small></div>
+          </div>`;
+      });
+    return;
+  }
+
+  // 方式3：從本機 localStorage 讀取
+  if (memberId) {
+    const members = JSON.parse(localStorage.getItem('choumei_members')||'[]');
+    const settings = JSON.parse(localStorage.getItem('choumei_settings')||'null');
+    const m = members.find(x => x.id === memberId);
+    if (m && settings) { renderBill(m, settings); return; }
+  }
+
+  document.getElementById('content').innerHTML = `
+    <div class="error-box">
+      <div class="error-icon">🔍</div>
+      <div class="error-msg">找不到帳單資料<br><small style="font-size:12px;color:#aaa;margin-top:8px;display:block">請確認連結是否正確</small></div>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>

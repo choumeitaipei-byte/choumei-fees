@@ -51,11 +51,14 @@
   select.inp { cursor: pointer; }
 
   /* 帳單樣式 */
-  .bill-wrap { background: white; width: 620px; margin: 0 auto; padding: 40px; border-radius: 24px; }
+  .bill-wrap { background: white; width: 794px; margin: 0 auto; padding: 40px 48px; border-radius: 24px; }
   .bill-head { background: var(--navy); color: white; padding: 14px 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; }
-  .bill-row { display: flex; justify-content: space-between; padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #f5f2ec; }
-  .bill-sub { background: #eef4ff; padding: 8px 20px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; color: var(--navy-mid); }
+  .bill-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #f5f2ec; }
+  .bill-sub { background: #eef4ff; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 900; color: var(--navy-mid); }
+  .bill-sub span:first-child { flex: 1; white-space: nowrap; }
+  .bill-sub span:last-child { white-space: nowrap; flex-shrink: 0; }
   .bill-total { background: var(--navy); color: var(--gold); display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-radius: 0 0 12px 12px; margin-top: 4px; }
+  .bill-total div:first-child { font-size: 12px; font-weight: 700; white-space: nowrap; }
 
   /* 狀態標籤 */
   .badge-due { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 900; }
@@ -1044,25 +1047,60 @@ async function downloadBillImage() {
   const mId = currentBillMemberId;
   const node = document.getElementById('bill-render-' + mId);
   const m = members.find(x => x.id === mId);
-  const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
-  const link = document.createElement('a');
-  link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
-  link.href = dataUrl; link.click();
+  // A4 at 150dpi: 1240 x 1754px
+  const A4_W = 1240, A4_H = 1754;
+  try {
+    // 先取得帳單原始 PNG
+    const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
+    // 畫到 A4 canvas，上下留白居中
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise(res => { img.onload = res; });
+    const canvas = document.createElement('canvas');
+    canvas.width = A4_W; canvas.height = A4_H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, A4_W, A4_H);
+    // 計算縮放：寬度鎖 A4_W，高度等比
+    const scale = A4_W / img.width;
+    const drawH = img.height * scale;
+    const offsetY = Math.max(0, (A4_H - drawH) / 2);
+    ctx.drawImage(img, 0, offsetY, A4_W, Math.min(drawH, A4_H));
+    const link = document.createElement('a');
+    link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch(e) {
+    alert('下載失敗：' + e.message);
+  }
 }
 
 async function exportAllBills() {
   showSync('產生全體帳單...');
   const zip = new JSZip();
+  const A4_W = 1240, A4_H = 1754;
   const sorted = [...members].sort((a,b) => sortByNickname(a,b));
   for (const m of sorted) {
-    // 建臨時 DOM
     const tmp = document.createElement('div');
-    tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:680px';
+    tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:794px';
     tmp.innerHTML = buildBillHTML(m);
     document.body.appendChild(tmp);
     try {
       const dataUrl = await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
-      const base64 = dataUrl.split(',')[1];
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise(res => { img.onload = res; });
+      const canvas = document.createElement('canvas');
+      canvas.width = A4_W; canvas.height = A4_H;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, A4_W, A4_H);
+      const scale = A4_W / img.width;
+      const drawH = img.height * scale;
+      const offsetY = Math.max(0, (A4_H - drawH) / 2);
+      ctx.drawImage(img, 0, offsetY, A4_W, Math.min(drawH, A4_H));
+      const a4DataUrl = canvas.toDataURL('image/png');
+      const base64 = a4DataUrl.split(',')[1];
       const nickname = (m.nickname || m.name).replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g,'_');
       zip.file(`${nickname}_${m.name}.png`, base64, { base64: true });
     } catch(e) {}
