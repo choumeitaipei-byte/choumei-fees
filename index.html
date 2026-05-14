@@ -1982,14 +1982,33 @@ function exportReport(format) {
       const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+v(i.amount),0);
       const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+v(i.amount),0);
       const prevDue = v(m.accounting?.previous_due);
-      totals.sumA+=f.sumA; totals.sumB+=f.sumC; totals.sumC+=f.sumB; totals.sumD+=f.sumD; totals.prevDue+=prevDue; totals.transfer+=transfer; totals.card+=card; totals.finalH+=f.finalH;
-      csv += `"${m.name}","${m.nickname||''}","${m.id}",${faVals.join(',')},${feVals.join(',')},${f.sumA},${adVals.join(',')},${f.sumC},${svVals.join(',')},${f.sumB},${f.sumD},${prevDue},${transfer},${card},${f.finalH}\n`;
+      // 各項加總（不依賴 calcFees 的 sumB/sumC，避免版本混淆）
+      const memberSumA = faVals.reduce((s,a)=>s+a,0) + feVals.reduce((s,a)=>s+a,0);
+      const memberSumB = adVals.reduce((s,a)=>s+a,0);
+      const memberSumC = svVals.reduce((s,a)=>s+a,0);
+      const memberSumD = memberSumA + memberSumB + memberSumC;
+      const memberH = memberSumD + prevDue - transfer - card;
+      totals.sumA+=memberSumA; totals.sumB+=memberSumB; totals.sumC+=memberSumC; totals.sumD+=memberSumD; totals.prevDue+=prevDue; totals.transfer+=transfer; totals.card+=card; totals.finalH+=memberH;
+      // 逐欄輸出，每欄一個數字，不依賴條件拼接
+      const row = [
+        `"${m.name}"`, `"${m.nickname||''}"`, `"${m.id}"`,
+        ...faVals, ...feVals, memberSumA,
+        ...adVals, memberSumB,
+        ...svVals, memberSumC,
+        memberSumD, prevDue, transfer, card, memberH
+      ];
+      csv += row.join(',') + '\n';
     });
-    const ftFa = fixedAItems.map(([k])=>totals.fixedA[k]||0).join(',');
-    const ftFe = fixedAExtras.map(d=>totals.fixedAE[d]||0).join(',');
-    const ftAd = advanceItems.map(d=>totals.adv[d]||0).join(',');
-    const ftSv = serviceItems.map(d=>totals.svc[d]||0).join(',');
-    csv += `"合計","","",${ftFa},${ftFe?ftFe+',':''}${totals.sumA},${ftAd},${ftAd?',':''}${totals.sumB},${ftSv},${ftSv?',':''}${totals.sumC},${totals.sumD},${totals.prevDue},${totals.transfer},${totals.card},${totals.finalH}\n`;
+    // 合計行 — 同樣欄數
+    const footRow = [
+      '"合計"', '""', '""',
+      ...fixedAItems.map(([k])=>totals.fixedA[k]||0),
+      ...fixedAExtras.map(d=>totals.fixedAE[d]||0), totals.sumA,
+      ...advanceItems.map(d=>totals.adv[d]||0), totals.sumB,
+      ...serviceItems.map(d=>totals.svc[d]||0), totals.sumC,
+      totals.sumD, totals.prevDue, totals.transfer, totals.card, totals.finalH
+    ];
+    csv += footRow.join(',') + '\n';
     downloadCSV(csv, `洲美月結報表_${data.month}.csv`);
   } else {
     csv = '月份,經常費(A)合計,代付款(B)合計,服務經費(C)合計,社費(D)合計\n';
