@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>洲美扶輪社 — 帳務管理系統</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -99,7 +99,7 @@
 <body>
 
 <!-- API 設定提示 -->
-<div id="api-banner" class="hidden text-white text-center py-3 px-4 text-sm font-bold" style="font-family:'Noto Sans TC',sans-serif">
+<div id="api-banner" style="display:none;color:white;text-align:center;padding:12px 16px;font-size:13px;font-weight:700;font-family:'Noto Sans TC',sans-serif">
   ⚠️ 尚未設定 Google Apps Script API 網址，請前往「系統設定」填入後儲存。目前為離線展示模式。
 </div>
 
@@ -166,7 +166,8 @@
             <option value="fixedA">經常費 (A)</option>
             <option value="fixedB">服務經費 (B)</option>
             <option value="advance_pay">代付款 (C)</option>
-            <option value="donation">社友捐款</option>
+            <option value="donation_fixed">固定捐款</option>
+            <option value="donation_general">一般捐款</option>
             <option value="receipt">收款錄入</option>
             <option value="creditcard">信用卡扣款（自動帶入應付款）</option>
           </select>
@@ -502,7 +503,7 @@ let currentBillMemberId = null;
 window.onload = async () => {
   document.getElementById('api-url-input').value = API_URL;
   if (!API_URL) {
-    document.getElementById('api-banner').classList.remove('hidden');
+    document.getElementById('api-banner').style.display = 'block';
   } else {
     await loadFromCloud();
   }
@@ -819,8 +820,10 @@ function updateItemOptions() {
     }
   } else if (cat === 'advance_pay') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
-  } else if (cat === 'donation') {
-    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="捐款說明（例：例會捐款）" value="社友捐款">';
+  } else if (cat === 'donation_fixed') {
+    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="固定捐款說明（例：例會固定捐款）" value="例會固定捐款">';
+  } else if (cat === 'donation_general') {
+    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="一般捐款說明（例：4/7研習會捐款）">';
   } else if (cat === 'receipt') {
     wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
   } else {
@@ -892,10 +895,15 @@ async function submitQuickInput() {
     else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
     else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
     else if (cat === 'advance_pay') { entry.desc = item; m.variable.advance_pay_list.push(entry); }
-    else if (cat === 'donation') { 
-      if (!m.variable.donation_list) m.variable.donation_list = [];
-      entry.desc = item || '社友捐款'; 
-      m.variable.donation_list.push(entry); 
+    else if (cat === 'donation_fixed') { 
+      if (!m.variable.donation_fixed_list) m.variable.donation_fixed_list = [];
+      entry.desc = item || '例會固定捐款'; 
+      m.variable.donation_fixed_list.push(entry); 
+    }
+    else if (cat === 'donation_general') { 
+      if (!m.variable.donation_general_list) m.variable.donation_general_list = [];
+      entry.desc = item || '一般捐款'; 
+      m.variable.donation_general_list.push(entry); 
     }
     else if (cat === 'creditcard') {
       entry.desc = '信用卡扣款';
@@ -953,14 +961,46 @@ function buildBillHTML(m) {
   if (v(m.fixedB?.monthly_split) > 0) rowsC += `<div class="bill-row"><span>[服務經費] 固定分攤費</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedB_monthly_split','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
   (m.variable?.service_list||[]).forEach(i => { rowsC += `<div class="bill-row"><span>[服務經費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','service_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
 
-  // 捐款（另計）
+  // 捐款（另計，分固定/一般）
   let donationRows = '';
-  if ((m.variable?.donation_list||[]).length > 0) {
-    (m.variable.donation_list).forEach(i => {
-      donationRows += `<div class="bill-row" style="color:#7c3aed"><span>[捐款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','donation_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
-    });
-    const donTotal = (m.variable.donation_list).reduce((a,i)=>a+v(i.amount),0);
-    donationRows = `<div class="bill-sub" style="background:#fdf4ff;color:#7c3aed"><span>社友捐款明細（另計，不含於未付款）</span><span></span></div>${donationRows}<div class="bill-sub" style="background:#fdf4ff;color:#7c3aed"><span>捐款小計</span><span class="mono">$${donTotal.toLocaleString()}</span></div>`;
+  const donFixed = m.variable?.donation_fixed_list || [];
+  const donGeneral = m.variable?.donation_general_list || [];
+  // 向下相容舊資料 donation_list
+  const donLegacy = (m.variable?.donation_list || []).filter(i => !donFixed.find(x=>x.id===i.id) && !donGeneral.find(x=>x.id===i.id));
+  const allDon = [...donFixed.map(i=>({...i,_type:'fixed'})), ...donGeneral.map(i=>({...i,_type:'general'})), ...donLegacy.map(i=>({...i,_type:'general'}))];
+
+  if (allDon.length > 0) {
+    const fixedItems = allDon.filter(i=>i._type==='fixed');
+    const generalItems = allDon.filter(i=>i._type==='general');
+    const fixedTotal = fixedItems.reduce((a,i)=>a+v(i.amount),0);
+    const generalTotal = generalItems.reduce((a,i)=>a+v(i.amount),0);
+    const donTotal = fixedTotal + generalTotal;
+    let inner = '';
+    if (fixedItems.length > 0) {
+      inner += `<div class="bill-sub" style="background:#f5f0ff;color:#6d28d9;font-size:11px">固定捐款</div>`;
+      fixedItems.forEach(i => {
+        inner += `<div class="bill-row" style="color:#7c3aed"><span>[固定捐款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','donation_fixed_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+      });
+    }
+    if (generalItems.length > 0) {
+      inner += `<div class="bill-sub" style="background:#f5f0ff;color:#6d28d9;font-size:11px">一般捐款</div>`;
+      generalItems.forEach(i => {
+        const listKey = i._type === 'general' ? 'donation_general_list' : 'donation_list';
+        inner += `<div class="bill-row" style="color:#9333ea"><span>[一般捐款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','${listKey}','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+      });
+    }
+    donationRows = `
+      <div class="bill-sub" style="background:#fdf4ff;color:#7c3aed">社友捐款明細（另計，不含於未付款）</div>
+      ${inner}
+      <div class="bill-sub" style="background:#ede9fe;color:#6d28d9">
+        <span>固定捐款小計</span><span class="mono">$${fixedTotal.toLocaleString()}</span>
+      </div>
+      <div class="bill-sub" style="background:#ede9fe;color:#6d28d9">
+        <span>一般捐款小計</span><span class="mono">$${generalTotal.toLocaleString()}</span>
+      </div>
+      <div class="bill-sub" style="background:#7c3aed;color:white">
+        <span>捐款合計</span><span class="mono">$${donTotal.toLocaleString()}</span>
+      </div>`;
   }
 
   // 收款明細行
@@ -1206,7 +1246,7 @@ async function deleteMember(mId) {
 function saveApiUrl() {
   API_URL = document.getElementById('api-url-input').value.trim();
   localStorage.setItem('choumei_api_url', API_URL);
-  document.getElementById('api-banner').classList.toggle('hidden', !!API_URL);
+  document.getElementById('api-banner').style.display = API_URL ? 'none' : 'block';
   if (API_URL) loadFromCloud().then(render);
   alert('API 網址已儲存！');
 }
@@ -1276,7 +1316,7 @@ async function executeCarryOver() {
   members.forEach(m => {
     const { finalH } = calcFees(m);
     m.accounting = { previous_due: finalH, already_paid: 0, credit_card: 0 };
-    m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_list:[] };
+    m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
     // 自動套用固定費用預設
     m.fixedA = settings.defaultMonthly ? { monthly: settings.defaultMonthly } : {};
     m.fixedB = { monthly_split: settings.defaultSplit || 0 };
@@ -1472,26 +1512,7 @@ function generateReportPreview() {
   const preview = document.getElementById('report-preview');
 
   if (data.type === 'donation') {
-    const mList = data.members || members;
-    const groups = {};
-    mList.forEach(m => {
-      (m.variable?.donation_list || []).forEach(i => {
-        const key = i.desc || '社友捐款';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
-    });
-    csv = '捐款項目,社友姓名,暱稱,金額\n';
-    let grandTotal = 0;
-    Object.entries(groups).forEach(([item, list]) => {
-      const subtotal = list.reduce((a, x) => a + x.amount, 0);
-      grandTotal += subtotal;
-      list.forEach(x => { csv += `"${item}","${x.name}","${x.nickname}",${x.amount}\n`; });
-      csv += `"${item} 小計","","",${subtotal}\n`;
-    });
-    csv += `"捐款總計","","",${grandTotal}\n`;
-    downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
-    return;
+    // donation preview is rendered in the renderReport section below
   } else if (data.type === 'advance') {
     const mList = data.members || members;
     const groups = {};
@@ -1530,10 +1551,21 @@ function generateReportPreview() {
       (m.variable?.service_list||[]).forEach(i => serviceSet.add(i.desc));
     });
     const serviceItems = [...serviceSet];
-    // advance_pay 科目（合計欄，詳細另報表）
+    // advance_pay 科目
     const advanceSet = new Set();
     mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(i.desc)));
     const advanceItems = [...advanceSet];
+    // 固定捐款科目
+    const donFixedSet = new Set();
+    mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
+    const donFixedItems = [...donFixedSet];
+    // 一般捐款科目
+    const donGeneralSet = new Set();
+    mList.forEach(m => {
+      (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(i.desc));
+      (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(i.desc)); // 舊資料相容
+    });
+    const donGeneralItems = [...donGeneralSet];
 
     // ── 建 header ──────────────────────────────────────────
     const th = s => `<th style="padding:7px 10px;text-align:right;font-size:10px;color:#888;white-space:nowrap;background:#f5f2ec">${s}</th>`;
@@ -1542,9 +1574,11 @@ function generateReportPreview() {
       `<th colspan="${colspan}" style="padding:5px 10px;text-align:center;font-size:10px;font-weight:900;background:${bg};color:${color};border-bottom:2px solid #ddd">${s}</th>`;
 
     // 合計列數計算
-    const colA = fixedAItems.length + fixedAExtras.length + 1; // 科目 + 合計
-    const colB = advanceItems.length + 1;                        // 代付款各項 + 合計
-    const colC = serviceItems.length + 1;                        // 服務費各項 + 合計
+    const colA = fixedAItems.length + fixedAExtras.length + 1;
+    const colB = advanceItems.length + 1;
+    const colC = serviceItems.length + 1;
+    const colDonF = donFixedItems.length > 0 ? donFixedItems.length + 1 : 0;
+    const colDonG = donGeneralItems.length > 0 ? donGeneralItems.length + 1 : 0;
     const colD = 1, colE = 1, colF = 1, colG = 1, colH = 1;
 
     let groupRow = `<tr>
@@ -1552,6 +1586,8 @@ function generateReportPreview() {
       ${thGroup('經常費 (A)', colA, '#eff6ff', '#1e40af')}
       ${thGroup('代付款 (B)', colB, '#fdf4ff', '#7c3aed')}
       ${thGroup('服務費 (C)', colC, '#f0fdf4', '#166534')}
+      ${colDonF ? thGroup('固定捐款', colDonF, '#4c1d95', '#e9d5ff') : ''}
+      ${colDonG ? thGroup('一般捐款', colDonG, '#6d28d9', '#f5f3ff') : ''}
       ${thGroup('本期社費 D', colD, '#002147', '#C9A84C')}
       ${thGroup('前期(E)', colE, '#fefce8', '#92400e')}
       ${thGroup('匯款(F)', colF, '#f0fdf4', '#166534')}
@@ -1567,6 +1603,10 @@ function generateReportPreview() {
       ${th('代付款合計(B)')}
       ${serviceItems.map(d => d === '__split__' ? th('固定分攤') : th(d)).join('')}
       ${th('服務費合計(C)')}
+      ${donFixedItems.map(d => th(d)).join('')}
+      ${colDonF ? th('固定捐款小計') : ''}
+      ${donGeneralItems.map(d => th(d)).join('')}
+      ${colDonG ? th('一般捐款小計') : ''}
       ${th('D=A+B+C')}
       ${th('E')}${th('F')}${th('G')}${th('H')}
     </tr>`;
@@ -1587,6 +1627,10 @@ function generateReportPreview() {
       sumB: 0,
       service: Object.fromEntries(serviceItems.map(d=>[d,0])),
       sumC: 0,
+      donFixed: Object.fromEntries(donFixedItems.map(d=>[d,0])),
+      donFixedTotal: 0,
+      donGeneral: Object.fromEntries(donGeneralItems.map(d=>[d,0])),
+      donGeneralTotal: 0,
       sumD: 0, prevDue: 0, transfer: 0, card: 0, finalH: 0
     };
 
@@ -1621,6 +1665,20 @@ function generateReportPreview() {
         return td(amt, '#166534');
       });
       totals.sumC += f.sumB;
+      // 固定捐款
+      const donFixedCells = donFixedItems.map(desc => {
+        const amt = (m.variable?.donation_fixed_list||[]).filter(i=>i.desc===desc).reduce((a,i)=>a+v(i.amount),0);
+        totals.donFixed[desc] = (totals.donFixed[desc]||0) + amt; return td(amt, '#6d28d9');
+      });
+      const mDonFixed = donFixedItems.reduce((s,d)=>(m.variable?.donation_fixed_list||[]).filter(i=>i.desc===d).reduce((a,i)=>a+v(i.amount),s),0);
+      totals.donFixedTotal += mDonFixed;
+      // 一般捐款
+      const donGeneralCells = donGeneralItems.map(desc => {
+        const amt = [...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>i.desc===desc).reduce((a,i)=>a+v(i.amount),0);
+        totals.donGeneral[desc] = (totals.donGeneral[desc]||0) + amt; return td(amt, '#9333ea');
+      });
+      const mDonGeneral = donGeneralItems.reduce((s,d)=>[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>i.desc===d).reduce((a,i)=>a+v(i.amount),s),0);
+      totals.donGeneralTotal += mDonGeneral;
       const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+v(i.amount),0);
       const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+v(i.amount),0);
       const prevDue = v(m.accounting?.previous_due);
@@ -1634,6 +1692,10 @@ function generateReportPreview() {
         ${td(f.sumC, '#7c3aed', true)}
         ${serviceCells.join('')}
         ${td(f.sumB, '#166534', true)}
+        ${donFixedCells.join('')}
+        ${colDonF ? td(mDonFixed, '#4c1d95', true) : ''}
+        ${donGeneralCells.join('')}
+        ${colDonG ? td(mDonGeneral, '#7c3aed', true) : ''}
         ${td(f.sumD, '#C9A84C', true)}
         ${td(prevDue, '#92400e')}
         ${td(transfer, '#166534')}
@@ -1653,6 +1715,10 @@ function generateReportPreview() {
       ${footTd(totals.sumB, '#e9d5ff')}
       ${serviceItems.map(d => footTd(totals.service[d], '#bbf7d0')).join('')}
       ${footTd(totals.sumC, '#bbf7d0')}
+      ${donFixedItems.map(d => footTd(totals.donFixed[d]||0, '#c4b5fd')).join('')}
+      ${colDonF ? footTd(totals.donFixedTotal, '#e9d5ff') : ''}
+      ${donGeneralItems.map(d => footTd(totals.donGeneral[d]||0, '#ddd6fe')).join('')}
+      ${colDonG ? footTd(totals.donGeneralTotal, '#ede9fe') : ''}
       ${footTd(totals.sumD)}
       ${footTd(totals.prevDue, '#fde68a')}
       ${footTd(totals.transfer, '#6ee7b7')}
@@ -1669,52 +1735,113 @@ function generateReportPreview() {
         <tfoot>${footRow}</tfoot>
       </table>
       </div>`;
-  } else if (data.type === 'donation') {
+  if (data.type === 'donation') {
     const mList = data.members || members;
-    const groups = {};
+    const fixedGroups = {}, generalGroups = {};
     mList.forEach(m => {
+      (m.variable?.donation_fixed_list || []).forEach(i => {
+        const key = i.desc || '固定捐款';
+        if (!fixedGroups[key]) fixedGroups[key] = [];
+        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+      });
+      (m.variable?.donation_general_list || []).forEach(i => {
+        const key = i.desc || '一般捐款';
+        if (!generalGroups[key]) generalGroups[key] = [];
+        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+      });
       (m.variable?.donation_list || []).forEach(i => {
         const key = i.desc || '社友捐款';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+        if (!generalGroups[key]) generalGroups[key] = [];
+        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
       });
     });
-    if (Object.keys(groups).length === 0) {
-      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無捐款記錄</div>`;
-      return;
-    }
-    let rows = '';
+    csv = '類型,捐款項目,#,社友姓名,暱稱,金額\n';
     let grandTotal = 0;
-    Object.entries(groups).forEach(([item, list]) => {
-      const subtotal = list.reduce((a, x) => a + x.amount, 0);
-      grandTotal += subtotal;
-      list.forEach((x, idx) => {
-        rows += `<tr>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;color:#7c3aed">${idx === 0 ? item : ''}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec">${x.name} <span style="color:#bbb;font-size:11px">${x.nickname}</span></td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;text-align:right;font-family:monospace">$${x.amount.toLocaleString()}</td>
-        </tr>`;
+    const writeGroup = (groups, typeName) => {
+      let sectionTotal = 0;
+      Object.entries(groups).forEach(([item, list]) => {
+        const sorted = [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
+        const subtotal = sorted.reduce((a,x)=>a+x.amount,0);
+        sectionTotal += subtotal;
+        sorted.forEach((x, idx) => { csv += `"${typeName}","${item}",${idx+1},"${x.name}","${x.nickname}",${x.amount}\n`; });
+        csv += `"${typeName} 小計","${item}","","","",${subtotal}\n`;
       });
-      rows += `<tr style="background:#fdf4ff">
-        <td style="padding:7px 12px;font-weight:900;color:#7c3aed;font-size:12px">${item} 小計</td>
-        <td></td>
-        <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:900;color:#7c3aed">$${subtotal.toLocaleString()}</td>
-      </tr>`;
+      if (sectionTotal > 0) csv += `"${typeName} 合計","","","","",${sectionTotal}\n`;
+      grandTotal += sectionTotal;
+    };
+    writeGroup(fixedGroups, '固定捐款');
+    writeGroup(generalGroups, '一般捐款');
+    csv += `"捐款總計","","","","",${grandTotal}\n`;
+    downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
+    return;
+    }
+
+    const sortList = list => [...list].sort((a,b) => {
+      const na=(a.nickname||a.name).toUpperCase(), nb=(b.nickname||b.name).toUpperCase();
+      return na<nb?-1:na>nb?1:0;
     });
+
+    const buildCards = (groups, label, headerBg, headerColor) => {
+      let cards = '', sectionTotal = 0;
+      Object.entries(groups).forEach(([item, list]) => {
+        const subtotal = list.reduce((a,x)=>a+x.amount,0);
+        sectionTotal += subtotal;
+        const sorted = sortList(list);
+        const memberRows = sorted.map((x, idx) => `
+          <tr>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
+          </tr>`).join('');
+        cards += `
+          <div style="border:1.5px solid #e8d5ff;border-radius:12px;overflow:hidden;margin-bottom:12px">
+            <div style="background:${headerBg};padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="color:${headerColor};font-size:13px;font-weight:900">${item}</div>
+                <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px">共 ${list.length} 人</div>
+              </div>
+              <div style="color:${headerColor};font-family:monospace;font-size:18px;font-weight:900">$${subtotal.toLocaleString()}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9f4ff">
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
+                <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
+              </tr></thead>
+              <tbody>${memberRows}</tbody>
+              <tfoot><tr style="background:#f3e8ff">
+                <td colspan="3" style="padding:6px 12px;font-size:12px;font-weight:900;color:#6d28d9">${item} 小計</td>
+                <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#6d28d9">$${subtotal.toLocaleString()}</td>
+              </tr></tfoot>
+            </table>
+          </div>`;
+      });
+      return { cards, sectionTotal };
+    };
+
+    const { cards: fixedCards, sectionTotal: fixedTotal } = buildCards(fixedGroups, '固定捐款', '#4c1d95', '#e9d5ff');
+    const { cards: generalCards, sectionTotal: generalTotal } = buildCards(generalGroups, '一般捐款', '#6d28d9', '#f5f3ff');
+    const grandTotal = fixedTotal + generalTotal;
+
     preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 捐款明細報表</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="background:#f5f2ec">
-          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888;width:35%">捐款項目</th>
-          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">社友姓名</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">金額</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr style="background:#581c87;color:white">
-          <td colspan="2" style="padding:10px 12px;font-weight:900">捐款總計</td>
-          <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#e9d5ff">$${grandTotal.toLocaleString()}</td>
-        </tr></tfoot>
-      </table>`;
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:#888">${data.month} 捐款明細報表</div>
+        <div style="background:#581c87;color:#e9d5ff;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
+      </div>
+      ${Object.keys(fixedGroups).length > 0 ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#4c1d95;color:#e9d5ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px">
+          <span style="font-weight:900;font-size:13px">固定捐款</span>
+          <span style="font-family:monospace;font-weight:900">$${fixedTotal.toLocaleString()}</span>
+        </div>
+        ${fixedCards}` : ''}
+      ${Object.keys(generalGroups).length > 0 ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#6d28d9;color:#f5f3ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px;margin-top:8px">
+          <span style="font-weight:900;font-size:13px">一般捐款</span>
+          <span style="font-family:monospace;font-weight:900">$${generalTotal.toLocaleString()}</span>
+        </div>
+        ${generalCards}` : ''}`;
 
   } else if (data.type === 'advance') {
     // 代付款明細報表 — 以項目為卡片，列出名單 + 統計
@@ -1911,23 +2038,41 @@ function exportReport(format) {
 
   if (data.type === 'donation') {
     const mList = data.members || members;
-    const groups = {};
+    const fixedGroups = {}, generalGroups = {};
     mList.forEach(m => {
+      (m.variable?.donation_fixed_list || []).forEach(i => {
+        const key = i.desc || '固定捐款';
+        if (!fixedGroups[key]) fixedGroups[key] = [];
+        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+      });
+      (m.variable?.donation_general_list || []).forEach(i => {
+        const key = i.desc || '一般捐款';
+        if (!generalGroups[key]) generalGroups[key] = [];
+        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+      });
       (m.variable?.donation_list || []).forEach(i => {
         const key = i.desc || '社友捐款';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+        if (!generalGroups[key]) generalGroups[key] = [];
+        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
       });
     });
-    csv = '捐款項目,社友姓名,暱稱,金額\n';
+    csv = '類型,捐款項目,#,社友姓名,暱稱,金額\n';
     let grandTotal = 0;
-    Object.entries(groups).forEach(([item, list]) => {
-      const subtotal = list.reduce((a, x) => a + x.amount, 0);
-      grandTotal += subtotal;
-      list.forEach(x => { csv += `"${item}","${x.name}","${x.nickname}",${x.amount}\n`; });
-      csv += `"${item} 小計","","",${subtotal}\n`;
-    });
-    csv += `"捐款總計","","",${grandTotal}\n`;
+    const writeGroup = (groups, typeName) => {
+      let sectionTotal = 0;
+      Object.entries(groups).forEach(([item, list]) => {
+        const sorted = [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
+        const subtotal = sorted.reduce((a,x)=>a+x.amount,0);
+        sectionTotal += subtotal;
+        sorted.forEach((x, idx) => { csv += `"${typeName}","${item}",${idx+1},"${x.name}","${x.nickname}",${x.amount}\n`; });
+        csv += `"${typeName} 小計","${item}","","","",${subtotal}\n`;
+      });
+      if (sectionTotal > 0) csv += `"${typeName} 合計","","","","",${sectionTotal}\n`;
+      grandTotal += sectionTotal;
+    };
+    writeGroup(fixedGroups, '固定捐款');
+    writeGroup(generalGroups, '一般捐款');
+    csv += `"捐款總計","","","","",${grandTotal}\n`;
     downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
     return;
   } else if (data.type === 'advance') {
