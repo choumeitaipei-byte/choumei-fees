@@ -1463,6 +1463,17 @@ function generateReportPreview() {
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const mList = data.members || members;
 
+  // DEBUG: 顯示資料摘要讓你確認資料有沒有進來
+  const advCount = mList.reduce((s,m)=>s+(m.variable?.advance_pay_list||[]).length,0);
+  const debugInfo = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:#713f12;display:flex;gap:16px;flex-wrap:wrap">
+    <span>📋 type: <strong>${data.type}</strong></span>
+    <span>📅 month: <strong>${data.month||'-'}</strong></span>
+    <span>👥 社友數: <strong>${mList.length}</strong></span>
+    <span>💰 代付款筆數: <strong>${advCount}</strong></span>
+    <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background:#fde047;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700">查看原始資料</button>
+    <pre style="display:none;width:100%;overflow-x:auto;font-size:10px;background:#fff;padding:8px;border-radius:4px;margin-top:4px">${JSON.stringify(mList.map(m=>({id:m.id,name:m.name,advance:m.variable?.advance_pay_list})),null,2)}</pre>
+  </div>`;
+
   // ── 月結報表 ──────────────────────────────────────────────
   if (data.type === 'monthly') {
     // 動態收集欄位
@@ -1602,7 +1613,7 @@ function generateReportPreview() {
       ${ftd(totals.finalH)}
     </tr>`;
 
-    preview.innerHTML = `
+    preview.innerHTML = debugInfo + `
       <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 月結報表</div>
       <div style="overflow-x:auto">
       <table style="border-collapse:collapse;font-size:12px;white-space:nowrap">
@@ -1622,7 +1633,7 @@ function generateReportPreview() {
       });
     });
     if (Object.keys(groups).length === 0) {
-      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無代付款記錄</div>`;
+      preview.innerHTML = debugInfo + `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無代付款記錄</div>`;
       return;
     }
     const sortList = list => [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
@@ -1660,7 +1671,7 @@ function generateReportPreview() {
           </table>
         </div>`;
     });
-    preview.innerHTML = `
+    preview.innerHTML = debugInfo + `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:12px;font-weight:700;color:#888">${data.month} 代付款明細報表（共 ${Object.keys(groups).length} 項）</div>
         <div style="background:#002147;color:#C9A84C;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
