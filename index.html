@@ -1410,7 +1410,8 @@ function closeReportPanel() {
 
 function updateReportOptions() {
   const type = document.getElementById('report-type').value;
-  document.getElementById('report-month-wrap').style.display = type === 'monthly' ? 'block' : 'none';
+  const needMonth = type === 'monthly' || type === 'advance' || type === 'donation';
+  document.getElementById('report-month-wrap').style.display = needMonth ? 'block' : 'none';
   document.getElementById('report-year-wrap').style.display = type === 'yearly' ? 'block' : 'none';
 
   // 從備份歷史或現有月份產生選項
@@ -1438,13 +1439,14 @@ function getReportData() {
   const type = document.getElementById('report-type').value;
   const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
 
-  if (type === 'monthly') {
+  if (type === 'monthly' || type === 'advance' || type === 'donation') {
     const month = document.getElementById('report-month').value;
-    // 找歷史記錄，或用現在的資料
+    // 當月用 members，歷史月份用快照
     const snap = history.find(h => h.month === month);
     const data = snap ? snap.members : members;
-    return { type: 'monthly', month, members: data };
+    return { type, month, members: data };
   } else {
+    // 年度報表
     const year = document.getElementById('report-year').value;
     const yearMonths = history.filter(h => {
       if (!h.month) return false;
