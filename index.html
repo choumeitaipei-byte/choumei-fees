@@ -1463,13 +1463,15 @@ function generateReportPreview() {
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const mList = data.members || members;
 
-  // DEBUG: 顯示資料摘要讓你確認資料有沒有進來
+  // DEBUG
   const advCount = mList.reduce((s,m)=>s+(m.variable?.advance_pay_list||[]).length,0);
+  const advDescs = [...new Set(mList.flatMap(m=>(m.variable?.advance_pay_list||[]).map(i=>i.desc||'(空)')))];
   const debugInfo = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:#713f12;display:flex;gap:16px;flex-wrap:wrap">
     <span>📋 type: <strong>${data.type}</strong></span>
     <span>📅 month: <strong>${data.month||'-'}</strong></span>
     <span>👥 社友數: <strong>${mList.length}</strong></span>
     <span>💰 代付款筆數: <strong>${advCount}</strong></span>
+    <span>🏷 代付款項目: <strong>${advDescs.join(' / ') || '無'}</strong></span>
     <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background:#fde047;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700">查看原始資料</button>
     <pre style="display:none;width:100%;overflow-x:auto;font-size:10px;background:#fff;padding:8px;border-radius:4px;margin-top:4px">${JSON.stringify(mList.map(m=>({id:m.id,name:m.name,advance:m.variable?.advance_pay_list})),null,2)}</pre>
   </div>`;
