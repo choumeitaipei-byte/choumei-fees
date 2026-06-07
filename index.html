@@ -233,7 +233,7 @@
 
     <!-- 報表匯出區塊 -->
     <div id="report-panel" class="card" style="padding:24px;margin-bottom:24px;display:none">
-      <h3 style="font-size:15px;font-weight:900;color:var(--navy);margin-bottom:16px">📊 報表匯出</h3>
+      <h3 style="font-size:15px;font-weight:900;color:var(--navy);margin-bottom:16px">📊 報表匯出 <span style="font-size:10px;background:#C9A84C;color:white;padding:2px 6px;border-radius:4px;font-weight:700">v2.1</span></h3>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div>
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">報表類型</label>
@@ -246,7 +246,7 @@
         </div>
         <div id="report-month-wrap">
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇月份</label>
-          <select class="inp" id="report-month" style="width:160px"></select>
+          <select class="inp" id="report-month" onchange="generateReportPreview()" style="width:160px"></select>
         </div>
         <div id="report-year-wrap" style="display:none">
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇年度</label>
@@ -1397,10 +1397,10 @@ ${removed.join('、')}
 // ══════════════════════════════════════════
 function openReportModal() {
   const panel = document.getElementById('report-panel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  if (panel.style.display === 'block') {
+  const isHidden = panel.style.display === 'none' || panel.style.display === '';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
     updateReportOptions();
-    generateReportPreview();
   }
 }
 
