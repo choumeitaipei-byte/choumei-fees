@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>洲美扶輪社 — 帳務管理系統</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -51,14 +51,11 @@
   select.inp { cursor: pointer; }
 
   /* 帳單樣式 */
-  .bill-wrap { background: white; width: 794px; margin: 0 auto; padding: 40px 48px; border-radius: 24px; }
+  .bill-wrap { background: white; width: 794px; margin: 0 auto; padding: 40px 48px; border-radius: 16px; box-shadow: 0 4px 32px rgba(0,33,71,0.12); }
   .bill-head { background: var(--navy); color: white; padding: 14px 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; }
-  .bill-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #f5f2ec; }
-  .bill-sub { background: #eef4ff; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 900; color: var(--navy-mid); }
-  .bill-sub span:first-child { flex: 1; white-space: nowrap; }
-  .bill-sub span:last-child { white-space: nowrap; flex-shrink: 0; }
+  .bill-row { display: flex; justify-content: space-between; padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #f5f2ec; }
+  .bill-sub { background: #eef4ff; padding: 8px 20px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; color: var(--navy-mid); }
   .bill-total { background: var(--navy); color: var(--gold); display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-radius: 0 0 12px 12px; margin-top: 4px; }
-  .bill-total div:first-child { font-size: 12px; font-weight: 700; white-space: nowrap; }
 
   /* 狀態標籤 */
   .badge-due { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 900; }
@@ -99,7 +96,7 @@
 <body>
 
 <!-- API 設定提示 -->
-<div id="api-banner" style="display:none;color:white;text-align:center;padding:12px 16px;font-size:13px;font-weight:700;font-family:'Noto Sans TC',sans-serif">
+<div id="api-banner" class="hidden text-white text-center py-3 px-4 text-sm font-bold" style="font-family:'Noto Sans TC',sans-serif">
   ⚠️ 尚未設定 Google Apps Script API 網址，請前往「系統設定」填入後儲存。目前為離線展示模式。
 </div>
 
@@ -166,8 +163,7 @@
             <option value="fixedA">經常費 (A)</option>
             <option value="fixedB">服務經費 (B)</option>
             <option value="advance_pay">代付款 (C)</option>
-            <option value="donation_fixed">固定捐款</option>
-            <option value="donation_general">一般捐款</option>
+            <option value="donation">社友捐款</option>
             <option value="receipt">收款錄入</option>
             <option value="creditcard">信用卡扣款（自動帶入應付款）</option>
           </select>
@@ -299,10 +295,6 @@
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">對帳月份</label>
           <input class="inp" type="text" id="cfg-month">
         </div>
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">應收款繳清期限（顯示於帳單）</label>
-          <input class="inp" type="text" id="cfg-deadline" placeholder="例：本月25日">
-        </div>
       </div>
       <button onclick="saveSettings()" class="btn-primary">儲存設定</button>
     </div>
@@ -366,17 +358,26 @@
 
 <!-- 帳單預覽彈窗 -->
 <div class="overlay" id="bill-overlay">
-  <div class="modal" style="max-width:700px">
-    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
-      <h2 style="font-size:20px;font-weight:900;color:var(--navy)">帳單預覽</h2>
-      <div style="display:flex;gap:10px;align-items:center">
-        <button onclick="copyShareLink()" style="background:#f5f2ec;border:none;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy)">🔗 複製分享連結</button>
-        <button onclick="downloadBillImage()" class="btn-primary" style="font-size:12px">↓ 下載 PNG</button>
-        <button onclick="closeBillOverlay()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+  <div class="modal" style="max-width:860px;width:95vw">
+    <div style="padding:16px 20px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)">帳單預覽</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;background:#f5f2ec;border-radius:10px;padding:4px 10px">
+          <span style="font-size:11px;color:#888;font-weight:700">縮放</span>
+          <button onclick="adjustBillScale(-0.1)" style="background:white;border:1px solid #ddd;width:26px;height:26px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:900;line-height:1">−</button>
+          <span id="bill-scale-label" style="font-size:12px;font-weight:700;color:var(--navy);min-width:36px;text-align:center">75%</span>
+          <button onclick="adjustBillScale(0.1)" style="background:white;border:1px solid #ddd;width:26px;height:26px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:900;line-height:1">＋</button>
+          <button onclick="setBillScale('fit')" style="background:white;border:1px solid #ddd;padding:0 8px;height:26px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;color:var(--navy)">自動</button>
+        </div>
+        <button onclick="copyShareLink()" style="background:#f5f2ec;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy)">🔗 分享</button>
+        <button onclick="downloadBillImage()" class="btn-primary" style="font-size:12px">↓ 下載 A4</button>
+        <button onclick="closeBillOverlay()" style="background:#f5f2ec;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer">×</button>
       </div>
     </div>
-    <div style="padding:28px;background:#f5f2ec;overflow-y:auto;max-height:75vh">
-      <div id="bill-preview-container"></div>
+    <div style="padding:16px;background:#e8e4da;overflow:auto;max-height:80vh;display:flex;justify-content:center;align-items:flex-start">
+      <div id="bill-scale-wrapper" style="transform-origin:top center;transition:transform 0.2s">
+        <div id="bill-preview-container"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -503,7 +504,7 @@ let currentBillMemberId = null;
 window.onload = async () => {
   document.getElementById('api-url-input').value = API_URL;
   if (!API_URL) {
-    document.getElementById('api-banner').style.display = 'block';
+    document.getElementById('api-banner').classList.remove('hidden');
   } else {
     await loadFromCloud();
   }
@@ -714,7 +715,6 @@ function render() {
   document.getElementById('cfg-contact-name').value = settings.financialContact?.name || '';
   document.getElementById('cfg-contact-phone').value = settings.financialContact?.phone || '';
   document.getElementById('cfg-month').value = settings.currentMonth || '';
-  document.getElementById('cfg-deadline').value = settings.paymentDeadline || '';
   document.getElementById('cfg-default-monthly').value = settings.defaultMonthly || 0;
   document.getElementById('cfg-default-split').value = settings.defaultSplit || 0;
 }
@@ -820,10 +820,8 @@ function updateItemOptions() {
     }
   } else if (cat === 'advance_pay') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
-  } else if (cat === 'donation_fixed') {
-    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="固定捐款說明（例：例會固定捐款）" value="例會固定捐款">';
-  } else if (cat === 'donation_general') {
-    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="一般捐款說明（例：4/7研習會捐款）">';
+  } else if (cat === 'donation') {
+    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="捐款說明（例：例會捐款）" value="社友捐款">';
   } else if (cat === 'receipt') {
     wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
   } else {
@@ -895,15 +893,10 @@ async function submitQuickInput() {
     else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
     else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
     else if (cat === 'advance_pay') { entry.desc = item; m.variable.advance_pay_list.push(entry); }
-    else if (cat === 'donation_fixed') { 
-      if (!m.variable.donation_fixed_list) m.variable.donation_fixed_list = [];
-      entry.desc = item || '例會固定捐款'; 
-      m.variable.donation_fixed_list.push(entry); 
-    }
-    else if (cat === 'donation_general') { 
-      if (!m.variable.donation_general_list) m.variable.donation_general_list = [];
-      entry.desc = item || '一般捐款'; 
-      m.variable.donation_general_list.push(entry); 
+    else if (cat === 'donation') { 
+      if (!m.variable.donation_list) m.variable.donation_list = [];
+      entry.desc = item || '社友捐款'; 
+      m.variable.donation_list.push(entry); 
     }
     else if (cat === 'creditcard') {
       entry.desc = '信用卡扣款';
@@ -946,73 +939,31 @@ function buildBillHTML(m) {
   const f = calcFees(m);
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const fs = settings.feeStructure;
-  let rowsA = '', rowsB = '', rowsC = '';
-
-  // 經常費 A
+  let rows = '';
   Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
-    if (v(m.fixedA?.[k]) > 0) rowsA += `<div class="bill-row"><span>[經常費] ${label}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedA[k]).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_monthly','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+    if (v(m.fixedA?.[k]) > 0) rows += `<div class="bill-row"><span>[經常費] ${label}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedA[k]).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_monthly','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
   });
-  (m.variable?.fixedA_list||[]).forEach(i => { rowsA += `<div class="bill-row"><span>[經常費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
-
-  // 代付款 B
-  (m.variable?.advance_pay_list||[]).forEach(i => { rowsB += `<div class="bill-row"><span>[代付款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','advance_pay_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
-
-  // 服務經費 C
-  if (v(m.fixedB?.monthly_split) > 0) rowsC += `<div class="bill-row"><span>[服務經費] 固定分攤費</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedB_monthly_split','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
-  (m.variable?.service_list||[]).forEach(i => { rowsC += `<div class="bill-row"><span>[服務經費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','service_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
-
-  // 捐款（另計，分固定/一般）
-  let donationRows = '';
-  const donFixed = m.variable?.donation_fixed_list || [];
-  const donGeneral = m.variable?.donation_general_list || [];
-  // 向下相容舊資料 donation_list
-  const donLegacy = (m.variable?.donation_list || []).filter(i => !donFixed.find(x=>x.id===i.id) && !donGeneral.find(x=>x.id===i.id));
-  const allDon = [...donFixed.map(i=>({...i,_type:'fixed'})), ...donGeneral.map(i=>({...i,_type:'general'})), ...donLegacy.map(i=>({...i,_type:'general'}))];
-
-  if (allDon.length > 0) {
-    const fixedItems = allDon.filter(i=>i._type==='fixed');
-    const generalItems = allDon.filter(i=>i._type==='general');
-    const fixedTotal = fixedItems.reduce((a,i)=>a+v(i.amount),0);
-    const generalTotal = generalItems.reduce((a,i)=>a+v(i.amount),0);
-    const donTotal = fixedTotal + generalTotal;
-    let inner = '';
-    if (fixedItems.length > 0) {
-      inner += `<div class="bill-sub" style="background:#f5f0ff;color:#6d28d9;font-size:11px">固定捐款</div>`;
-      fixedItems.forEach(i => {
-        inner += `<div class="bill-row" style="color:#7c3aed"><span>[固定捐款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','donation_fixed_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
-      });
-    }
-    if (generalItems.length > 0) {
-      inner += `<div class="bill-sub" style="background:#f5f0ff;color:#6d28d9;font-size:11px">一般捐款</div>`;
-      generalItems.forEach(i => {
-        const listKey = i._type === 'general' ? 'donation_general_list' : 'donation_list';
-        inner += `<div class="bill-row" style="color:#9333ea"><span>[一般捐款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','${listKey}','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
-      });
-    }
-    donationRows = `
-      <div class="bill-sub" style="background:#fdf4ff;color:#7c3aed">社友捐款明細（另計，不含於未付款）</div>
-      ${inner}
-      <div class="bill-sub" style="background:#ede9fe;color:#6d28d9">
-        <span>固定捐款小計</span><span class="mono">$${fixedTotal.toLocaleString()}</span>
-      </div>
-      <div class="bill-sub" style="background:#ede9fe;color:#6d28d9">
-        <span>一般捐款小計</span><span class="mono">$${generalTotal.toLocaleString()}</span>
-      </div>
-      <div class="bill-sub" style="background:#7c3aed;color:white">
-        <span>捐款合計</span><span class="mono">$${donTotal.toLocaleString()}</span>
-      </div>`;
-  }
-
-  // 收款明細行
-  let receiptRows = '';
+  (m.variable?.fixedA_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[經常費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
+  (m.variable?.advance_pay_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[代付款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','advance_pay_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
+  rows += `<div class="bill-sub"><span>(A) 經常費小計</span><span class="mono">$${f.sumA.toLocaleString()}</span></div>`;
+  if (v(m.fixedB?.monthly_split) > 0) rows += `<div class="bill-row"><span>[服務經費] 固定分攤費</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedB_monthly_split','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+  (m.variable?.service_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[服務經費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','service_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
+  rows += `<div class="bill-sub"><span>(B) 服務經費小計</span><span class="mono">$${f.sumB.toLocaleString()}</span></div>`;
+  if (v(m.accounting?.previous_due) !== 0) rows += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
   (m.variable?.receipt_list||[]).forEach(i => {
     const isCard = i.type === 'receipt_card';
-    const label = isCard ? '已收信用卡扣款 (G)' : '已收匯款 (F)';
+    const label = isCard ? '信用卡收款' : '匯款收款';
     const color = isCard ? '#7c3aed' : '#16a34a';
-    receiptRows += `<div class="bill-row" style="color:${color}"><span>[${label}]</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">-$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','receipt_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+    rows += `<div class="bill-row" style="color:${color}"><span>[${label}]</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">-$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','receipt_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
   });
-
-  const deadlineMonth = settings.paymentDeadline || '__月__日';
+  if ((m.variable?.donation_list||[]).length > 0) {
+    rows += `<div class="bill-sub" style="background:#fdf4ff;color:#7c3aed"><span>社友捐款明細</span><span></span></div>`;
+    (m.variable.donation_list).forEach(i => {
+      rows += `<div class="bill-row" style="color:#7c3aed"><span>[捐款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','donation_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+    });
+    const donTotal = (m.variable.donation_list).reduce((a,i)=>a+v(i.amount),0);
+    rows += `<div class="bill-sub" style="background:#fdf4ff;color:#7c3aed"><span>捐款小計（另計，不含於未付款）</span><span class="mono">$${donTotal.toLocaleString()}</span></div>`;
+  }
 
   return `<div class="bill-wrap" id="bill-render-${m.id}">
     <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid var(--navy)">
@@ -1028,26 +979,16 @@ function buildBillHTML(m) {
     </div>
     <div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:12px">
       <div class="bill-head"><span>項目說明</span><span>金額 (NTD)</span></div>
-      ${rowsA}
-      <div class="bill-sub"><span>經常費合計 (A)</span><span class="mono">$${f.sumA.toLocaleString()}</span></div>
-      ${rowsB}
-      <div class="bill-sub"><span>代付款合計 (B)</span><span class="mono">$${f.sumC.toLocaleString()}</span></div>
-      ${rowsC}
-      <div class="bill-sub"><span>服務經費合計 (C)</span><span class="mono">$${f.sumB.toLocaleString()}</span></div>
-      <div class="bill-sub" style="background:#002147;color:#C9A84C"><span>本期社費 (D = A+B+C)</span><span class="mono">$${f.sumD.toLocaleString()}</span></div>
-      ${f.sumE !== 0 ? `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${f.sumE.toLocaleString()}</span></div>` : ''}
-      ${receiptRows}
+      ${rows}
     </div>
     <div class="bill-total">
-      <div style="font-size:13px;font-weight:700;letter-spacing:0.05em">本期未付款 (H = D+E−F−G)</div>
+      <div style="font-size:13px;font-weight:700;letter-spacing:0.05em">本期未付款合計 (H)</div>
       <div class="mono" style="font-size:36px;font-weight:900">$${f.finalH.toLocaleString()}</div>
     </div>
-    ${donationRows ? `<div style="border:1.5px solid #e8d5ff;border-radius:10px;overflow:hidden;margin-top:8px">${donationRows}</div>` : ''}
     <div style="margin-top:16px;padding-top:16px;border-top:1.5px solid #eee;font-size:11px;color:#333;line-height:1.9">
       <p style="margin-bottom:6px">親愛的洲美扶輪社社友您好：</p>
-      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D) 為 <strong style="color:var(--navy);font-size:13px">NT $${f.sumD.toLocaleString()}</strong>，本期未付款 (H) 為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對會費內容，確定無誤後請簽名回傳。若有錯誤請於<strong>三天內</strong>告知。謝謝！</p>
-      <p style="margin-bottom:6px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineMonth}</strong> 前繳清，以避免會籍被終止，謝謝！</p>
-      <p style="margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於三天內告知）：＿＿＿＿＿＿＿＿＿＿＿＿</p>
+      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本月費用合計（經常費＋服務費）為 <strong style="color:var(--navy);font-size:13px">NT $${(f.sumA+f.sumB).toLocaleString()}</strong>，本期未付款為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對會費內容，確定無誤後請簽名回傳。若有錯誤務必於7天內告知。謝謝！！</p>
+      <p style="margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於7天內告知）：＿＿＿＿＿＿＿＿＿＿＿＿</p>
       <p style="margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿＿＿＿</p>
 
       <div style="border:1px solid #ddd;border-radius:8px;padding:10px 12px;background:#fafafa;margin-bottom:10px">
@@ -1076,7 +1017,42 @@ function openBill(mId) {
   currentBillMemberId = mId;
   const m = members.find(x => x.id === mId);
   document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
+  openBillOverlay();
+}
+
+let billScale = 0.75;
+
+function setBillScale(val) {
+  const wrapper = document.getElementById('bill-scale-wrapper');
+  if (!wrapper) return;
+  if (val === 'fit') {
+    // 計算適合視窗高度的縮放比例
+    const container = wrapper.parentElement;
+    const availH = container.clientHeight - 32;
+    const availW = container.clientWidth - 32;
+    const billH = wrapper.scrollHeight || 1100;
+    const billW = 794; // bill-wrap width
+    const scaleH = availH / billH;
+    const scaleW = availW / billW;
+    billScale = Math.min(scaleH, scaleW, 1);
+    billScale = Math.max(0.3, Math.round(billScale * 10) / 10);
+  } else {
+    billScale = Math.max(0.3, Math.min(1.5, billScale + val));
+    billScale = Math.round(billScale * 10) / 10;
+  }
+  wrapper.style.transform = `scale(${billScale})`;
+  wrapper.style.transformOrigin = 'top center';
+  // 調整 wrapper 佔位高度（避免 scale 後遮住下方）
+  wrapper.style.marginBottom = `${(billScale - 1) * (wrapper.scrollHeight || 800)}px`;
+  document.getElementById('bill-scale-label').textContent = Math.round(billScale * 100) + '%';
+}
+
+function adjustBillScale(delta) { setBillScale(delta); }
+
+function openBillOverlay() {
   document.getElementById('bill-overlay').classList.add('show');
+  // 開啟後稍微延遲計算自動縮放（等 DOM 渲染完）
+  setTimeout(() => setBillScale('fit'), 80);
 }
 
 function closeBillOverlay() {
@@ -1087,62 +1063,25 @@ async function downloadBillImage() {
   const mId = currentBillMemberId;
   const node = document.getElementById('bill-render-' + mId);
   const m = members.find(x => x.id === mId);
-  // A4 at 150dpi: 1240 x 1754px
-  const A4_W = 1240, A4_H = 1754;
-  try {
-    // 先取得帳單原始 PNG
-    const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
-    // 畫到 A4 canvas，上下留白居中
-    const img = new Image();
-    img.src = dataUrl;
-    await new Promise(res => { img.onload = res; });
-    const canvas = document.createElement('canvas');
-    canvas.width = A4_W; canvas.height = A4_H;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, A4_W, A4_H);
-    // 計算縮放：寬度鎖 A4_W，高度等比
-    const scale = A4_W / img.width;
-    const drawH = img.height * scale;
-    const offsetY = Math.max(0, (A4_H - drawH) / 2);
-    ctx.drawImage(img, 0, offsetY, A4_W, Math.min(drawH, A4_H));
-    const link = document.createElement('a');
-    link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  } catch(e) {
-    alert('下載失敗：' + e.message);
-  }
+  const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
+  const link = document.createElement('a');
+  link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
+  link.href = dataUrl; link.click();
 }
 
 async function exportAllBills() {
   showSync('產生全體帳單...');
   const zip = new JSZip();
-  const A4_W = 1240, A4_H = 1754;
-  const sorted = [...members].sort((a,b) => sortByNickname(a,b));
-  for (const m of sorted) {
+  for (const m of members) {
+    // 建臨時 DOM
     const tmp = document.createElement('div');
-    tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:794px';
+    tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:680px';
     tmp.innerHTML = buildBillHTML(m);
     document.body.appendChild(tmp);
     try {
       const dataUrl = await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise(res => { img.onload = res; });
-      const canvas = document.createElement('canvas');
-      canvas.width = A4_W; canvas.height = A4_H;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, A4_W, A4_H);
-      const scale = A4_W / img.width;
-      const drawH = img.height * scale;
-      const offsetY = Math.max(0, (A4_H - drawH) / 2);
-      ctx.drawImage(img, 0, offsetY, A4_W, Math.min(drawH, A4_H));
-      const a4DataUrl = canvas.toDataURL('image/png');
-      const base64 = a4DataUrl.split(',')[1];
-      const nickname = (m.nickname || m.name).replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g,'_');
-      zip.file(`${nickname}_${m.name}.png`, base64, { base64: true });
+      const base64 = dataUrl.split(',')[1];
+      zip.file(`洲美帳單_${m.name}.png`, base64, { base64: true });
     } catch(e) {}
     document.body.removeChild(tmp);
   }
@@ -1246,7 +1185,7 @@ async function deleteMember(mId) {
 function saveApiUrl() {
   API_URL = document.getElementById('api-url-input').value.trim();
   localStorage.setItem('choumei_api_url', API_URL);
-  document.getElementById('api-banner').style.display = API_URL ? 'none' : 'block';
+  document.getElementById('api-banner').classList.toggle('hidden', !!API_URL);
   if (API_URL) loadFromCloud().then(render);
   alert('API 網址已儲存！');
 }
@@ -1270,7 +1209,6 @@ async function saveSettings() {
     phone: document.getElementById('cfg-contact-phone').value
   };
   settings.currentMonth = document.getElementById('cfg-month').value;
-  settings.paymentDeadline = document.getElementById('cfg-deadline').value;
   settings.defaultMonthly = Number(document.getElementById('cfg-default-monthly').value) || 0;
   settings.defaultSplit = Number(document.getElementById('cfg-default-split').value) || 0;
   await pushToCloud('saveSettings', { settings });
@@ -1313,26 +1251,36 @@ function closeCarryOverlay() {
 
 async function executeCarryOver() {
   showSync('執行結轉...');
+
+  // ① 先存本月快照（在清空 variable 之前，確保代付款等資料完整）
+  const nums0 = (settings.currentMonth || '').match(/\d+/g);
+  const snapshotMonth = settings.currentMonth;
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  history.unshift({ month: snapshotMonth, members: JSON.parse(JSON.stringify(members)), savedAt: new Date().toISOString() });
+  if (history.length > 24) history.pop();
+  localStorage.setItem('choumei_history', JSON.stringify(history));
+
+  // ② 結轉：清空 variable、套下月預設費用
   members.forEach(m => {
     const { finalH } = calcFees(m);
     m.accounting = { previous_due: finalH, already_paid: 0, credit_card: 0 };
     m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
-    // 自動套用固定費用預設
-    m.fixedA = settings.defaultMonthly ? { monthly: settings.defaultMonthly } : {};
+    // 請假社友自動套半價，一般社友套預設月費
+    if (m.onLeave) {
+      const base = settings.defaultMonthly || 0;
+      m.fixedA = { monthly: Math.round(base / 2) };
+    } else {
+      m.fixedA = settings.defaultMonthly ? { monthly: settings.defaultMonthly } : {};
+    }
     m.fixedB = { monthly_split: settings.defaultSplit || 0 };
   });
-  const nums = (settings.currentMonth || '').match(/\d+/g);
-  if (nums?.length >= 2) {
-    let y = parseInt(nums[0]), mo = parseInt(nums[1]) + 1;
+
+  // ③ 推進月份
+  if (nums0?.length >= 2) {
+    let y = parseInt(nums0[0]), mo = parseInt(nums0[1]) + 1;
     if (mo > 12) { mo = 1; y++; }
     settings.currentMonth = `${y}年${String(mo).padStart(2,'0')}月`;
   }
-  // 結轉前先儲存歷史快照
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
-  history.unshift({ month: settings.currentMonth, members: JSON.parse(JSON.stringify(members)), savedAt: new Date().toISOString() });
-  // 只保留最近 24 個月
-  if (history.length > 24) history.pop();
-  localStorage.setItem('choumei_history', JSON.stringify(history));
 
   await pushToCloud('saveMembers', { members });
   await pushToCloud('saveSettings', { settings });
@@ -1512,7 +1460,26 @@ function generateReportPreview() {
   const preview = document.getElementById('report-preview');
 
   if (data.type === 'donation') {
-    // donation preview is rendered in the renderReport section below
+    const mList = data.members || members;
+    const groups = {};
+    mList.forEach(m => {
+      (m.variable?.donation_list || []).forEach(i => {
+        const key = i.desc || '社友捐款';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+      });
+    });
+    csv = '捐款項目,社友姓名,暱稱,金額\n';
+    let grandTotal = 0;
+    Object.entries(groups).forEach(([item, list]) => {
+      const subtotal = list.reduce((a, x) => a + x.amount, 0);
+      grandTotal += subtotal;
+      list.forEach(x => { csv += `"${item}","${x.name}","${x.nickname}",${x.amount}\n`; });
+      csv += `"${item} 小計","","",${subtotal}\n`;
+    });
+    csv += `"捐款總計","","",${grandTotal}\n`;
+    downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
+    return;
   } else if (data.type === 'advance') {
     const mList = data.members || members;
     const groups = {};
@@ -1535,317 +1502,109 @@ function generateReportPreview() {
     downloadCSV(csv, `洲美代付款明細_${data.month}.csv`);
     return;
   } else if (data.type === 'monthly') {
-    const mList = (data.members || members).sort((a,b) => sortByNickname(a,b));
-
-    // ── 動態收集所有科目 ──────────────────────────────────
-    // fixedA 固定科目
-    const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
-    // fixedA_list 各自的 desc
-    const fixedAExtraSet = new Set();
-    mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => fixedAExtraSet.add(i.desc)));
-    const fixedAExtras = [...fixedAExtraSet];
-    // service_list 科目
-    const serviceSet = new Set();
-    mList.forEach(m => {
-      if (Number(m.fixedB?.monthly_split||0) > 0) serviceSet.add('__split__');
-      (m.variable?.service_list||[]).forEach(i => serviceSet.add(i.desc));
-    });
-    const serviceItems = [...serviceSet];
-    // advance_pay 科目
-    const advanceSet = new Set();
-    mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(i.desc)));
-    const advanceItems = [...advanceSet];
-    // 固定捐款科目
-    const donFixedSet = new Set();
-    mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
-    const donFixedItems = [...donFixedSet];
-    // 一般捐款科目
-    const donGeneralSet = new Set();
-    mList.forEach(m => {
-      (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(i.desc));
-      (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(i.desc)); // 舊資料相容
-    });
-    const donGeneralItems = [...donGeneralSet];
-
-    // ── 建 header ──────────────────────────────────────────
-    const th = s => `<th style="padding:7px 10px;text-align:right;font-size:10px;color:#888;white-space:nowrap;background:#f5f2ec">${s}</th>`;
-    const thL = s => `<th style="padding:7px 10px;text-align:left;font-size:10px;color:#888;white-space:nowrap;background:#f5f2ec">${s}</th>`;
-    const thGroup = (s, colspan, bg='#e8e4da', color='#555') =>
-      `<th colspan="${colspan}" style="padding:5px 10px;text-align:center;font-size:10px;font-weight:900;background:${bg};color:${color};border-bottom:2px solid #ddd">${s}</th>`;
-
-    // 合計列數計算
-    const colA = fixedAItems.length + fixedAExtras.length + 1;
-    const colB = advanceItems.length + 1;
-    const colC = serviceItems.length + 1;
-    const colDonF = donFixedItems.length > 0 ? donFixedItems.length + 1 : 0;
-    const colDonG = donGeneralItems.length > 0 ? donGeneralItems.length + 1 : 0;
-    const colD = 1, colE = 1, colF = 1, colG = 1, colH = 1;
-
-    let groupRow = `<tr>
-      ${thGroup('姓名', 2, '#fff', '#002147')}
-      ${thGroup('經常費 (A)', colA, '#eff6ff', '#1e40af')}
-      ${thGroup('代付款 (B)', colB, '#fdf4ff', '#7c3aed')}
-      ${thGroup('服務費 (C)', colC, '#f0fdf4', '#166534')}
-      ${colDonF ? thGroup('固定捐款', colDonF, '#4c1d95', '#e9d5ff') : ''}
-      ${colDonG ? thGroup('一般捐款', colDonG, '#6d28d9', '#f5f3ff') : ''}
-      ${thGroup('本期社費 D', colD, '#002147', '#C9A84C')}
-      ${thGroup('前期(E)', colE, '#fefce8', '#92400e')}
-      ${thGroup('匯款(F)', colF, '#f0fdf4', '#166534')}
-      ${thGroup('信用卡(G)', colG, '#fdf4ff', '#7c3aed')}
-      ${thGroup('未付款(H)', colH, '#fef2f2', '#991b1b')}
-    </tr>`;
-    let subRow = `<tr>
-      ${thL('姓名')}${thL('暱稱')}
-      ${fixedAItems.map(([,label]) => th(label)).join('')}
-      ${fixedAExtras.map(d => th(d)).join('')}
-      ${th('經常費合計(A)')}
-      ${advanceItems.map(d => th(d)).join('')}
-      ${th('代付款合計(B)')}
-      ${serviceItems.map(d => d === '__split__' ? th('固定分攤') : th(d)).join('')}
-      ${th('服務費合計(C)')}
-      ${donFixedItems.map(d => th(d)).join('')}
-      ${colDonF ? th('固定捐款小計') : ''}
-      ${donGeneralItems.map(d => th(d)).join('')}
-      ${colDonG ? th('一般捐款小計') : ''}
-      ${th('D=A+B+C')}
-      ${th('E')}${th('F')}${th('G')}${th('H')}
-    </tr>`;
-
-    // ── 建資料列 ─────────────────────────────────────────
-    const v = x => isNaN(Number(x)) ? 0 : Number(x);
-    const td = (val, color='inherit', bold=false) => {
-      const s = `padding:7px 10px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;color:${color};${bold?'font-weight:900':''}`;
-      return `<td style="${s}">${val > 0 ? '$'+val.toLocaleString() : val === 0 ? '-' : val}</td>`;
-    };
-
-    // 初始化合計
-    const totals = {
-      fixedA: Object.fromEntries(fixedAItems.map(([k])=>[k,0])),
-      fixedAExtra: Object.fromEntries(fixedAExtras.map(d=>[d,0])),
-      sumA: 0,
-      advance: Object.fromEntries(advanceItems.map(d=>[d,0])),
-      sumB: 0,
-      service: Object.fromEntries(serviceItems.map(d=>[d,0])),
-      sumC: 0,
-      donFixed: Object.fromEntries(donFixedItems.map(d=>[d,0])),
-      donFixedTotal: 0,
-      donGeneral: Object.fromEntries(donGeneralItems.map(d=>[d,0])),
-      donGeneralTotal: 0,
-      sumD: 0, prevDue: 0, transfer: 0, card: 0, finalH: 0
-    };
-
-    const rows = mList.map(m => {
+    const rows = (data.members || members).map(m => {
       const f = calcFees(m);
-      // fixedA 固定科目
-      const fixedACells = fixedAItems.map(([k]) => {
-        const amt = v(m.fixedA?.[k]);
-        totals.fixedA[k] += amt;
-        return td(amt);
-      });
-      // fixedA_list
-      const fixedAExtraCells = fixedAExtras.map(desc => {
-        const amt = (m.variable?.fixedA_list||[]).filter(i=>i.desc===desc).reduce((a,i)=>a+v(i.amount),0);
-        totals.fixedAExtra[desc] = (totals.fixedAExtra[desc]||0) + amt;
-        return td(amt);
-      });
-      totals.sumA += f.sumA;
-      // advance_pay
-      const advanceCells = advanceItems.map(desc => {
-        const amt = (m.variable?.advance_pay_list||[]).filter(i=>i.desc===desc).reduce((a,i)=>a+v(i.amount),0);
-        totals.advance[desc] = (totals.advance[desc]||0) + amt;
-        return td(amt, '#7c3aed');
-      });
-      totals.sumB += f.sumC; // f.sumC = advance_pay total in current calcFees
-      // service
-      const serviceCells = serviceItems.map(desc => {
-        let amt;
-        if (desc === '__split__') { amt = v(m.fixedB?.monthly_split); }
-        else { amt = (m.variable?.service_list||[]).filter(i=>i.desc===desc).reduce((a,i)=>a+v(i.amount),0); }
-        totals.service[desc] = (totals.service[desc]||0) + amt;
-        return td(amt, '#166534');
-      });
-      totals.sumC += f.sumB;
-      // 固定捐款
-      const donFixedCells = donFixedItems.map(desc => {
-        const amt = (m.variable?.donation_fixed_list||[]).filter(i=>i.desc===desc).reduce((a,i)=>a+v(i.amount),0);
-        totals.donFixed[desc] = (totals.donFixed[desc]||0) + amt; return td(amt, '#6d28d9');
-      });
-      const mDonFixed = donFixedItems.reduce((s,d)=>(m.variable?.donation_fixed_list||[]).filter(i=>i.desc===d).reduce((a,i)=>a+v(i.amount),s),0);
-      totals.donFixedTotal += mDonFixed;
-      // 一般捐款
-      const donGeneralCells = donGeneralItems.map(desc => {
-        const amt = [...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>i.desc===desc).reduce((a,i)=>a+v(i.amount),0);
-        totals.donGeneral[desc] = (totals.donGeneral[desc]||0) + amt; return td(amt, '#9333ea');
-      });
-      const mDonGeneral = donGeneralItems.reduce((s,d)=>[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>i.desc===d).reduce((a,i)=>a+v(i.amount),s),0);
-      totals.donGeneralTotal += mDonGeneral;
-      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+v(i.amount),0);
-      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+v(i.amount),0);
-      const prevDue = v(m.accounting?.previous_due);
-      totals.sumD += f.sumD; totals.prevDue += prevDue; totals.transfer += transfer; totals.card += card; totals.finalH += f.finalH;
+      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+Number(i.amount||0),0);
+      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+Number(i.amount||0),0);
       return `<tr>
-        <td style="padding:7px 10px;border-bottom:1px solid #f0ece4;font-weight:700;white-space:nowrap">${m.name}</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #f0ece4;color:#aaa;font-size:11px;white-space:nowrap">${m.nickname||''}</td>
-        ${fixedACells.join('')}${fixedAExtraCells.join('')}
-        ${td(f.sumA, '#1e40af', true)}
-        ${advanceCells.join('')}
-        ${td(f.sumC, '#7c3aed', true)}
-        ${serviceCells.join('')}
-        ${td(f.sumB, '#166534', true)}
-        ${donFixedCells.join('')}
-        ${colDonF ? td(mDonFixed, '#4c1d95', true) : ''}
-        ${donGeneralCells.join('')}
-        ${colDonG ? td(mDonGeneral, '#7c3aed', true) : ''}
-        ${td(f.sumD, '#C9A84C', true)}
-        ${td(prevDue, '#92400e')}
-        ${td(transfer, '#166534')}
-        ${td(card, '#7c3aed')}
-        <td style="padding:7px 10px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;font-weight:900;color:${f.finalH>0?'#dc2626':'#16a34a'}">${f.finalH>0?'$'+f.finalH.toLocaleString():f.finalH===0?'-':'$'+f.finalH.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;font-weight:700">${m.name}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:center">${m.nickname||''}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${f.sumA.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${f.sumB.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${Number(m.accounting?.previous_due||0).toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;color:#16a34a">${transfer>0?'$'+transfer.toLocaleString():'-'}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;color:#7c3aed">${card>0?'$'+card.toLocaleString():'-'}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-weight:900;color:${f.finalH>0?'#dc2626':'#16a34a'}">$${f.finalH.toLocaleString()}</td>
       </tr>`;
     }).join('');
 
-    // 合計行
-    const footTd = (val, color='#C9A84C') => `<td style="padding:8px 10px;text-align:right;font-family:monospace;font-weight:900;color:${color}">${val>0?'$'+val.toLocaleString():'-'}</td>`;
-    const footRow = `<tr style="background:#002147;color:white">
-      <td colspan="2" style="padding:8px 12px;font-weight:900">合計</td>
-      ${fixedAItems.map(([k]) => footTd(totals.fixedA[k])).join('')}
-      ${fixedAExtras.map(d => footTd(totals.fixedAExtra[d])).join('')}
-      ${footTd(totals.sumA, '#93c5fd')}
-      ${advanceItems.map(d => footTd(totals.advance[d], '#e9d5ff')).join('')}
-      ${footTd(totals.sumB, '#e9d5ff')}
-      ${serviceItems.map(d => footTd(totals.service[d], '#bbf7d0')).join('')}
-      ${footTd(totals.sumC, '#bbf7d0')}
-      ${donFixedItems.map(d => footTd(totals.donFixed[d]||0, '#c4b5fd')).join('')}
-      ${colDonF ? footTd(totals.donFixedTotal, '#e9d5ff') : ''}
-      ${donGeneralItems.map(d => footTd(totals.donGeneral[d]||0, '#ddd6fe')).join('')}
-      ${colDonG ? footTd(totals.donGeneralTotal, '#ede9fe') : ''}
-      ${footTd(totals.sumD)}
-      ${footTd(totals.prevDue, '#fde68a')}
-      ${footTd(totals.transfer, '#6ee7b7')}
-      ${footTd(totals.card, '#c4b5fd')}
-      ${footTd(totals.finalH)}
-    </tr>`;
+    const total = (data.members || members).reduce((acc, m) => {
+      const f = calcFees(m);
+      const prevDue = Number(m.accounting?.previous_due || 0);
+      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+Number(i.amount||0),0);
+      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+Number(i.amount||0),0);
+      return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, prevDue: acc.prevDue+prevDue, transfer: acc.transfer+transfer, card: acc.card+card, finalH: acc.finalH+f.finalH };
+    }, { sumA: 0, sumB: 0, prevDue: 0, transfer: 0, card: 0, finalH: 0 });
 
     preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 月結報表（動態欄位）</div>
-      <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;font-size:12px;white-space:nowrap">
-        <thead>${groupRow}${subRow}</thead>
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 月結報表預覽</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f5f2ec">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">姓名</th>
+            <th style="padding:8px 12px;text-align:center;font-size:11px;color:#888">暱稱</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">經常費(A)</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">服務費(B)</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">前期餘額</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#16a34a">本月匯款</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#7c3aed">本月信用卡</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">未付款(H)</th>
+          </tr>
+        </thead>
         <tbody>${rows}</tbody>
-        <tfoot>${footRow}</tfoot>
-      </table>
-      </div>`;
-  if (data.type === 'donation') {
+        <tfoot>
+          <tr style="background:#002147;color:white">
+            <td colspan="2" style="padding:10px 12px;font-weight:900">合計</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${total.sumA.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${total.sumB.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${total.prevDue.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#6ee7b7">$${total.transfer.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${total.card.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${total.finalH.toLocaleString()}</td>
+          </tr>
+        </tfoot>
+      </table>`;
+  } else if (data.type === 'donation') {
     const mList = data.members || members;
-    const fixedGroups = {}, generalGroups = {};
+    const groups = {};
     mList.forEach(m => {
-      (m.variable?.donation_fixed_list || []).forEach(i => {
-        const key = i.desc || '固定捐款';
-        if (!fixedGroups[key]) fixedGroups[key] = [];
-        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
-      (m.variable?.donation_general_list || []).forEach(i => {
-        const key = i.desc || '一般捐款';
-        if (!generalGroups[key]) generalGroups[key] = [];
-        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
       (m.variable?.donation_list || []).forEach(i => {
         const key = i.desc || '社友捐款';
-        if (!generalGroups[key]) generalGroups[key] = [];
-        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
       });
     });
-    csv = '類型,捐款項目,#,社友姓名,暱稱,金額\n';
-    let grandTotal = 0;
-    const writeGroup = (groups, typeName) => {
-      let sectionTotal = 0;
-      Object.entries(groups).forEach(([item, list]) => {
-        const sorted = [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
-        const subtotal = sorted.reduce((a,x)=>a+x.amount,0);
-        sectionTotal += subtotal;
-        sorted.forEach((x, idx) => { csv += `"${typeName}","${item}",${idx+1},"${x.name}","${x.nickname}",${x.amount}\n`; });
-        csv += `"${typeName} 小計","${item}","","","",${subtotal}\n`;
-      });
-      if (sectionTotal > 0) csv += `"${typeName} 合計","","","","",${sectionTotal}\n`;
-      grandTotal += sectionTotal;
-    };
-    writeGroup(fixedGroups, '固定捐款');
-    writeGroup(generalGroups, '一般捐款');
-    csv += `"捐款總計","","","","",${grandTotal}\n`;
-    downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
-    return;
+    if (Object.keys(groups).length === 0) {
+      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無捐款記錄</div>`;
+      return;
     }
-
-    const sortList = list => [...list].sort((a,b) => {
-      const na=(a.nickname||a.name).toUpperCase(), nb=(b.nickname||b.name).toUpperCase();
-      return na<nb?-1:na>nb?1:0;
-    });
-
-    const buildCards = (groups, label, headerBg, headerColor) => {
-      let cards = '', sectionTotal = 0;
-      Object.entries(groups).forEach(([item, list]) => {
-        const subtotal = list.reduce((a,x)=>a+x.amount,0);
-        sectionTotal += subtotal;
-        const sorted = sortList(list);
-        const memberRows = sorted.map((x, idx) => `
-          <tr>
-            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
-            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
-            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
-            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
-          </tr>`).join('');
-        cards += `
-          <div style="border:1.5px solid #e8d5ff;border-radius:12px;overflow:hidden;margin-bottom:12px">
-            <div style="background:${headerBg};padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="color:${headerColor};font-size:13px;font-weight:900">${item}</div>
-                <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px">共 ${list.length} 人</div>
-              </div>
-              <div style="color:${headerColor};font-family:monospace;font-size:18px;font-weight:900">$${subtotal.toLocaleString()}</div>
-            </div>
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f9f4ff">
-                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
-                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
-                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
-                <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
-              </tr></thead>
-              <tbody>${memberRows}</tbody>
-              <tfoot><tr style="background:#f3e8ff">
-                <td colspan="3" style="padding:6px 12px;font-size:12px;font-weight:900;color:#6d28d9">${item} 小計</td>
-                <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#6d28d9">$${subtotal.toLocaleString()}</td>
-              </tr></tfoot>
-            </table>
-          </div>`;
+    let rows = '';
+    let grandTotal = 0;
+    Object.entries(groups).forEach(([item, list]) => {
+      const subtotal = list.reduce((a, x) => a + x.amount, 0);
+      grandTotal += subtotal;
+      list.forEach((x, idx) => {
+        rows += `<tr>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;color:#7c3aed">${idx === 0 ? item : ''}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec">${x.name} <span style="color:#bbb;font-size:11px">${x.nickname}</span></td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;text-align:right;font-family:monospace">$${x.amount.toLocaleString()}</td>
+        </tr>`;
       });
-      return { cards, sectionTotal };
-    };
-
-    const { cards: fixedCards, sectionTotal: fixedTotal } = buildCards(fixedGroups, '固定捐款', '#4c1d95', '#e9d5ff');
-    const { cards: generalCards, sectionTotal: generalTotal } = buildCards(generalGroups, '一般捐款', '#6d28d9', '#f5f3ff');
-    const grandTotal = fixedTotal + generalTotal;
-
+      rows += `<tr style="background:#fdf4ff">
+        <td style="padding:7px 12px;font-weight:900;color:#7c3aed;font-size:12px">${item} 小計</td>
+        <td></td>
+        <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:900;color:#7c3aed">$${subtotal.toLocaleString()}</td>
+      </tr>`;
+    });
     preview.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div style="font-size:12px;font-weight:700;color:#888">${data.month} 捐款明細報表</div>
-        <div style="background:#581c87;color:#e9d5ff;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
-      </div>
-      ${Object.keys(fixedGroups).length > 0 ? `
-        <div style="display:flex;justify-content:space-between;align-items:center;background:#4c1d95;color:#e9d5ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px">
-          <span style="font-weight:900;font-size:13px">固定捐款</span>
-          <span style="font-family:monospace;font-weight:900">$${fixedTotal.toLocaleString()}</span>
-        </div>
-        ${fixedCards}` : ''}
-      ${Object.keys(generalGroups).length > 0 ? `
-        <div style="display:flex;justify-content:space-between;align-items:center;background:#6d28d9;color:#f5f3ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px;margin-top:8px">
-          <span style="font-weight:900;font-size:13px">一般捐款</span>
-          <span style="font-family:monospace;font-weight:900">$${generalTotal.toLocaleString()}</span>
-        </div>
-        ${generalCards}` : ''}`;
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 捐款明細報表</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f5f2ec">
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888;width:35%">捐款項目</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">社友姓名</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">金額</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="background:#581c87;color:white">
+          <td colspan="2" style="padding:10px 12px;font-weight:900">捐款總計</td>
+          <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#e9d5ff">$${grandTotal.toLocaleString()}</td>
+        </tr></tfoot>
+      </table>`;
 
   } else if (data.type === 'advance') {
-    // 代付款明細報表 — 以項目為卡片，列出名單 + 統計
+    // 代付款明細報表
     const mList = data.members || members;
+    // 收集所有代付款，以項目名稱分組
     const groups = {};
     mList.forEach(m => {
       (m.variable?.advance_pay_list || []).forEach(i => {
@@ -1860,175 +1619,97 @@ function generateReportPreview() {
       return;
     }
 
+    let rows = '';
     let grandTotal = 0;
-    let cards = '';
     Object.entries(groups).forEach(([item, list]) => {
       const subtotal = list.reduce((a, x) => a + x.amount, 0);
       grandTotal += subtotal;
-      // 依 nickname A-Z 排序
-      const sorted = [...list].sort((a,b) => {
-        const na = (a.nickname||a.name).toUpperCase(), nb = (b.nickname||b.name).toUpperCase();
-        return na < nb ? -1 : na > nb ? 1 : 0;
+      list.forEach((x, idx) => {
+        rows += `<tr>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;color:#555">${idx === 0 ? item : ''}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec">${x.name} <span style="color:#bbb;font-size:11px">${x.nickname}</span></td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;text-align:right;font-family:monospace">$${x.amount.toLocaleString()}</td>
+        </tr>`;
       });
-      const memberRows = sorted.map((x, idx) => `
-        <tr>
-          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#666">${idx+1}</td>
-          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
-          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
-          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
-        </tr>`).join('');
-      cards += `
-        <div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:16px">
-          <div style="background:#002147;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="color:#C9A84C;font-size:14px;font-weight:900">${item}</div>
-              <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px">共 ${list.length} 人</div>
-            </div>
-            <div style="color:#C9A84C;font-family:monospace;font-size:20px;font-weight:900">$${subtotal.toLocaleString()}</div>
-          </div>
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr style="background:#f5f2ec">
-              <th style="padding:6px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
-              <th style="padding:6px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
-              <th style="padding:6px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
-              <th style="padding:6px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
-            </tr></thead>
-            <tbody>${memberRows}</tbody>
-            <tfoot><tr style="background:#eef4ff">
-              <td colspan="3" style="padding:7px 12px;font-size:12px;font-weight:900;color:#002147">${item} 小計</td>
-              <td style="padding:7px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#002147">$${subtotal.toLocaleString()}</td>
-            </tr></tfoot>
-          </table>
-        </div>`;
+      rows += `<tr style="background:#eef4ff">
+        <td style="padding:7px 12px;font-weight:900;color:var(--navy-mid);font-size:12px">${item} 小計</td>
+        <td></td>
+        <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:900;color:var(--navy-mid)">$${subtotal.toLocaleString()}</td>
+      </tr>`;
     });
 
     preview.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:700;color:#888">${data.month} 代付款明細報表（共 ${Object.keys(groups).length} 項）</div>
-        <div style="background:#002147;color:#C9A84C;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
-      </div>
-      ${cards}`;
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 代付款明細報表</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f5f2ec">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888;width:35%">代付款項目</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">社友姓名</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">金額</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr style="background:#002147;color:white">
+            <td colspan="2" style="padding:10px 12px;font-weight:900">代付款總計</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${grandTotal.toLocaleString()}</td>
+          </tr>
+        </tfoot>
+      </table>`;
 
   } else {
-    // 年度報表：每位社友一行，月份為欄位
+    // 年度報表
     if (!data.history || data.history.length === 0) {
       preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無 ${data.year} 年度的歷史資料<br><small>每次結轉後系統會自動記錄</small></div>`;
       return;
     }
-
-    // 排序月份
-    const sortedSnaps = [...data.history].sort((a, b) => {
-      const ma = (a.month||'').match(/(\d+)年(\d+)月/);
-      const mb = (b.month||'').match(/(\d+)年(\d+)月/);
-      if (!ma || !mb) return 0;
-      return (parseInt(ma[1])*12+parseInt(ma[2])) - (parseInt(mb[1])*12+parseInt(mb[2]));
-    });
-    const months = sortedSnaps.map(s => s.month);
-
-    // 收集所有社友（以nickname排序）
-    const allMemberIds = {};
-    sortedSnaps.forEach(snap => {
-      (snap.members||[]).forEach(m => { if (m.id) allMemberIds[m.id] = { name: m.name, nickname: m.nickname||'' }; });
-    });
-    const sortedMemberList = Object.entries(allMemberIds).sort((a,b) => {
-      const na = (a[1].nickname||a[1].name).toUpperCase();
-      const nb = (b[1].nickname||b[1].name).toUpperCase();
-      return na < nb ? -1 : na > nb ? 1 : 0;
-    });
-
-    // 月份小計行
-    const monthTotals = {}; // month -> {sumA,sumB,sumC,sumD}
-    sortedSnaps.forEach(snap => {
-      const t = { sumA:0, sumB:0, sumC:0, sumD:0 };
-      (snap.members||[]).forEach(m => { const f=calcFees(m); t.sumA+=f.sumA; t.sumB+=f.sumB; t.sumC+=f.sumC; t.sumD+=f.sumD; });
-      monthTotals[snap.month] = t;
-    });
-
-    // 建欄位標題（月份 x 3類別）
-    const monthHeaders = months.map(mo => `
-      <th colspan="4" style="padding:6px 8px;text-align:center;font-size:10px;color:#002147;border-left:2px solid #ddd">${mo}</th>
-    `).join('');
-    const subHeaders = months.map(mo => `
-      <th style="padding:5px 8px;text-align:right;font-size:10px;color:#888;border-left:2px solid #ddd">A</th>
-      <th style="padding:5px 8px;text-align:right;font-size:10px;color:#888">B</th>
-      <th style="padding:5px 8px;text-align:right;font-size:10px;color:#888">C</th>
-      <th style="padding:5px 8px;text-align:right;font-size:10px;color:#002147;font-weight:900">D</th>
-    `).join('');
-
-    // 每位社友一行
-    const memberRows = sortedMemberList.map(([mId, info]) => {
-      let totalA=0, totalB=0, totalC=0, totalD=0;
-      const cells = months.map(mo => {
-        const snap = sortedSnaps.find(s => s.month === mo);
-        const m = (snap?.members||[]).find(x => x.id === mId);
-        if (!m) return `<td style="padding:6px 8px;text-align:right;color:#ddd;border-left:2px solid #eee">-</td><td>-</td><td>-</td><td>-</td>`;
+    const rows = data.history.map(snap => {
+      const snapMembers = snap.members || [];
+      const total = snapMembers.reduce((acc, m) => {
         const f = calcFees(m);
-        totalA+=f.sumA; totalB+=f.sumB; totalC+=f.sumC; totalD+=f.sumD;
-        return `
-          <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-left:2px solid #eee">${f.sumA>0?'$'+f.sumA.toLocaleString():'-'}</td>
-          <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;color:#7c3aed">${f.sumC>0?'$'+f.sumC.toLocaleString():'-'}</td>
-          <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px">${f.sumB>0?'$'+f.sumB.toLocaleString():'-'}</td>
-          <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;font-weight:900;color:#002147">${f.sumD>0?'$'+f.sumD.toLocaleString():'-'}</td>
-        `;
-      }).join('');
+        return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, sumC: acc.sumC+f.sumC, finalH: acc.finalH+f.finalH };
+      }, { sumA: 0, sumB: 0, sumC: 0, finalH: 0 });
       return `<tr>
-        <td style="padding:6px 12px;font-weight:700;white-space:nowrap">${info.name}</td>
-        <td style="padding:6px 8px;color:#bbb;font-size:11px;white-space:nowrap">${info.nickname}</td>
-        ${cells}
-        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-left:3px solid #002147">${totalA>0?'$'+totalA.toLocaleString():'-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;color:#7c3aed">${totalC>0?'$'+totalC.toLocaleString():'-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px">${totalB>0?'$'+totalB.toLocaleString():'-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;font-weight:900;background:#eef4ff;color:#002147">${totalD>0?'$'+totalD.toLocaleString():'-'}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;font-weight:700">${snap.month}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${total.sumA.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${total.sumB.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;color:#7c3aed">$${total.sumC.toLocaleString()}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-weight:900;color:#dc2626">$${total.finalH.toLocaleString()}</td>
       </tr>`;
-    }).join('');
+    });
 
-    // 月份合計行
-    const totalCells = months.map(mo => {
-      const t = monthTotals[mo] || {sumA:0,sumB:0,sumC:0,sumD:0};
-      return `
-        <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:2px solid rgba(255,255,255,0.2)">$${t.sumA.toLocaleString()}</td>
-        <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${t.sumC.toLocaleString()}</td>
-        <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${t.sumB.toLocaleString()}</td>
-        <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${t.sumD.toLocaleString()}</td>
-      `;
-    }).join('');
-    const grandA = Object.values(monthTotals).reduce((s,t)=>s+t.sumA,0);
-    const grandB = Object.values(monthTotals).reduce((s,t)=>s+t.sumB,0);
-    const grandC = Object.values(monthTotals).reduce((s,t)=>s+t.sumC,0);
-    const grandD = Object.values(monthTotals).reduce((s,t)=>s+t.sumD,0);
+    // 年度加總
+    const yearTotal = data.history.reduce((acc, snap) => {
+      const t = (snap.members||[]).reduce((a, m) => {
+        const f = calcFees(m);
+        return { sumA: a.sumA+f.sumA, sumB: a.sumB+f.sumB, sumC: a.sumC+f.sumC, finalH: a.finalH+f.finalH };
+      }, { sumA:0, sumB:0, sumC:0, finalH:0 });
+      return { sumA: acc.sumA+t.sumA, sumB: acc.sumB+t.sumB, sumC: acc.sumC+t.sumC, finalH: acc.finalH+t.finalH };
+    }, { sumA:0, sumB:0, sumC:0, finalH:0 });
 
     preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表預覽（A=經常費 B=代付款 C=服務經費 D=個人ABC合計）</div>
-      <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;font-size:12px;white-space:nowrap">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表預覽</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
           <tr style="background:#f5f2ec">
-            <th rowspan="2" style="padding:8px 12px;text-align:left;font-size:11px;color:#888">姓名</th>
-            <th rowspan="2" style="padding:8px 12px;text-align:left;font-size:11px;color:#888">暱稱</th>
-            ${monthHeaders}
-            <th colspan="4" style="padding:6px 8px;text-align:center;font-size:10px;color:white;background:#002147;border-left:3px solid #C9A84C">年度合計</th>
-          </tr>
-          <tr style="background:#f5f2ec">
-            ${subHeaders}
-            <th style="padding:5px 8px;text-align:right;font-size:10px;color:#888;border-left:3px solid #002147">A</th>
-            <th style="padding:5px 8px;text-align:right;font-size:10px;color:#7c3aed">B</th>
-            <th style="padding:5px 8px;text-align:right;font-size:10px;color:#888">C</th>
-            <th style="padding:5px 8px;text-align:right;font-size:10px;color:#002147;font-weight:900;background:#eef4ff">D</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">月份</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">經常費(A)合計</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">服務經費(B)合計</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#7c3aed">代付款(C)合計</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">未付款(H)合計</th>
           </tr>
         </thead>
-        <tbody>${memberRows}</tbody>
+        <tbody>${rows.join('')}</tbody>
         <tfoot>
           <tr style="background:#002147;color:white">
-            <td colspan="2" style="padding:8px 12px;font-weight:900">月份ABC合計</td>
-            ${totalCells}
-            <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:3px solid #C9A84C">$${grandA.toLocaleString()}</td>
-            <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${grandC.toLocaleString()}</td>
-            <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${grandB.toLocaleString()}</td>
-            <td style="padding:8px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${grandD.toLocaleString()}</td>
+            <td style="padding:10px 12px;font-weight:900">年度合計</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${yearTotal.sumA.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${yearTotal.sumB.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#a78bfa">$${yearTotal.sumC.toLocaleString()}</td>
+            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${yearTotal.finalH.toLocaleString()}</td>
           </tr>
         </tfoot>
-      </table>
-      </div>`;
+      </table>`;
   }
 }
 
@@ -2038,41 +1719,23 @@ function exportReport(format) {
 
   if (data.type === 'donation') {
     const mList = data.members || members;
-    const fixedGroups = {}, generalGroups = {};
+    const groups = {};
     mList.forEach(m => {
-      (m.variable?.donation_fixed_list || []).forEach(i => {
-        const key = i.desc || '固定捐款';
-        if (!fixedGroups[key]) fixedGroups[key] = [];
-        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
-      (m.variable?.donation_general_list || []).forEach(i => {
-        const key = i.desc || '一般捐款';
-        if (!generalGroups[key]) generalGroups[key] = [];
-        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
       (m.variable?.donation_list || []).forEach(i => {
         const key = i.desc || '社友捐款';
-        if (!generalGroups[key]) generalGroups[key] = [];
-        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
       });
     });
-    csv = '類型,捐款項目,#,社友姓名,暱稱,金額\n';
+    csv = '捐款項目,社友姓名,暱稱,金額\n';
     let grandTotal = 0;
-    const writeGroup = (groups, typeName) => {
-      let sectionTotal = 0;
-      Object.entries(groups).forEach(([item, list]) => {
-        const sorted = [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
-        const subtotal = sorted.reduce((a,x)=>a+x.amount,0);
-        sectionTotal += subtotal;
-        sorted.forEach((x, idx) => { csv += `"${typeName}","${item}",${idx+1},"${x.name}","${x.nickname}",${x.amount}\n`; });
-        csv += `"${typeName} 小計","${item}","","","",${subtotal}\n`;
-      });
-      if (sectionTotal > 0) csv += `"${typeName} 合計","","","","",${sectionTotal}\n`;
-      grandTotal += sectionTotal;
-    };
-    writeGroup(fixedGroups, '固定捐款');
-    writeGroup(generalGroups, '一般捐款');
-    csv += `"捐款總計","","","","",${grandTotal}\n`;
+    Object.entries(groups).forEach(([item, list]) => {
+      const subtotal = list.reduce((a, x) => a + x.amount, 0);
+      grandTotal += subtotal;
+      list.forEach(x => { csv += `"${item}","${x.name}","${x.nickname}",${x.amount}\n`; });
+      csv += `"${item} 小計","","",${subtotal}\n`;
+    });
+    csv += `"捐款總計","","",${grandTotal}\n`;
     downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
     return;
   } else if (data.type === 'advance') {
@@ -2097,72 +1760,31 @@ function exportReport(format) {
     downloadCSV(csv, `洲美代付款明細_${data.month}.csv`);
     return;
   } else if (data.type === 'monthly') {
-    const mList = (data.members || members).sort((a,b) => sortByNickname(a,b));
-    const v = x => isNaN(Number(x)) ? 0 : Number(x);
-    const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
-    const fixedAExtraSet = new Set();
-    mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => fixedAExtraSet.add(i.desc)));
-    const fixedAExtras = [...fixedAExtraSet];
-    const serviceSet = new Set();
-    mList.forEach(m => {
-      if (v(m.fixedB?.monthly_split) > 0) serviceSet.add('__split__');
-      (m.variable?.service_list||[]).forEach(i => serviceSet.add(i.desc));
-    });
-    const serviceItems = [...serviceSet];
-    const advanceSet = new Set();
-    mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(i.desc)));
-    const advanceItems = [...advanceSet];
-    // CSV header
-    const aHeaders = [...fixedAItems.map(([,l])=>l), ...fixedAExtras, '經常費合計(A)'];
-    const bHeaders = [...advanceItems, '代付款合計(B)'];
-    const cHeaders = [...serviceItems.map(d => d==='__split__'?'固定分攤':d), '服務費合計(C)'];
-    csv = ['姓名','暱稱','社友編號',...aHeaders,...bHeaders,...cHeaders,'本期社費(D)','前期待請款(E)','本月匯款(F)','本月信用卡(G)','本期未付款(H)'].join(',') + '\n';
-    const totals = { fixedA:{}, fixedAE:{}, sumA:0, adv:{}, sumB:0, svc:{}, sumC:0, sumD:0, prevDue:0, transfer:0, card:0, finalH:0 };
+    const mList = data.members || members;
+    csv = '姓名,暱稱,社友編號,經常費(A),服務費(B),前期未付款,本月匯款,本月信用卡,本期未付款(H)\n';
     mList.forEach(m => {
       const f = calcFees(m);
-      const faVals = fixedAItems.map(([k]) => { const a=v(m.fixedA?.[k]); totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a; });
-      const feVals = fixedAExtras.map(d => { const a=(m.variable?.fixedA_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a; });
-      const adVals = advanceItems.map(d => { const a=(m.variable?.advance_pay_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a; });
-      const svVals = serviceItems.map(d => { const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable?.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a; });
-      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+v(i.amount),0);
-      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+v(i.amount),0);
-      const prevDue = v(m.accounting?.previous_due);
-      // 各項加總（不依賴 calcFees 的 sumB/sumC，避免版本混淆）
-      const memberSumA = faVals.reduce((s,a)=>s+a,0) + feVals.reduce((s,a)=>s+a,0);
-      const memberSumB = adVals.reduce((s,a)=>s+a,0);
-      const memberSumC = svVals.reduce((s,a)=>s+a,0);
-      const memberSumD = memberSumA + memberSumB + memberSumC;
-      const memberH = memberSumD + prevDue - transfer - card;
-      totals.sumA+=memberSumA; totals.sumB+=memberSumB; totals.sumC+=memberSumC; totals.sumD+=memberSumD; totals.prevDue+=prevDue; totals.transfer+=transfer; totals.card+=card; totals.finalH+=memberH;
-      // 逐欄輸出，每欄一個數字，不依賴條件拼接
-      const row = [
-        `"${m.name}"`, `"${m.nickname||''}"`, `"${m.id}"`,
-        ...faVals, ...feVals, memberSumA,
-        ...adVals, memberSumB,
-        ...svVals, memberSumC,
-        memberSumD, prevDue, transfer, card, memberH
-      ];
-      csv += row.join(',') + '\n';
+      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+Number(i.amount||0),0);
+      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+Number(i.amount||0),0);
+      csv += `"${m.name}","${m.nickname||''}","${m.id}",${f.sumA},${f.sumB},${Number(m.accounting?.previous_due||0)},${transfer},${card},${f.finalH}\n`;
     });
-    // 合計行 — 同樣欄數
-    const footRow = [
-      '"合計"', '""', '""',
-      ...fixedAItems.map(([k])=>totals.fixedA[k]||0),
-      ...fixedAExtras.map(d=>totals.fixedAE[d]||0), totals.sumA,
-      ...advanceItems.map(d=>totals.adv[d]||0), totals.sumB,
-      ...serviceItems.map(d=>totals.svc[d]||0), totals.sumC,
-      totals.sumD, totals.prevDue, totals.transfer, totals.card, totals.finalH
-    ];
-    csv += footRow.join(',') + '\n';
+    const total = mList.reduce((acc, m) => {
+      const f = calcFees(m);
+      const prevDue = Number(m.accounting?.previous_due || 0);
+      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+Number(i.amount||0),0);
+      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+Number(i.amount||0),0);
+      return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, prevDue: acc.prevDue+prevDue, transfer: acc.transfer+transfer, card: acc.card+card, finalH: acc.finalH+f.finalH };
+    }, { sumA:0, sumB:0, prevDue:0, transfer:0, card:0, finalH:0 });
+    csv += `"合計","","",${total.sumA},${total.sumB},${total.prevDue},${total.transfer},${total.card},${total.finalH}\n`;
     downloadCSV(csv, `洲美月結報表_${data.month}.csv`);
   } else {
-    csv = '月份,經常費(A)合計,代付款(B)合計,服務經費(C)合計,社費(D)合計\n';
+    csv = '月份,經常費(A)合計,服務經費(B)合計,未付款(H)合計\n';
     (data.history || []).forEach(snap => {
       const total = (snap.members||[]).reduce((acc, m) => {
         const f = calcFees(m);
-        return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, sumC: acc.sumC+f.sumC, sumD: acc.sumD+f.sumD };
-      }, { sumA:0, sumB:0, sumC:0, sumD:0 });
-      csv += `"${snap.month}",${total.sumA},${total.sumC},${total.sumB},${total.sumD}\n`;
+        return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, finalH: acc.finalH+f.finalH };
+      }, { sumA:0, sumB:0, finalH:0 });
+      csv += `"${snap.month}",${total.sumA},${total.sumB},${total.finalH}\n`;
     });
     downloadCSV(csv, `洲美年度報表_${data.year}年.csv`);
   }
