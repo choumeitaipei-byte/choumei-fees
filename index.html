@@ -1458,153 +1458,159 @@ function getReportData() {
 function generateReportPreview() {
   const data = getReportData();
   const preview = document.getElementById('report-preview');
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  const mList = data.members || members;
 
-  if (data.type === 'donation') {
-    const mList = data.members || members;
-    const groups = {};
+  // ── 月結報表 ──────────────────────────────────────────────
+  if (data.type === 'monthly') {
+    // 動態收集欄位
+    const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
+    const fixedAExtraSet = new Set();
+    mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => fixedAExtraSet.add(i.desc)));
+    const fixedAExtras = [...fixedAExtraSet];
+
+    const serviceSet = new Set();
     mList.forEach(m => {
-      (m.variable?.donation_list || []).forEach(i => {
-        const key = i.desc || '社友捐款';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
+      if (v(m.fixedB?.monthly_split) > 0) serviceSet.add('__split__');
+      (m.variable?.service_list||[]).forEach(i => serviceSet.add(i.desc));
     });
-    csv = '捐款項目,社友姓名,暱稱,金額\n';
-    let grandTotal = 0;
-    Object.entries(groups).forEach(([item, list]) => {
-      const subtotal = list.reduce((a, x) => a + x.amount, 0);
-      grandTotal += subtotal;
-      list.forEach(x => { csv += `"${item}","${x.name}","${x.nickname}",${x.amount}\n`; });
-      csv += `"${item} 小計","","",${subtotal}\n`;
-    });
-    csv += `"捐款總計","","",${grandTotal}\n`;
-    downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
-    return;
-  } else if (data.type === 'advance') {
-    const mList = data.members || members;
-    const groups = {};
+    const serviceItems = [...serviceSet];
+
+    const advanceSet = new Set();
+    mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(i.desc)));
+    const advanceItems = [...advanceSet];
+
+    const donFixedSet = new Set();
+    mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
+    const donFixedItems = [...donFixedSet];
+
+    const donGeneralSet = new Set();
     mList.forEach(m => {
-      (m.variable?.advance_pay_list || []).forEach(i => {
-        const key = i.desc || '未分類';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
+      (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(i.desc));
+      (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(i.desc));
     });
-    csv = '代付款項目,社友姓名,暱稱,金額\n';
-    let grandTotal = 0;
-    Object.entries(groups).forEach(([item, list]) => {
-      const subtotal = list.reduce((a, x) => a + x.amount, 0);
-      grandTotal += subtotal;
-      list.forEach(x => { csv += `"${item}","${x.name}","${x.nickname}",${x.amount}\n`; });
-      csv += `"${item} 小計","","",${subtotal}\n`;
-    });
-    csv += `"代付款總計","","",${grandTotal}\n`;
-    downloadCSV(csv, `洲美代付款明細_${data.month}.csv`);
-    return;
-  } else if (data.type === 'monthly') {
-    const rows = (data.members || members).map(m => {
+    const donGeneralItems = [...donGeneralSet];
+
+    const th = s => `<th style="padding:6px 8px;text-align:right;font-size:10px;color:#888;white-space:nowrap;background:#f5f2ec">${s}</th>`;
+    const thL = s => `<th style="padding:6px 8px;text-align:left;font-size:10px;color:#888;white-space:nowrap;background:#f5f2ec">${s}</th>`;
+    const thG = (s,n,bg,c) => `<th colspan="${n}" style="padding:5px 8px;text-align:center;font-size:10px;font-weight:900;background:${bg};color:${c};border-bottom:2px solid #ddd">${s}</th>`;
+
+    const colA = fixedAItems.length + fixedAExtras.length + 1;
+    const colB = advanceItems.length + 1;
+    const colC = serviceItems.length + 1;
+    const colDF = donFixedItems.length > 0 ? donFixedItems.length + 1 : 0;
+    const colDG = donGeneralItems.length > 0 ? donGeneralItems.length + 1 : 0;
+
+    const groupRow = `<tr>
+      ${thG('姓名',2,'#fff','#002147')}
+      ${thG('經常費(A)',colA,'#eff6ff','#1e40af')}
+      ${thG('代付款(B)',colB,'#fdf4ff','#7c3aed')}
+      ${thG('服務費(C)',colC,'#f0fdf4','#166534')}
+      ${colDF ? thG('固定捐款',colDF,'#4c1d95','#e9d5ff') : ''}
+      ${colDG ? thG('一般捐款',colDG,'#6d28d9','#f5f3ff') : ''}
+      ${thG('社費D',1,'#002147','#C9A84C')}
+      ${thG('前期E',1,'#fefce8','#92400e')}
+      ${thG('匯款F',1,'#f0fdf4','#166534')}
+      ${thG('信用卡G',1,'#fdf4ff','#7c3aed')}
+      ${thG('未付款H',1,'#fef2f2','#991b1b')}
+    </tr>`;
+    const subRow = `<tr>
+      ${thL('姓名')}${thL('暱稱')}
+      ${fixedAItems.map(([,l])=>th(l)).join('')}${fixedAExtras.map(d=>th(d)).join('')}${th('A合計')}
+      ${advanceItems.map(d=>th(d)).join('')}${th('B合計')}
+      ${serviceItems.map(d=>d==='__split__'?th('固定分攤'):th(d)).join('')}${th('C合計')}
+      ${donFixedItems.map(d=>th(d)).join('')}${colDF?th('固定小計'):''}
+      ${donGeneralItems.map(d=>th(d)).join('')}${colDG?th('一般小計'):''}
+      ${th('D')}${th('E')}${th('F')}${th('G')}${th('H')}
+    </tr>`;
+
+    const tdC = (val,color='inherit',bold=false) => {
+      const s = `padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;color:${color};${bold?'font-weight:900':''}`;
+      return `<td style="${s}">${val>0?'$'+val.toLocaleString():'-'}</td>`;
+    };
+
+    const totals = {
+      fixedA:{}, fixedAE:{}, sumA:0,
+      adv:{}, sumB:0,
+      svc:{}, sumC:0,
+      donF:{}, donFT:0,
+      donG:{}, donGT:0,
+      sumD:0, prevDue:0, transfer:0, card:0, finalH:0
+    };
+
+    const sorted = [...mList].sort((a,b) => sortByNickname(a,b));
+    const rows = sorted.map(m => {
       const f = calcFees(m);
-      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+Number(i.amount||0),0);
-      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+Number(i.amount||0),0);
+      const faV = fixedAItems.map(([k]) => { const a=v(m.fixedA?.[k]); totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a; });
+      const feV = fixedAExtras.map(d => { const a=(m.variable?.fixedA_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a; });
+      const adV = advanceItems.map(d => { const a=(m.variable?.advance_pay_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a; });
+      const svV = serviceItems.map(d => { const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable?.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a; });
+      const dfV = donFixedItems.map(d => { const a=(m.variable?.donation_fixed_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a; });
+      const dgV = donGeneralItems.map(d => { const a=[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a; });
+
+      const sA = faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
+      const sB = adV.reduce((s,a)=>s+a,0);
+      const sC = svV.reduce((s,a)=>s+a,0);
+      const sDF = dfV.reduce((s,a)=>s+a,0);
+      const sDG = dgV.reduce((s,a)=>s+a,0);
+      const sD = sA+sB+sC;
+      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((s,i)=>s+v(i.amount),0);
+      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((s,i)=>s+v(i.amount),0);
+      const prevDue = v(m.accounting?.previous_due);
+      const H = sD + prevDue - transfer - card;
+
+      totals.sumA+=sA; totals.sumB+=sB; totals.sumC+=sC;
+      totals.donFT+=sDF; totals.donGT+=sDG;
+      totals.sumD+=sD; totals.prevDue+=prevDue; totals.transfer+=transfer; totals.card+=card; totals.finalH+=H;
+
       return `<tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;font-weight:700">${m.name}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:center">${m.nickname||''}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${f.sumA.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${f.sumB.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${Number(m.accounting?.previous_due||0).toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;color:#16a34a">${transfer>0?'$'+transfer.toLocaleString():'-'}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;color:#7c3aed">${card>0?'$'+card.toLocaleString():'-'}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-weight:900;color:${f.finalH>0?'#dc2626':'#16a34a'}">$${f.finalH.toLocaleString()}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f0ece4;font-weight:700;white-space:nowrap">${m.name}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f0ece4;color:#aaa;font-size:11px">${m.nickname||''}</td>
+        ${faV.map(a=>tdC(a)).join('')}${feV.map(a=>tdC(a)).join('')}${tdC(sA,'#1e40af',true)}
+        ${adV.map(a=>tdC(a,'#7c3aed')).join('')}${tdC(sB,'#7c3aed',true)}
+        ${svV.map(a=>tdC(a,'#166534')).join('')}${tdC(sC,'#166534',true)}
+        ${dfV.map(a=>tdC(a,'#6d28d9')).join('')}${colDF?tdC(sDF,'#4c1d95',true):''}
+        ${dgV.map(a=>tdC(a,'#9333ea')).join('')}${colDG?tdC(sDG,'#7c3aed',true):''}
+        ${tdC(sD,'#C9A84C',true)}
+        ${tdC(prevDue,'#92400e')}
+        ${tdC(transfer,'#166534')}
+        ${tdC(card,'#7c3aed')}
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;font-weight:900;color:${H>0?'#dc2626':'#16a34a'}">${H===0?'-':'$'+H.toLocaleString()}</td>
       </tr>`;
     }).join('');
 
-    const total = (data.members || members).reduce((acc, m) => {
-      const f = calcFees(m);
-      const prevDue = Number(m.accounting?.previous_due || 0);
-      const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((a,i)=>a+Number(i.amount||0),0);
-      const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+Number(i.amount||0),0);
-      return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, prevDue: acc.prevDue+prevDue, transfer: acc.transfer+transfer, card: acc.card+card, finalH: acc.finalH+f.finalH };
-    }, { sumA: 0, sumB: 0, prevDue: 0, transfer: 0, card: 0, finalH: 0 });
+    const ftd = (val,c='#C9A84C') => `<td style="padding:7px 8px;text-align:right;font-family:monospace;font-weight:900;color:${c}">${val>0?'$'+val.toLocaleString():'-'}</td>`;
+    const footRow = `<tr style="background:#002147;color:white">
+      <td colspan="2" style="padding:8px 12px;font-weight:900">合計</td>
+      ${fixedAItems.map(([k])=>ftd(totals.fixedA[k]||0,'#93c5fd')).join('')}
+      ${fixedAExtras.map(d=>ftd(totals.fixedAE[d]||0,'#93c5fd')).join('')}
+      ${ftd(totals.sumA,'#93c5fd')}
+      ${advanceItems.map(d=>ftd(totals.adv[d]||0,'#e9d5ff')).join('')}
+      ${ftd(totals.sumB,'#e9d5ff')}
+      ${serviceItems.map(d=>ftd(totals.svc[d]||0,'#bbf7d0')).join('')}
+      ${ftd(totals.sumC,'#bbf7d0')}
+      ${donFixedItems.map(d=>ftd(totals.donF[d]||0,'#c4b5fd')).join('')}
+      ${colDF?ftd(totals.donFT,'#e9d5ff'):''}
+      ${donGeneralItems.map(d=>ftd(totals.donG[d]||0,'#ddd6fe')).join('')}
+      ${colDG?ftd(totals.donGT,'#ede9fe'):''}
+      ${ftd(totals.sumD)}
+      ${ftd(totals.prevDue,'#fde68a')}
+      ${ftd(totals.transfer,'#6ee7b7')}
+      ${ftd(totals.card,'#c4b5fd')}
+      ${ftd(totals.finalH)}
+    </tr>`;
 
     preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 月結報表預覽</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:#f5f2ec">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">姓名</th>
-            <th style="padding:8px 12px;text-align:center;font-size:11px;color:#888">暱稱</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">經常費(A)</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">服務費(B)</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">前期餘額</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#16a34a">本月匯款</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#7c3aed">本月信用卡</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">未付款(H)</th>
-          </tr>
-        </thead>
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 月結報表</div>
+      <div style="overflow-x:auto">
+      <table style="border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead>${groupRow}${subRow}</thead>
         <tbody>${rows}</tbody>
-        <tfoot>
-          <tr style="background:#002147;color:white">
-            <td colspan="2" style="padding:10px 12px;font-weight:900">合計</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${total.sumA.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${total.sumB.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${total.prevDue.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#6ee7b7">$${total.transfer.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${total.card.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${total.finalH.toLocaleString()}</td>
-          </tr>
-        </tfoot>
-      </table>`;
-  } else if (data.type === 'donation') {
-    const mList = data.members || members;
-    const groups = {};
-    mList.forEach(m => {
-      (m.variable?.donation_list || []).forEach(i => {
-        const key = i.desc || '社友捐款';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
-      });
-    });
-    if (Object.keys(groups).length === 0) {
-      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無捐款記錄</div>`;
-      return;
-    }
-    let rows = '';
-    let grandTotal = 0;
-    Object.entries(groups).forEach(([item, list]) => {
-      const subtotal = list.reduce((a, x) => a + x.amount, 0);
-      grandTotal += subtotal;
-      list.forEach((x, idx) => {
-        rows += `<tr>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;color:#7c3aed">${idx === 0 ? item : ''}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec">${x.name} <span style="color:#bbb;font-size:11px">${x.nickname}</span></td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;text-align:right;font-family:monospace">$${x.amount.toLocaleString()}</td>
-        </tr>`;
-      });
-      rows += `<tr style="background:#fdf4ff">
-        <td style="padding:7px 12px;font-weight:900;color:#7c3aed;font-size:12px">${item} 小計</td>
-        <td></td>
-        <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:900;color:#7c3aed">$${subtotal.toLocaleString()}</td>
-      </tr>`;
-    });
-    preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 捐款明細報表</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="background:#f5f2ec">
-          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888;width:35%">捐款項目</th>
-          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">社友姓名</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">金額</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr style="background:#581c87;color:white">
-          <td colspan="2" style="padding:10px 12px;font-weight:900">捐款總計</td>
-          <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#e9d5ff">$${grandTotal.toLocaleString()}</td>
-        </tr></tfoot>
-      </table>`;
+        <tfoot>${footRow}</tfoot>
+      </table></div>`;
 
+  // ── 代付款明細報表 ─────────────────────────────────────────
   } else if (data.type === 'advance') {
-    // 代付款明細報表
-    const mList = data.members || members;
-    // 收集所有代付款，以項目名稱分組
     const groups = {};
     mList.forEach(m => {
       (m.variable?.advance_pay_list || []).forEach(i => {
@@ -1613,103 +1619,169 @@ function generateReportPreview() {
         groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
       });
     });
-
     if (Object.keys(groups).length === 0) {
       preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無代付款記錄</div>`;
       return;
     }
-
-    let rows = '';
+    const sortList = list => [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
     let grandTotal = 0;
+    let cards = '';
     Object.entries(groups).forEach(([item, list]) => {
-      const subtotal = list.reduce((a, x) => a + x.amount, 0);
+      const subtotal = list.reduce((a,x)=>a+x.amount,0);
       grandTotal += subtotal;
-      list.forEach((x, idx) => {
-        rows += `<tr>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;color:#555">${idx === 0 ? item : ''}</td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec">${x.name} <span style="color:#bbb;font-size:11px">${x.nickname}</span></td>
-          <td style="padding:7px 12px;border-bottom:1px solid #f5f2ec;text-align:right;font-family:monospace">$${x.amount.toLocaleString()}</td>
-        </tr>`;
-      });
-      rows += `<tr style="background:#eef4ff">
-        <td style="padding:7px 12px;font-weight:900;color:var(--navy-mid);font-size:12px">${item} 小計</td>
-        <td></td>
-        <td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:900;color:var(--navy-mid)">$${subtotal.toLocaleString()}</td>
-      </tr>`;
+      const memberRows = sortList(list).map((x,idx) => `
+        <tr>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
+        </tr>`).join('');
+      cards += `
+        <div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:16px">
+          <div style="background:#002147;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div><div style="color:#C9A84C;font-size:14px;font-weight:900">${item}</div>
+            <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px">共 ${list.length} 人</div></div>
+            <div style="color:#C9A84C;font-family:monospace;font-size:20px;font-weight:900">$${subtotal.toLocaleString()}</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:#f5f2ec">
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
+              <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
+            </tr></thead>
+            <tbody>${memberRows}</tbody>
+            <tfoot><tr style="background:#eef4ff">
+              <td colspan="3" style="padding:6px 12px;font-size:12px;font-weight:900;color:#002147">${item} 小計</td>
+              <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#002147">$${subtotal.toLocaleString()}</td>
+            </tr></tfoot>
+          </table>
+        </div>`;
     });
-
     preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 代付款明細報表</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:#f5f2ec">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888;width:35%">代付款項目</th>
-            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">社友姓名</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">金額</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-        <tfoot>
-          <tr style="background:#002147;color:white">
-            <td colspan="2" style="padding:10px 12px;font-weight:900">代付款總計</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${grandTotal.toLocaleString()}</td>
-          </tr>
-        </tfoot>
-      </table>`;
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#888">${data.month} 代付款明細報表（共 ${Object.keys(groups).length} 項）</div>
+        <div style="background:#002147;color:#C9A84C;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
+      </div>${cards}`;
 
-  } else {
-    // 年度報表
-    if (!data.history || data.history.length === 0) {
-      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無 ${data.year} 年度的歷史資料<br><small>每次結轉後系統會自動記錄</small></div>`;
+  // ── 捐款報表 ──────────────────────────────────────────────
+  } else if (data.type === 'donation') {
+    const fixedGroups = {}, generalGroups = {};
+    mList.forEach(m => {
+      (m.variable?.donation_fixed_list || []).forEach(i => {
+        const key = i.desc || '固定捐款';
+        if (!fixedGroups[key]) fixedGroups[key] = [];
+        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+      });
+      [...(m.variable?.donation_general_list || []), ...(m.variable?.donation_list || [])].forEach(i => {
+        const key = i.desc || '一般捐款';
+        if (!generalGroups[key]) generalGroups[key] = [];
+        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+      });
+    });
+    if (Object.keys(fixedGroups).length === 0 && Object.keys(generalGroups).length === 0) {
+      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無捐款記錄</div>`;
       return;
     }
-    const rows = data.history.map(snap => {
-      const snapMembers = snap.members || [];
-      const total = snapMembers.reduce((acc, m) => {
-        const f = calcFees(m);
-        return { sumA: acc.sumA+f.sumA, sumB: acc.sumB+f.sumB, sumC: acc.sumC+f.sumC, finalH: acc.finalH+f.finalH };
-      }, { sumA: 0, sumB: 0, sumC: 0, finalH: 0 });
-      return `<tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;font-weight:700">${snap.month}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${total.sumA.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace">$${total.sumB.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;color:#7c3aed">$${total.sumC.toLocaleString()}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-weight:900;color:#dc2626">$${total.finalH.toLocaleString()}</td>
-      </tr>`;
-    });
-
-    // 年度加總
-    const yearTotal = data.history.reduce((acc, snap) => {
-      const t = (snap.members||[]).reduce((a, m) => {
-        const f = calcFees(m);
-        return { sumA: a.sumA+f.sumA, sumB: a.sumB+f.sumB, sumC: a.sumC+f.sumC, finalH: a.finalH+f.finalH };
-      }, { sumA:0, sumB:0, sumC:0, finalH:0 });
-      return { sumA: acc.sumA+t.sumA, sumB: acc.sumB+t.sumB, sumC: acc.sumC+t.sumC, finalH: acc.finalH+t.finalH };
-    }, { sumA:0, sumB:0, sumC:0, finalH:0 });
-
+    const sortList = list => [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
+    const buildCards = (groups, headerBg, headerColor) => {
+      let cards = '', sTotal = 0;
+      Object.entries(groups).forEach(([item, list]) => {
+        const sub = list.reduce((a,x)=>a+x.amount,0); sTotal+=sub;
+        const memberRows = sortList(list).map((x,idx) => `
+          <tr>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
+          </tr>`).join('');
+        cards += `
+          <div style="border:1.5px solid #e8d5ff;border-radius:12px;overflow:hidden;margin-bottom:12px">
+            <div style="background:${headerBg};padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
+              <div><div style="color:${headerColor};font-size:13px;font-weight:900">${item}</div>
+              <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px">共 ${list.length} 人</div></div>
+              <div style="color:${headerColor};font-family:monospace;font-size:18px;font-weight:900">$${sub.toLocaleString()}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9f4ff">
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
+                <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
+              </tr></thead>
+              <tbody>${memberRows}</tbody>
+              <tfoot><tr style="background:#f3e8ff">
+                <td colspan="3" style="padding:6px 12px;font-size:12px;font-weight:900;color:#6d28d9">${item} 小計</td>
+                <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#6d28d9">$${sub.toLocaleString()}</td>
+              </tr></tfoot>
+            </table>
+          </div>`;
+      });
+      return { cards, sTotal };
+    };
+    const { cards: fCards, sTotal: fTotal } = buildCards(fixedGroups, '#4c1d95', '#e9d5ff');
+    const { cards: gCards, sTotal: gTotal } = buildCards(generalGroups, '#6d28d9', '#f5f3ff');
+    const grandTotal = fTotal + gTotal;
     preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表預覽</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:#888">${data.month} 捐款明細報表</div>
+        <div style="background:#581c87;color:#e9d5ff;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
+      </div>
+      ${Object.keys(fixedGroups).length>0?`<div style="display:flex;justify-content:space-between;align-items:center;background:#4c1d95;color:#e9d5ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px"><span style="font-weight:900;font-size:13px">固定捐款</span><span style="font-family:monospace;font-weight:900">$${fTotal.toLocaleString()}</span></div>${fCards}`:''}
+      ${Object.keys(generalGroups).length>0?`<div style="display:flex;justify-content:space-between;align-items:center;background:#6d28d9;color:#f5f3ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px;margin-top:8px"><span style="font-weight:900;font-size:13px">一般捐款</span><span style="font-family:monospace;font-weight:900">$${gTotal.toLocaleString()}</span></div>${gCards}`:''}`;
+
+  // ── 年度報表 ──────────────────────────────────────────────
+  } else {
+    if (!data.history || data.history.length === 0) {
+      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無 ${data.year} 年度的歷史資料</div>`;
+      return;
+    }
+    const sortedSnaps = [...data.history].sort((a,b) => {
+      const ma=(a.month||'').match(/(\d+)年(\d+)月/), mb=(b.month||'').match(/(\d+)年(\d+)月/);
+      if(!ma||!mb) return 0;
+      return (parseInt(ma[1])*12+parseInt(ma[2]))-(parseInt(mb[1])*12+parseInt(mb[2]));
+    });
+    const months = sortedSnaps.map(s=>s.month);
+    const allIds = {};
+    sortedSnaps.forEach(snap=>(snap.members||[]).forEach(m=>{if(m.id) allIds[m.id]={name:m.name,nickname:m.nickname||''};}));
+    const sortedMembers = Object.entries(allIds).sort((a,b)=>{
+      const na=(a[1].nickname||a[1].name).toUpperCase(), nb=(b[1].nickname||b[1].name).toUpperCase();
+      return na<nb?-1:na>nb?1:0;
+    });
+    const monthTotals = {};
+    sortedSnaps.forEach(snap=>{
+      const t={sumA:0,sumB:0,sumC:0,sumD:0};
+      (snap.members||[]).forEach(m=>{const f=calcFees(m);t.sumA+=f.sumA;t.sumB+=f.sumB;t.sumC+=f.sumC;t.sumD+=f.sumD;});
+      monthTotals[snap.month]=t;
+    });
+    const mhd = months.map(mo=>`<th colspan="4" style="padding:5px 8px;text-align:center;font-size:10px;color:#002147;border-left:2px solid #ddd">${mo}</th>`).join('');
+    const msh = months.map(()=>`<th style="padding:4px 6px;text-align:right;font-size:9px;color:#888;border-left:2px solid #ddd">A</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#888">B</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#888">C</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#002147;font-weight:900">D</th>`).join('');
+    const mRows = sortedMembers.map(([mId,info])=>{
+      let tA=0,tB=0,tC=0,tD=0;
+      const cells = months.map(mo=>{
+        const snap=sortedSnaps.find(s=>s.month===mo);
+        const m=(snap?.members||[]).find(x=>x.id===mId);
+        if(!m) return `<td style="padding:5px 6px;text-align:right;color:#ddd;border-left:2px solid #eee">-</td><td>-</td><td>-</td><td>-</td>`;
+        const f=calcFees(m); tA+=f.sumA;tB+=f.sumC;tC+=f.sumB;tD+=f.sumD;
+        return `<td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;border-left:2px solid #eee">${f.sumA>0?'$'+f.sumA.toLocaleString():'-'}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${f.sumC>0?'$'+f.sumC.toLocaleString():'-'}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px">${f.sumB>0?'$'+f.sumB.toLocaleString():'-'}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;color:#002147">${f.sumD>0?'$'+f.sumD.toLocaleString():'-'}</td>`;
+      }).join('');
+      return `<tr><td style="padding:5px 10px;font-weight:700;white-space:nowrap">${info.name}</td><td style="padding:5px 8px;color:#bbb;font-size:11px">${info.nickname}</td>${cells}<td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;border-left:3px solid #002147">${tA>0?'$'+tA.toLocaleString():'-'}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${tB>0?'$'+tB.toLocaleString():'-'}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px">${tC>0?'$'+tC.toLocaleString():'-'}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;background:#eef4ff;color:#002147">${tD>0?'$'+tD.toLocaleString():'-'}</td></tr>`;
+    }).join('');
+    const tCells = months.map(mo=>{const t=monthTotals[mo]||{sumA:0,sumB:0,sumC:0,sumD:0};return `<td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:2px solid rgba(255,255,255,0.2)">$${t.sumA.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${t.sumC.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${t.sumB.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${t.sumD.toLocaleString()}</td>`;}).join('');
+    const gA=Object.values(monthTotals).reduce((s,t)=>s+t.sumA,0);
+    const gB=Object.values(monthTotals).reduce((s,t)=>s+t.sumC,0);
+    const gC=Object.values(monthTotals).reduce((s,t)=>s+t.sumB,0);
+    const gD=Object.values(monthTotals).reduce((s,t)=>s+t.sumD,0);
+    preview.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表（A=經常費 B=代付款 C=服務費 D=合計）</div>
+      <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px;white-space:nowrap">
         <thead>
-          <tr style="background:#f5f2ec">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#888">月份</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">經常費(A)合計</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">服務經費(B)合計</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#7c3aed">代付款(C)合計</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#888">未付款(H)合計</th>
-          </tr>
+          <tr style="background:#f5f2ec"><th rowspan="2" style="padding:6px 10px;text-align:left;font-size:10px;color:#888">姓名</th><th rowspan="2" style="padding:6px 8px;text-align:left;font-size:10px;color:#888">暱稱</th>${mhd}<th colspan="4" style="padding:5px 8px;text-align:center;font-size:10px;color:white;background:#002147;border-left:3px solid #C9A84C">年度合計</th></tr>
+          <tr style="background:#f5f2ec">${msh}<th style="padding:4px 6px;text-align:right;font-size:9px;color:#888;border-left:3px solid #002147">A</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#7c3aed">B</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#888">C</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#002147;font-weight:900;background:#eef4ff">D</th></tr>
         </thead>
-        <tbody>${rows.join('')}</tbody>
-        <tfoot>
-          <tr style="background:#002147;color:white">
-            <td style="padding:10px 12px;font-weight:900">年度合計</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${yearTotal.sumA.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900">$${yearTotal.sumB.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#a78bfa">$${yearTotal.sumC.toLocaleString()}</td>
-            <td style="padding:10px 12px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${yearTotal.finalH.toLocaleString()}</td>
-          </tr>
-        </tfoot>
-      </table>`;
+        <tbody>${mRows}</tbody>
+        <tfoot><tr style="background:#002147;color:white"><td colspan="2" style="padding:7px 10px;font-weight:900">月份合計</td>${tCells}<td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:3px solid #C9A84C">$${gA.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${gB.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${gC.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${gD.toLocaleString()}</td></tr></tfoot>
+      </table></div>`;
   }
 }
 
