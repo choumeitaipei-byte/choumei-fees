@@ -673,27 +673,29 @@ function sortByNickname(a, b) {
 
 function calcFees(m) {
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  // variable 有時被存成 [] 空陣列，統一修正為物件
+  const vr = (m?.variable && !Array.isArray(m.variable)) ? m.variable : {};
   // A: 經常費合計
   const sumA = v(m?.fixedA?.monthly)
-    + (m?.variable?.fixedA_list || []).reduce((a,i) => a + v(i.amount), 0);
+    + (vr.fixedA_list || []).reduce((a,i) => a + v(i.amount), 0);
   // B: 服務經費合計
   const sumB = v(m?.fixedB?.monthly_split)
-    + (m?.variable?.service_list || []).reduce((a,i) => a + v(i.amount), 0);
+    + (vr.service_list || []).reduce((a,i) => a + v(i.amount), 0);
   // C: 代付款合計
-  const sumC = (m?.variable?.advance_pay_list || []).reduce((a,i) => a + v(i.amount), 0);
+  const sumC = (vr.advance_pay_list || []).reduce((a,i) => a + v(i.amount), 0);
   // D: 本期社費合計 = A+B+C
   const sumD = sumA + sumB + sumC;
   // E: 前期未付款
   const sumE = v(m?.accounting?.previous_due);
   // F: 已收匯款
-  const sumF = (m?.variable?.receipt_list || [])
+  const sumF = (vr.receipt_list || [])
     .filter(i => i.type !== 'receipt_card')
     .reduce((a,i) => a + v(i.amount), 0);
   // G: 信用卡扣款（receipt_list 中 type=receipt_card + credit_card_list）
-  const sumG = (m?.variable?.receipt_list || [])
+  const sumG = (vr.receipt_list || [])
     .filter(i => i.type === 'receipt_card')
     .reduce((a,i) => a + v(i.amount), 0)
-    + (m?.variable?.credit_card_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.credit_card_list || []).reduce((a,i) => a + v(i.amount), 0)
     + v(m?.accounting?.credit_card);
   // H: 本期未付款 = D+E-F-G
   const H = sumD + sumE - sumF - sumG;
@@ -882,7 +884,7 @@ async function submitQuickInput() {
   targetIds.forEach(mId => {
     const m = members.find(x => x.id === mId);
     if (!m) return;
-    if (!m.variable) m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] };
+    if (!m.variable || Array.isArray(m.variable)) m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
     if (!m.accounting) m.accounting = {};
 
     const label = settings.feeStructure[cat]?.items?.[item] || item || '項目';
@@ -1463,7 +1465,16 @@ function generateReportPreview() {
   const data = getReportData();
   const preview = document.getElementById('report-preview');
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
-  const mList = data.members || members;
+
+  // variable 有時被存成 [] 空陣列而非物件，統一修正
+  const mList = (data.members || members).map(m => ({
+    ...m,
+    variable: (m.variable && !Array.isArray(m.variable)) ? m.variable : {
+      fixedA_list: [], service_list: [], advance_pay_list: [],
+      receipt_list: [], credit_card_list: [],
+      donation_fixed_list: [], donation_general_list: []
+    }
+  }));
 
   // DEBUG
   const advCount = mList.reduce((s,m)=>s+(m.variable?.advance_pay_list||[]).length,0);
