@@ -1510,8 +1510,11 @@ function generateReportPreview() {
   if (data.type === 'monthly') {
     // 動態收集欄位
     const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
+    const fixedAItemLabels = new Set(fixedAItems.map(([,l])=>l.trim()));
     const fixedAExtraSet = new Set();
-    mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => { if(i.desc) fixedAExtraSet.add(i.desc.trim()); }));
+    mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => {
+      if(i.desc && !fixedAItemLabels.has(i.desc.trim())) fixedAExtraSet.add(i.desc.trim());
+    }));
     const fixedAExtras = [...fixedAExtraSet];
 
     const serviceSet = new Set();
@@ -1588,7 +1591,12 @@ function generateReportPreview() {
     const sorted = [...mList].sort((a,b) => sortByNickname(a,b));
     const rows = sorted.map(m => {
       const f = calcFees(m);
-      const faV = fixedAItems.map(([k]) => { const a=v(m.fixedA?.[k]); totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a; });
+      const faV = fixedAItems.map(([k, label]) => {
+        let a = v(m.fixedA?.[k]);
+        // 如果 fixedA[key] 沒有值，從 fixedA_list 找同名科目
+        if (!a) a = (m.variable?.fixedA_list||[]).filter(i=>i.desc?.trim()===label.trim()).reduce((s,i)=>s+v(i.amount),0);
+        totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a;
+      });
       const feV = fixedAExtras.map(d => { const a=(m.variable?.fixedA_list||[]).filter(i=>i.desc?.trim()===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a; });
       const adV = advanceItems.map(d => { const a=(m.variable?.advance_pay_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a; });
       const svV = serviceItems.map(d => { const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable?.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a; });
@@ -1919,8 +1927,11 @@ function exportReport(format) {
   } else if (data.type === 'monthly') {
     const mList = (data.members || members).map(m => ({...m, variable: normVar(m)})).sort((a,b)=>sortByNickname(a,b));
     const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
+    const fixedAItemLabels = new Set(fixedAItems.map(([,l])=>l.trim()));
     const fixedAExtraSet = new Set();
-    mList.forEach(m => (m.variable.fixedA_list||[]).forEach(i => { if(i.desc) fixedAExtraSet.add(i.desc.trim()); }));
+    mList.forEach(m => (m.variable.fixedA_list||[]).forEach(i => {
+      if(i.desc && !fixedAItemLabels.has(i.desc.trim())) fixedAExtraSet.add(i.desc.trim());
+    }));
     const fixedAExtras = [...fixedAExtraSet];
     const serviceSet = new Set();
     mList.forEach(m => {
@@ -1950,7 +1961,11 @@ function exportReport(format) {
 
     const totals = { fixedA:{}, fixedAE:{}, sumA:0, adv:{}, sumB:0, svc:{}, sumC:0, donF:{}, donFT:0, donG:{}, donGT:0, sumD:0, prevDue:0, transfer:0, card:0, finalH:0 };
     mList.forEach(m => {
-      const faV = fixedAItems.map(([k])=>{const a=v(m.fixedA?.[k]); totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a;});
+      const faV = fixedAItems.map(([k, label])=>{
+        let a=v(m.fixedA?.[k]);
+        if(!a) a=(m.variable.fixedA_list||[]).filter(i=>i.desc?.trim()===label.trim()).reduce((s,i)=>s+v(i.amount),0);
+        totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a;
+      });
       const feV = fixedAExtras.map(d=>{const a=(m.variable.fixedA_list||[]).filter(i=>i.desc?.trim()===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a;});
       const adV = advanceItems.map(d=>{const a=(m.variable.advance_pay_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a;});
       const svV = serviceItems.map(d=>{const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a;});
