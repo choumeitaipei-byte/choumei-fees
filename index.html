@@ -1441,8 +1441,9 @@ function getReportData() {
 
   if (type === 'monthly' || type === 'advance' || type === 'donation') {
     const month = document.getElementById('report-month').value;
-    // 當月用 members，歷史月份用快照
-    const snap = history.find(h => h.month === month);
+    // 選的是目前月份 → 用 members（最新資料）；歷史月份 → 用快照
+    const isCurrent = month === settings.currentMonth;
+    const snap = !isCurrent ? history.find(h => h.month === month) : null;
     const data = snap ? snap.members : members;
     return { type, month, members: data };
   } else {
