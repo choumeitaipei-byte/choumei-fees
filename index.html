@@ -489,7 +489,24 @@
 // 核心資料與狀態
 // ══════════════════════════════════════════
 let API_URL = localStorage.getItem('choumei_api_url') || '';
-let members = JSON.parse(localStorage.getItem('choumei_members') || '[]');
+// variable 正規化：將 [] 或 null 轉成正確的物件格式
+function normalizeVariable(m) {
+  if (!m.variable || Array.isArray(m.variable)) {
+    m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
+  } else {
+    // 確保每個子陣列都存在
+    if (!Array.isArray(m.variable.fixedA_list)) m.variable.fixedA_list = [];
+    if (!Array.isArray(m.variable.service_list)) m.variable.service_list = [];
+    if (!Array.isArray(m.variable.advance_pay_list)) m.variable.advance_pay_list = [];
+    if (!Array.isArray(m.variable.receipt_list)) m.variable.receipt_list = [];
+    if (!Array.isArray(m.variable.credit_card_list)) m.variable.credit_card_list = [];
+    if (!Array.isArray(m.variable.donation_fixed_list)) m.variable.donation_fixed_list = [];
+    if (!Array.isArray(m.variable.donation_general_list)) m.variable.donation_general_list = [];
+  }
+  return m;
+}
+
+let members = JSON.parse(localStorage.getItem('choumei_members') || '[]').map(normalizeVariable);
 let settings = JSON.parse(localStorage.getItem('choumei_settings') || 'null') || {
   currentMonth: "114年02月",
   financialContact: { name: "Joey Ku", phone: "0921-111565" },
@@ -548,7 +565,7 @@ async function loadFromCloud() {
       const seen = {};
       members = [];
       [...raw].reverse().forEach(m => {
-        if (m && m.id && !seen[m.id]) { seen[m.id] = true; members.push(m); }
+        if (m && m.id && !seen[m.id]) { seen[m.id] = true; members.push(normalizeVariable(m)); }
       });
       members.reverse();
       if (r.settings) settings = r.settings;
