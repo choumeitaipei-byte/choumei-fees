@@ -1459,6 +1459,7 @@ function getReportData() {
 }
 
 function generateReportPreview() {
+  try {
   const data = getReportData();
   const preview = document.getElementById('report-preview');
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
@@ -1801,6 +1802,7 @@ function generateReportPreview() {
         <tfoot><tr style="background:#002147;color:white"><td colspan="2" style="padding:7px 10px;font-weight:900">月份合計</td>${tCells}<td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:3px solid #C9A84C">$${gA.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${gB.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${gC.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${gD.toLocaleString()}</td></tr></tfoot>
       </table></div>`;
   }
+  } catch(err) { console.error('generateReportPreview ERROR:', err); document.getElementById('report-preview').innerHTML = '<div style="color:red;padding:20px;font-size:13px">❌ 報表錯誤：' + err.message + '</div>'; }
 }
 
 function exportReport(format) {
