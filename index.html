@@ -1495,6 +1495,8 @@ function generateReportPreview() {
     const advanceSet = new Set();
     mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(i.desc)));
     const advanceItems = [...advanceSet];
+    // DEBUG 加到 advDescs 讓黃色欄可以比對
+    console.log('advanceItems in monthly:', advanceItems, 'mList[0].variable:', mList[0]?.variable?.advance_pay_list);
 
     const donFixedSet = new Set();
     mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
