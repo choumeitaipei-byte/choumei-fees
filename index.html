@@ -685,6 +685,15 @@ function saveLocal() {
 // ══════════════════════════════════════════
 // 核心計算
 // ══════════════════════════════════════════
+// 代付款群組 key：取 '-' 之前的部分，並移除所有空格，用來合併同類項目
+// 例如 '0526餐費-Artgen' → '0526餐費'，'0526 餐費' → '0526餐費'
+function advGroupKey(desc) {
+  if (!desc) return '未分類';
+  const idx = desc.indexOf('-');
+  const base = idx > 0 ? desc.substring(0, idx) : desc;
+  return base.replace(/\s+/g, '').trim();
+}
+
 function sortByNickname(a, b) {
   const na = (a.nickname || a.name || '').trim().toUpperCase();
   const nb = (b.nickname || b.name || '').trim().toUpperCase();
@@ -1551,7 +1560,7 @@ function generateReportPreview() {
     const serviceItems = [...serviceSet];
 
     const advanceSet = new Set();
-    mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(i.desc)));
+    mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(advGroupKey(i.desc))));
     const advanceItems = [...advanceSet];
     // DEBUG 加到 advDescs 讓黃色欄可以比對
     console.log('advanceItems in monthly:', advanceItems, 'mList[0].variable:', mList[0]?.variable?.advance_pay_list);
@@ -1624,7 +1633,7 @@ function generateReportPreview() {
         totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a;
       });
       const feV = fixedAExtras.map(d => { const a=(m.variable?.fixedA_list||[]).filter(i=>i.desc?.trim()===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a; });
-      const adV = advanceItems.map(d => { const a=(m.variable?.advance_pay_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a; });
+      const adV = advanceItems.map(d => { const a=(m.variable?.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a; });
       const svV = serviceItems.map(d => { const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable?.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a; });
       const dfV = donFixedItems.map(d => { const a=(m.variable?.donation_fixed_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a; });
       const dgV = donGeneralItems.map(d => { const a=[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a; });
@@ -1695,9 +1704,9 @@ function generateReportPreview() {
     const groups = {};
     mList.forEach(m => {
       (m.variable?.advance_pay_list || []).forEach(i => {
-        const key = i.desc || '未分類';
+        const key = advGroupKey(i.desc);
         if (!groups[key]) groups[key] = [];
-        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
       });
     });
     if (Object.keys(groups).length === 0) {
@@ -1715,6 +1724,7 @@ function generateReportPreview() {
           <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
           <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
           <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#999">${x.desc !== item ? x.desc : ''}</td>
           <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
         </tr>`).join('');
       cards += `
@@ -1729,11 +1739,12 @@ function generateReportPreview() {
               <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
               <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
               <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">細項</th>
               <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
             </tr></thead>
             <tbody>${memberRows}</tbody>
             <tfoot><tr style="background:#eef4ff">
-              <td colspan="3" style="padding:6px 12px;font-size:12px;font-weight:900;color:#002147">${item} 小計</td>
+              <td colspan="4" style="padding:6px 12px;font-size:12px;font-weight:900;color:#002147">${item} 小計</td>
               <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#002147">$${subtotal.toLocaleString()}</td>
             </tr></tfoot>
           </table>
@@ -1883,36 +1894,31 @@ function exportReport(format) {
   if (data.type === 'advance') {
     const mList = (data.members || members).map(m => ({...m, variable: normVar(m)}));
 
-    // 收集所有代付款項目（去重、排序）
+    // 收集所有代付款群組（以 '-' 前綴合併）
     const itemSet = new Set();
-    mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => { if(i.desc) itemSet.add(i.desc.trim()); }));
+    mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => { if(i.desc) itemSet.add(advGroupKey(i.desc)); }));
     const items = [...itemSet];
 
     if (items.length === 0) { alert('本月尚無代付款記錄'); return; }
 
-    // 每人只列有代付款的行
     const sortedList = [...mList].sort((a,b) => sortByNickname(a,b));
-
-    // Header
     csv = ['姓名','暱稱', ...items, '代付款合計'].join(',') + '\n';
 
-    // 小計累計
     const itemTotals = Object.fromEntries(items.map(d=>[d,0]));
     let grandTotal = 0;
 
     sortedList.forEach(m => {
       const vals = items.map(d => {
-        const a = (m.variable.advance_pay_list||[]).filter(i=>i.desc?.trim()===d).reduce((s,i)=>s+Number(i.amount||0),0);
+        const a = (m.variable.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+Number(i.amount||0),0);
         itemTotals[d] += a;
         return a;
       });
       const rowTotal = vals.reduce((s,a)=>s+a, 0);
-      if (rowTotal === 0) return; // 該人本月無代付款，略過
+      if (rowTotal === 0) return;
       grandTotal += rowTotal;
       csv += [`"${m.name}"`, `"${m.nickname||''}"`, ...vals, rowTotal].join(',') + '\n';
     });
 
-    // 小計行
     csv += ['"小計"','""', ...items.map(d=>itemTotals[d]), grandTotal].join(',') + '\n';
 
     downloadCSV(csv, `洲美代付款明細_${data.month}.csv`);
@@ -1966,7 +1972,7 @@ function exportReport(format) {
     });
     const serviceItems = [...serviceSet];
     const advanceSet = new Set();
-    mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => advanceSet.add(i.desc)));
+    mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => advanceSet.add(advGroupKey(i.desc))));
     const advanceItems = [...advanceSet];
     const donFixedSet = new Set();
     mList.forEach(m => (m.variable.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
@@ -1993,7 +1999,7 @@ function exportReport(format) {
         totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a;
       });
       const feV = fixedAExtras.map(d=>{const a=(m.variable.fixedA_list||[]).filter(i=>i.desc?.trim()===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a;});
-      const adV = advanceItems.map(d=>{const a=(m.variable.advance_pay_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a;});
+      const adV = advanceItems.map(d=>{const a=(m.variable.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a;});
       const svV = serviceItems.map(d=>{const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a;});
       const dfV = donFixedItems.map(d=>{const a=(m.variable.donation_fixed_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a;});
       const dgV = donGeneralItems.map(d=>{const a=[...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a;});
