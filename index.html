@@ -178,8 +178,13 @@
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">金額 (NTD)</label>
           <input class="inp mono" type="number" id="qi-amount" placeholder="0" style="font-size:18px;font-weight:700">
         </div>
-        <button onclick="submitQuickInput()" class="btn-primary" style="height:44px;white-space:nowrap">錄入雲端</button>
+        <button onclick="submitQuickInput()" class="btn-primary" style="height:44px;white-space:nowrap">✚ 錄入</button>
       </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:12px">
+      <span id="pending-sync-label" style="font-size:12px;color:#dc2626;font-weight:700;display:none">⚠️ 有未同步的資料</span>
+      <button onclick="syncToCloud()" id="sync-btn" style="background:#002147;color:white;border:none;padding:8px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;display:none">☁️ 同步至雲端</button>
     </div>
 
     <div class="card" style="overflow:hidden">
@@ -925,9 +930,29 @@ async function submitQuickInput() {
     else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
   });
 
-  await pushToCloud('saveMembers', { members });
+  localStorage.setItem('choumei_members', JSON.stringify(members));
+  // 顯示「有未同步資料」提示
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
   render();
   document.getElementById('qi-amount').value = '';
+}
+
+async function syncToCloud() {
+  const btn = document.getElementById('sync-btn');
+  btn.textContent = '⏳ 同步中...';
+  btn.disabled = true;
+  try {
+    await pushToCloud('saveMembers', { members });
+    document.getElementById('pending-sync-label').style.display = 'none';
+    btn.style.display = 'none';
+    btn.textContent = '☁️ 同步至雲端';
+    btn.disabled = false;
+  } catch(e) {
+    btn.textContent = '☁️ 同步至雲端';
+    btn.disabled = false;
+    alert('同步失敗，請稍後再試');
+  }
 }
 
 
@@ -944,9 +969,10 @@ async function deleteEntry(mId, listKey, entryId) {
     if (!m.variable[listKey]) m.variable[listKey] = [];
     m.variable[listKey] = m.variable[listKey].filter(i => i.id !== entryId); 
   }
-  await pushToCloud('saveMember', { member: m });
+  localStorage.setItem('choumei_members', JSON.stringify(members));
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
   render();
-  // 如果帳單預覽是開著的，重新渲染
   if (currentBillMemberId === mId) {
     document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
   }
