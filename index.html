@@ -709,9 +709,12 @@ function calcFees(m) {
   // A: 經常費合計
   const sumA = v(m?.fixedA?.monthly)
     + (vr.fixedA_list || []).reduce((a,i) => a + v(i.amount), 0);
-  // B: 服務經費合計
+  // B: 服務經費合計（含固定分攤、服務費、固定捐款、一般捐款）
   const sumB = v(m?.fixedB?.monthly_split)
-    + (vr.service_list || []).reduce((a,i) => a + v(i.amount), 0);
+    + (vr.service_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_fixed_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_general_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_list || []).reduce((a,i) => a + v(i.amount), 0);
   // C: 代付款合計
   const sumC = (vr.advance_pay_list || []).reduce((a,i) => a + v(i.amount), 0);
   // D: 本期社費合計 = A+B+C
@@ -993,31 +996,46 @@ function buildBillHTML(m) {
   const f = calcFees(m);
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const fs = settings.feeStructure;
-  let rows = '';
+  const del = (mId, key, id) => `<button onclick="deleteEntry('${mId}','${key}','${id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
+  const billRow = (label, amount, color, mId, key, id) =>
+    `<div class="bill-row" style="color:${color||'inherit'}"><span>${label}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(amount).toLocaleString()}</span>${mId?del(mId,key,id):''}</div></div>`;
+  const billSub = (label, amount, bg='#eef4ff', color='var(--navy-mid)') =>
+    `<div class="bill-sub" style="background:${bg};color:${color}"><span>${label}</span><span class="mono">$${v(amount).toLocaleString()}</span></div>`;
+
+  // 經常費 A
+  let rowsA = '';
+  const fixedALabels = Object.values(fs.fixedA?.items||{}).map(l=>l.trim());
   Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
-    if (v(m.fixedA?.[k]) > 0) rows += `<div class="bill-row"><span>[經常費] ${label}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedA[k]).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_monthly','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+    const amt = v(m.fixedA?.[k]) || (m.variable?.fixedA_list||[]).filter(i=>i.desc?.trim()===label.trim()).reduce((s,i)=>s+v(i.amount),0);
+    if (amt > 0) rowsA += billRow(`[經常費] ${label}`, amt, '', m.id, 'fixedA_monthly', '');
   });
-  (m.variable?.fixedA_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[經常費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedA_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
-  (m.variable?.advance_pay_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[代付款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','advance_pay_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
-  rows += `<div class="bill-sub"><span>(A) 經常費小計</span><span class="mono">$${f.sumA.toLocaleString()}</span></div>`;
-  if (v(m.fixedB?.monthly_split) > 0) rows += `<div class="bill-row"><span>[服務經費] 固定分攤費</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','fixedB_monthly_split','')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
-  (m.variable?.service_list||[]).forEach(i => { rows += `<div class="bill-row"><span>[服務經費] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','service_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`; });
-  rows += `<div class="bill-sub"><span>(B) 服務經費小計</span><span class="mono">$${f.sumB.toLocaleString()}</span></div>`;
-  if (v(m.accounting?.previous_due) !== 0) rows += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
+  (m.variable?.fixedA_list||[]).filter(i=>!fixedALabels.includes(i.desc?.trim())).forEach(i => {
+    rowsA += billRow(`[經常費] ${i.desc}`, i.amount, '', m.id, 'fixedA_list', i.id);
+  });
+
+  // 代付款 B
+  let rowsB = '';
+  (m.variable?.advance_pay_list||[]).forEach(i => {
+    rowsB += billRow(`[代付款] ${i.desc}`, i.amount, '', m.id, 'advance_pay_list', i.id);
+  });
+
+  // 服務費 C（含固定分攤、服務費、捐款）
+  let rowsC = '';
+  if (v(m.fixedB?.monthly_split) > 0) rowsC += billRow('[服務經費] 固定分攤費', m.fixedB.monthly_split, '', m.id, 'fixedB_monthly_split', '');
+  (m.variable?.service_list||[]).forEach(i => { rowsC += billRow(`[服務經費] ${i.desc}`, i.amount, '', m.id, 'service_list', i.id); });
+  (m.variable?.donation_fixed_list||[]).forEach(i => { rowsC += billRow(`[固定捐款] ${i.desc}`, i.amount, '#6d28d9', m.id, 'donation_fixed_list', i.id); });
+  (m.variable?.donation_general_list||[]).forEach(i => { rowsC += billRow(`[一般捐款] ${i.desc}`, i.amount, '#9333ea', m.id, 'donation_general_list', i.id); });
+  (m.variable?.donation_list||[]).forEach(i => { rowsC += billRow(`[捐款] ${i.desc}`, i.amount, '#9333ea', m.id, 'donation_list', i.id); });
+
+  // 收款 F/G
+  let rowsReceipt = '';
+  if (v(m.accounting?.previous_due) !== 0) rowsReceipt += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
   (m.variable?.receipt_list||[]).forEach(i => {
     const isCard = i.type === 'receipt_card';
-    const label = isCard ? '信用卡收款' : '匯款收款';
-    const color = isCard ? '#7c3aed' : '#16a34a';
-    rows += `<div class="bill-row" style="color:${color}"><span>[${label}]</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">-$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','receipt_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
+    rowsReceipt += `<div class="bill-row" style="color:${isCard?'#7c3aed':'#16a34a'}"><span>[${isCard?'信用卡收款':'匯款收款'}]</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">-$${v(i.amount).toLocaleString()}</span>${del(m.id,'receipt_list',i.id)}</div></div>`;
   });
-  if ((m.variable?.donation_list||[]).length > 0) {
-    rows += `<div class="bill-sub" style="background:#fdf4ff;color:#7c3aed"><span>社友捐款明細</span><span></span></div>`;
-    (m.variable.donation_list).forEach(i => {
-      rows += `<div class="bill-row" style="color:#7c3aed"><span>[捐款] ${i.desc}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(i.amount).toLocaleString()}</span><button onclick="deleteEntry('${m.id}','donation_list','${i.id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button></div></div>`;
-    });
-    const donTotal = (m.variable.donation_list).reduce((a,i)=>a+v(i.amount),0);
-    rows += `<div class="bill-sub" style="background:#fdf4ff;color:#7c3aed"><span>捐款小計（另計，不含於未付款）</span><span class="mono">$${donTotal.toLocaleString()}</span></div>`;
-  }
+
+  const deadlineText = settings.paymentDeadline || '__月__日';
 
   return `<div class="bill-wrap" id="bill-render-${m.id}">
     <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid var(--navy)">
@@ -1033,75 +1051,39 @@ function buildBillHTML(m) {
     </div>
     <div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:12px">
       <div class="bill-head"><span>項目說明</span><span>金額 (NTD)</span></div>
-      ${rows}
+      ${rowsA}
+      ${billSub('經常費合計 (A)', f.sumA)}
+      ${rowsB}
+      ${billSub('代付款合計 (B)', f.sumC)}
+      ${rowsC}
+      ${billSub('服務費合計 (C)', f.sumB)}
+      ${billSub('本期社費 (D = A+B+C)', f.sumD, '#002147', '#C9A84C')}
+      ${rowsReceipt}
     </div>
     <div class="bill-total">
-      <div style="font-size:13px;font-weight:700;letter-spacing:0.05em">本期未付款合計 (H)</div>
+      <div style="font-size:13px;font-weight:700;white-space:nowrap">本期未付款 (H = D+E−F−G)</div>
       <div class="mono" style="font-size:36px;font-weight:900">$${f.finalH.toLocaleString()}</div>
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1.5px solid #eee;font-size:11px;color:#333;line-height:1.9">
       <p style="margin-bottom:6px">親愛的洲美扶輪社社友您好：</p>
-      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本月費用合計（經常費＋服務費）為 <strong style="color:var(--navy);font-size:13px">NT $${(f.sumA+f.sumB).toLocaleString()}</strong>，本期未付款為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對會費內容，確定無誤後請簽名回傳。若有錯誤務必於7天內告知。謝謝！！</p>
-      <p style="margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於7天內告知）：＿＿＿＿＿＿＿＿＿＿＿＿</p>
+      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D=A+B+C) 為 <strong style="color:var(--navy);font-size:13px">NT $${f.sumD.toLocaleString()}</strong>，本期未付款 (H) 為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對會費內容，確定無誤後請簽名回傳。若有錯誤請於<strong>三天內</strong>告知。謝謝！</p>
+      <p style="margin-bottom:6px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineText}</strong> 前繳清，以避免會籍被終止，謝謝！</p>
+      <p style="margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於三天內告知）：＿＿＿＿＿＿＿＿＿＿＿＿</p>
       <p style="margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿＿＿＿</p>
-
       <div style="border:1px solid #ddd;border-radius:8px;padding:10px 12px;background:#fafafa;margin-bottom:10px">
         <p style="font-weight:700;margin-bottom:6px;color:var(--navy)">※ 繳費方式</p>
         <p style="margin-bottom:4px">1.【信用卡】國泰世華信用卡（每月15日扣款、未扣款成功者通知後統一25日扣款，若仍未成功則本期與下期一起繳納）</p>
         <p style="margin-bottom:6px">2.【匯　款】匯款完畢或ATM轉帳成功後，請來電 0972-701003、簡訊或於Line告知卡號後五碼，以利核銷，謝謝！</p>
         <table style="width:100%;font-size:11px;border-collapse:collapse">
-          <tr>
-            <td style="padding:2px 8px 2px 0">戶名：社團法人臺北市洲美扶輪社</td>
-            <td style="padding:2px 0">銀行：國泰世華銀行 – 仁愛分行</td>
-          </tr>
-          <tr>
-            <td style="padding:2px 8px 2px 0">帳號：201-03-500245-1</td>
-            <td style="padding:2px 0">總行代碼：013</td>
-          </tr>
+          <tr><td style="padding:2px 8px 2px 0">戶名：社團法人臺北市洲美扶輪社</td><td>銀行：國泰世華銀行 – 仁愛分行</td></tr>
+          <tr><td style="padding:2px 8px 2px 0">帳號：201-03-500245-1</td><td>總行代碼：013</td></tr>
         </table>
       </div>
-
-      <p style="color:#555;margin-bottom:8px">親愛的社友您好，以上款項若有錯誤（亦或信用卡帳單扣款金額與上項金額不符），請立即告知社辦，副知財務，將於一週內匯款至您的帳戶。</p>
+      <p style="color:#555;margin-bottom:8px">以上款項若有錯誤（亦或信用卡帳單扣款金額與上項金額不符），請立即告知社辦，副知財務，將於一週內處理。</p>
       <p style="color:var(--navy);font-weight:700">財務聯絡：${settings.financialContact?.name} ${settings.financialContact?.phone}</p>
     </div>
   </div>`;
 }
-
-function openBill(mId) {
-  currentBillMemberId = mId;
-  const m = members.find(x => x.id === mId);
-  document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
-  openBillOverlay();
-}
-
-let billScale = 0.75;
-
-function setBillScale(val) {
-  const wrapper = document.getElementById('bill-scale-wrapper');
-  if (!wrapper) return;
-  if (val === 'fit') {
-    // 計算適合視窗高度的縮放比例
-    const container = wrapper.parentElement;
-    const availH = container.clientHeight - 32;
-    const availW = container.clientWidth - 32;
-    const billH = wrapper.scrollHeight || 1100;
-    const billW = 794; // bill-wrap width
-    const scaleH = availH / billH;
-    const scaleW = availW / billW;
-    billScale = Math.min(scaleH, scaleW, 1);
-    billScale = Math.max(0.3, Math.round(billScale * 10) / 10);
-  } else {
-    billScale = Math.max(0.3, Math.min(1.5, billScale + val));
-    billScale = Math.round(billScale * 10) / 10;
-  }
-  wrapper.style.transform = `scale(${billScale})`;
-  wrapper.style.transformOrigin = 'top center';
-  // 調整 wrapper 佔位高度（避免 scale 後遮住下方）
-  wrapper.style.marginBottom = `${(billScale - 1) * (wrapper.scrollHeight || 800)}px`;
-  document.getElementById('bill-scale-label').textContent = Math.round(billScale * 100) + '%';
-}
-
-function adjustBillScale(delta) { setBillScale(delta); }
 
 function openBillOverlay() {
   document.getElementById('bill-overlay').classList.add('show');
