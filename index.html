@@ -163,7 +163,6 @@
             <option value="fixedA">經常費 (A)</option>
             <option value="fixedB">服務經費 (B)</option>
             <option value="advance_pay">代付款 (C)</option>
-            <option value="donation">社友捐款</option>
             <option value="receipt">收款錄入</option>
             <option value="creditcard">信用卡扣款（自動帶入應付款）</option>
           </select>
@@ -173,6 +172,10 @@
           <div id="qi-item-wrap">
             <select class="inp" id="qi-item"></select>
           </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">日期</label>
+          <input class="inp" type="text" id="qi-date" placeholder="例：0517 或 5/17">
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">金額 (NTD)</label>
@@ -861,13 +864,30 @@ function updateItemOptions() {
     }
   } else if (cat === 'advance_pay') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
-  } else if (cat === 'donation') {
-    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="捐款說明（例：例會捐款）" value="社友捐款">';
   } else if (cat === 'receipt') {
     wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
+  } else if (cat === 'fixedB') {
+    const items = settings.feeStructure.fixedB?.items || {};
+    const presetOptions = Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('');
+    wrap.innerHTML = `<select class="inp" id="qi-item" onchange="toggleCustomServiceInput(this)">
+      ${presetOptions}
+      <option value="__custom_general__">一般捐款（自訂說明）</option>
+      <option value="__custom_fixed__">固定捐款（自訂說明）</option>
+    </select>
+    <input class="inp" type="text" id="qi-item-custom" placeholder="輸入說明，例：4/7研習會捐款" style="display:none;margin-top:8px">`;
   } else {
     const items = settings.feeStructure[cat]?.items || {};
     wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
+  }
+}
+
+function toggleCustomServiceInput(sel) {
+  const customInput = document.getElementById('qi-item-custom');
+  if (sel.value === '__custom_general__' || sel.value === '__custom_fixed__') {
+    customInput.style.display = 'block';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
   }
 }
 
@@ -912,11 +932,23 @@ function toggleAllMembers() {
 
 async function submitQuickInput() {
   const cat = document.getElementById('qi-category').value;
-  const item = document.getElementById('qi-item').value;
+  let item = document.getElementById('qi-item').value;
+  const customEl = document.getElementById('qi-item-custom');
+  const dateVal = (document.getElementById('qi-date')?.value || '').trim();
   const amount = Number(document.getElementById('qi-amount').value);
   const memberId = document.getElementById('qi-member').value;
   if (isNaN(amount)) return alert('請輸入正確金額');
   if (!allMembersMode && !memberId) return alert('請選擇社友');
+
+  // fixedB 自訂捐款項目：需要從文字輸入框取得說明
+  let isCustomGeneral = false, isCustomFixed = false;
+  if (cat === 'fixedB' && (item === '__custom_general__' || item === '__custom_fixed__')) {
+    const customText = (customEl?.value || '').trim();
+    if (!customText) return alert('請輸入捐款說明');
+    isCustomGeneral = item === '__custom_general__';
+    isCustomFixed = item === '__custom_fixed__';
+    item = customText;
+  }
 
   const targetIds = allMembersMode ? members.map(m=>m.id) : [memberId];
 
@@ -927,18 +959,23 @@ async function submitQuickInput() {
     if (!m.accounting) m.accounting = {};
 
     const label = settings.feeStructure[cat]?.items?.[item] || item || '項目';
-    const entry = { id: 'T' + Date.now() + Math.random().toString(36).substr(2,4), desc: label, amount };
+    // 日期附加在說明前面，例如「0517 例會捐款」
+    const descWithDate = dateVal ? `${dateVal} ${label}` : label;
+    const entry = { id: 'T' + Date.now() + Math.random().toString(36).substr(2,4), desc: descWithDate, amount, date: dateVal || undefined };
 
     if (cat === 'fixedA' && item === 'monthly') { m.fixedA = m.fixedA||{}; m.fixedA.monthly = amount; }
     else if (cat === 'fixedB' && item === 'monthly_split') { m.fixedB = m.fixedB||{}; m.fixedB.monthly_split = amount; }
+    else if (cat === 'fixedB' && isCustomFixed) {
+      if (!m.variable.donation_fixed_list) m.variable.donation_fixed_list = [];
+      m.variable.donation_fixed_list.push(entry);
+    }
+    else if (cat === 'fixedB' && isCustomGeneral) {
+      if (!m.variable.donation_general_list) m.variable.donation_general_list = [];
+      m.variable.donation_general_list.push(entry);
+    }
     else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
     else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
-    else if (cat === 'advance_pay') { entry.desc = item; m.variable.advance_pay_list.push(entry); }
-    else if (cat === 'donation') { 
-      if (!m.variable.donation_list) m.variable.donation_list = [];
-      entry.desc = item || '社友捐款'; 
-      m.variable.donation_list.push(entry); 
-    }
+    else if (cat === 'advance_pay') { entry.desc = descWithDate; m.variable.advance_pay_list.push(entry); }
     else if (cat === 'creditcard') {
       entry.desc = '信用卡扣款';
       entry.type = 'receipt_card';
@@ -953,6 +990,7 @@ async function submitQuickInput() {
   document.getElementById('sync-btn').style.display = 'inline-block';
   render();
   document.getElementById('qi-amount').value = '';
+  document.getElementById('qi-date').value = '';
 }
 
 async function syncToCloud() {
