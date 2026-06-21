@@ -1085,6 +1085,14 @@ function buildBillHTML(m) {
   </div>`;
 }
 
+function openBill(mId) {
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+  currentBillMemberId = mId;
+  document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
+  openBillOverlay();
+}
+
 function openBillOverlay() {
   document.getElementById('bill-overlay').classList.add('show');
   // 開啟後稍微延遲計算自動縮放（等 DOM 渲染完）
