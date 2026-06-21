@@ -300,6 +300,10 @@
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">對帳月份</label>
           <input class="inp" type="text" id="cfg-month">
         </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">應收款繳清期限（顯示於帳單）</label>
+          <input class="inp" type="text" id="cfg-deadline" placeholder="例：6月30日">
+        </div>
       </div>
       <button onclick="saveSettings()" class="btn-primary">儲存設定</button>
     </div>
@@ -751,6 +755,7 @@ function render() {
   document.getElementById('cfg-contact-name').value = settings.financialContact?.name || '';
   document.getElementById('cfg-contact-phone').value = settings.financialContact?.phone || '';
   document.getElementById('cfg-month').value = settings.currentMonth || '';
+  document.getElementById('cfg-deadline').value = settings.paymentDeadline || '';
   document.getElementById('cfg-default-monthly').value = settings.defaultMonthly || 0;
   document.getElementById('cfg-default-split').value = settings.defaultSplit || 0;
 }
@@ -1253,6 +1258,7 @@ async function saveSettings() {
     phone: document.getElementById('cfg-contact-phone').value
   };
   settings.currentMonth = document.getElementById('cfg-month').value;
+  settings.paymentDeadline = document.getElementById('cfg-deadline').value;
   settings.defaultMonthly = Number(document.getElementById('cfg-default-monthly').value) || 0;
   settings.defaultSplit = Number(document.getElementById('cfg-default-split').value) || 0;
   await pushToCloud('saveSettings', { settings });
