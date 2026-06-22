@@ -456,6 +456,33 @@
   </div>
 </div>
 
+<!-- 費用明細編輯彈窗 -->
+<div class="overlay" id="entry-edit-overlay">
+  <div class="modal" style="max-width:420px">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)">✏ 修改明細</h2>
+      <button onclick="closeEntryEditModal()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:28px;display:grid;gap:16px">
+      <input type="hidden" id="edit-entry-mid">
+      <input type="hidden" id="edit-entry-listkey">
+      <input type="hidden" id="edit-entry-id">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">項目說明</label>
+        <input class="inp" type="text" id="edit-entry-desc" placeholder="輸入說明">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">金額 (NTD)</label>
+        <input class="inp mono" type="number" id="edit-entry-amount" placeholder="0" style="font-size:22px;font-weight:700">
+      </div>
+      <div style="display:flex;gap:12px;padding-top:4px">
+        <button onclick="saveEntryEdit()" class="btn-primary" style="flex:1;padding:14px">儲存修改</button>
+        <button onclick="closeEntryEditModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 年度結轉彈窗 -->
 <div class="overlay" id="yearly-carry-overlay">
   <div class="modal" style="max-width:560px">
@@ -896,21 +923,6 @@ function toggleCustomServiceInput(sel) {
 // ══════════════════════════════════════════
 let allMembersMode = false;
 function onMemberChange() {
-  // 如果類別是信用卡，自動更新金額
-  const cat = document.getElementById('qi-category').value;
-  if (cat === 'creditcard') {
-    const mId = document.getElementById('qi-member').value;
-    if (mId) {
-      const m = members.find(x => x.id === mId);
-      if (m) {
-        const f = calcFees(m);
-        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
-      }
-    }
-  }
-}
-
-function onMemberChange() {
   // 如果目前類別是信用卡，自動帶入應付款金額
   const cat = document.getElementById('qi-category').value;
   if (cat === 'creditcard') {
@@ -1033,6 +1045,69 @@ async function deleteEntry(mId, listKey, entryId) {
   }
 }
 // ══════════════════════════════════════════
+// 編輯明細項目
+// ══════════════════════════════════════════
+function editEntry(mId, listKey, entryId) {
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+  let entry = null;
+  if (listKey === 'fixedA_monthly') {
+    entry = { desc: '月費', amount: m.fixedA?.monthly || 0 };
+  } else if (listKey === 'fixedB_monthly_split') {
+    entry = { desc: '固定分攤費', amount: m.fixedB?.monthly_split || 0 };
+  } else {
+    entry = (m.variable[listKey] || []).find(i => i.id === entryId);
+  }
+  if (!entry) return;
+  document.getElementById('edit-entry-mid').value = mId;
+  document.getElementById('edit-entry-listkey').value = listKey;
+  document.getElementById('edit-entry-id').value = entryId;
+  document.getElementById('edit-entry-desc').value = entry.desc || '';
+  document.getElementById('edit-entry-amount').value = entry.amount || 0;
+  // 固定欄位說明不允許修改
+  document.getElementById('edit-entry-desc').readOnly = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
+  document.getElementById('edit-entry-overlay').classList.add('show');
+}
+
+function closeEntryEditModal() {
+  document.getElementById('entry-edit-overlay').classList.remove('show');
+}
+
+async function saveEntryEdit() {
+  const mId = document.getElementById('edit-entry-mid').value;
+  const listKey = document.getElementById('edit-entry-listkey').value;
+  const entryId = document.getElementById('edit-entry-id').value;
+  const desc = document.getElementById('edit-entry-desc').value.trim();
+  const amount = Number(document.getElementById('edit-entry-amount').value);
+  if (!desc) return alert('請輸入項目說明');
+  if (isNaN(amount)) return alert('請輸入正確金額');
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+  if (listKey === 'fixedA_monthly') {
+    m.fixedA = m.fixedA || {};
+    m.fixedA.monthly = amount;
+  } else if (listKey === 'fixedB_monthly_split') {
+    m.fixedB = m.fixedB || {};
+    m.fixedB.monthly_split = amount;
+  } else {
+    const list = m.variable[listKey];
+    if (!list) return;
+    const idx = list.findIndex(i => i.id === entryId);
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], desc, amount };
+  }
+  saveLocal();
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
+  closeEntryEditModal();
+  render();
+  if (currentBillMemberId === mId) {
+    const mUpdated = members.find(x => x.id === mId);
+    document.getElementById('bill-preview-container').innerHTML = buildBillHTML(mUpdated);
+  }
+}
+
+// ══════════════════════════════════════════
 // 帳單
 // ══════════════════════════════════════════
 function buildBillHTML(m) {
@@ -1040,8 +1115,9 @@ function buildBillHTML(m) {
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const fs = settings.feeStructure;
   const del = (mId, key, id) => `<button onclick="deleteEntry('${mId}','${key}','${id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
+  const editBtn = (mId, key, id) => `<button onclick="editEntry('${mId}','${key}','${id}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✏</button>`;
   const billRow = (label, amount, color, mId, key, id) =>
-    `<div class="bill-row" style="color:${color||'inherit'}"><span>${label}</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">$${v(amount).toLocaleString()}</span>${mId?del(mId,key,id):''}</div></div>`;
+    `<div class="bill-row" style="color:${color||'inherit'}"><span>${label}</span><div style="display:flex;align-items:center;gap:6px"><span class="mono">$${v(amount).toLocaleString()}</span>${mId?editBtn(mId,key,id):''}${mId?del(mId,key,id):''}</div></div>`;
   const billSub = (label, amount, bg='#eef4ff', color='var(--navy-mid)') =>
     `<div class="bill-sub" style="background:${bg};color:${color}"><span>${label}</span><span class="mono">$${v(amount).toLocaleString()}</span></div>`;
 
@@ -1075,7 +1151,7 @@ function buildBillHTML(m) {
   if (v(m.accounting?.previous_due) !== 0) rowsReceipt += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
   (m.variable?.receipt_list||[]).forEach(i => {
     const isCard = i.type === 'receipt_card';
-    rowsReceipt += `<div class="bill-row" style="color:${isCard?'#7c3aed':'#16a34a'}"><span>[${isCard?'信用卡收款':'匯款收款'}]</span><div style="display:flex;align-items:center;gap:8px"><span class="mono">-$${v(i.amount).toLocaleString()}</span>${del(m.id,'receipt_list',i.id)}</div></div>`;
+    rowsReceipt += `<div class="bill-row" style="color:${isCard?'#7c3aed':'#16a34a'}"><span>[${isCard?'信用卡收款':'匯款收款'}]</span><div style="display:flex;align-items:center;gap:6px"><span class="mono">-$${v(i.amount).toLocaleString()}</span>${editBtn(m.id,'receipt_list',i.id)}${del(m.id,'receipt_list',i.id)}</div></div>`;
   });
 
   const deadlineText = settings.paymentDeadline || '__月__日';
