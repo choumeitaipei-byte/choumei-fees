@@ -457,7 +457,7 @@
 </div>
 
 <!-- 費用明細編輯彈窗 -->
-<div class="overlay" id="entry-edit-overlay">
+<div class="overlay" id="entry-edit-overlay" style="z-index:600">
   <div class="modal" style="max-width:420px">
     <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
       <h2 style="font-size:18px;font-weight:900;color:var(--navy)">✏ 修改明細</h2>
@@ -844,7 +844,9 @@ function renderBillsGrid() {
     .sort((a,b) => sortByNickname(a, b))
     .map(m => {
       const f = calcFees(m);
-      const shareUrl = `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,''  )}/view.html?id=${m.id}`;
+      const shareUrl = API_URL
+        ? `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}&api=${encodeURIComponent(API_URL)}`
+        : `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}`;
       return `<div class="card" style="padding:20px">
         <div style="font-size:18px;font-weight:900;color:var(--navy);margin-bottom:4px">${m.name}</div>
         <div style="font-size:13px;color:#888;margin-bottom:16px">${settings.currentMonth}</div>
@@ -895,26 +897,10 @@ function updateItemOptions() {
     wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
   } else if (cat === 'fixedB') {
     const items = settings.feeStructure.fixedB?.items || {};
-    const presetOptions = Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('');
-    wrap.innerHTML = `<select class="inp" id="qi-item" onchange="toggleCustomServiceInput(this)">
-      ${presetOptions}
-      <option value="__custom_general__">一般捐款（自訂說明）</option>
-      <option value="__custom_fixed__">固定捐款（自訂說明）</option>
-    </select>
-    <input class="inp" type="text" id="qi-item-custom" placeholder="輸入說明，例：4/7研習會捐款" style="display:none;margin-top:8px">`;
+    wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
   } else {
     const items = settings.feeStructure[cat]?.items || {};
     wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
-  }
-}
-
-function toggleCustomServiceInput(sel) {
-  const customInput = document.getElementById('qi-item-custom');
-  if (sel.value === '__custom_general__' || sel.value === '__custom_fixed__') {
-    customInput.style.display = 'block';
-    customInput.focus();
-  } else {
-    customInput.style.display = 'none';
   }
 }
 
@@ -945,22 +931,11 @@ function toggleAllMembers() {
 async function submitQuickInput() {
   const cat = document.getElementById('qi-category').value;
   let item = document.getElementById('qi-item').value;
-  const customEl = document.getElementById('qi-item-custom');
   const dateVal = (document.getElementById('qi-date')?.value || '').trim();
   const amount = Number(document.getElementById('qi-amount').value);
   const memberId = document.getElementById('qi-member').value;
   if (isNaN(amount)) return alert('請輸入正確金額');
   if (!allMembersMode && !memberId) return alert('請選擇社友');
-
-  // fixedB 自訂捐款項目：需要從文字輸入框取得說明
-  let isCustomGeneral = false, isCustomFixed = false;
-  if (cat === 'fixedB' && (item === '__custom_general__' || item === '__custom_fixed__')) {
-    const customText = (customEl?.value || '').trim();
-    if (!customText) return alert('請輸入捐款說明');
-    isCustomGeneral = item === '__custom_general__';
-    isCustomFixed = item === '__custom_fixed__';
-    item = customText;
-  }
 
   const targetIds = allMembersMode ? members.map(m=>m.id) : [memberId];
 
@@ -977,14 +952,6 @@ async function submitQuickInput() {
 
     if (cat === 'fixedA' && item === 'monthly') { m.fixedA = m.fixedA||{}; m.fixedA.monthly = amount; }
     else if (cat === 'fixedB' && item === 'monthly_split') { m.fixedB = m.fixedB||{}; m.fixedB.monthly_split = amount; }
-    else if (cat === 'fixedB' && isCustomFixed) {
-      if (!m.variable.donation_fixed_list) m.variable.donation_fixed_list = [];
-      m.variable.donation_fixed_list.push(entry);
-    }
-    else if (cat === 'fixedB' && isCustomGeneral) {
-      if (!m.variable.donation_general_list) m.variable.donation_general_list = [];
-      m.variable.donation_general_list.push(entry);
-    }
     else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
     else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
     else if (cat === 'advance_pay') { entry.desc = descWithDate; m.variable.advance_pay_list.push(entry); }
@@ -1115,7 +1082,7 @@ function buildBillHTML(m) {
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const fs = settings.feeStructure;
   const del = (mId, key, id) => `<button onclick="deleteEntry('${mId}','${key}','${id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
-  const editBtn = (mId, key, id) => `<button onclick="editEntry('${mId}','${key}','${id}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✏</button>`;
+  const editBtn = (mId, key, id) => `<button onclick="editEntry('${mId}','${key}','${id}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:11px;cursor:pointer;font-weight:700">修改</button>`;
   const billRow = (label, amount, color, mId, key, id) =>
     `<div class="bill-row" style="color:${color||'inherit'}"><span>${label}</span><div style="display:flex;align-items:center;gap:6px"><span class="mono">$${v(amount).toLocaleString()}</span>${mId?editBtn(mId,key,id):''}${mId?del(mId,key,id):''}</div></div>`;
   const billSub = (label, amount, bg='#eef4ff', color='var(--navy-mid)') =>
@@ -1259,7 +1226,15 @@ async function exportAllBills() {
 function copyShareLink() {
   const m = members.find(x => x.id === currentBillMemberId);
   const base = location.href.replace('index.html','').replace(/\?.*$/,'');
-  const url = base + 'view.html?id=' + m.id + '&data=' + encodeURIComponent(JSON.stringify({ m, settings }));
+  let url;
+  if (API_URL) {
+    // 短網址：只帶 id + api，view.html 自己去抓資料
+    url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
+  } else {
+    // 無 API 時退回 data-embedded（較長，但離線可用）
+    const minSettings = { currentMonth: settings.currentMonth, financialContact: settings.financialContact, feeStructure: settings.feeStructure, paymentDeadline: settings.paymentDeadline };
+    url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&data=' + encodeURIComponent(JSON.stringify({ m, settings: minSettings }));
+  }
   navigator.clipboard.writeText(url).then(() => alert('✅ 分享連結已複製！\n對方用手機或電腦打開即可查看帳單。'));
 }
 
