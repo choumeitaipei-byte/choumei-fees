@@ -203,6 +203,10 @@ function shareThis() {
 function init() {
   const params = new URLSearchParams(location.search);
 
+  // 優先：若 URL 帶有 api 參數，存入 localStorage 供後續使用
+  const apiParam = params.get('api');
+  if (apiParam) localStorage.setItem('choumei_api_url', apiParam);
+
   // 方式1：URL 直接帶資料（離線分享）
   const rawData = params.get('data');
   if (rawData) {
