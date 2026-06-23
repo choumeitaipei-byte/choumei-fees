@@ -1024,9 +1024,13 @@ async function deleteEntry(mId, listKey, entryId) {
   if (!m) return;
   if (listKey === 'fixedA_monthly') { m.fixedA = m.fixedA || {}; m.fixedA.monthly = 0; }
   else if (listKey === 'fixedB_monthly_split') { m.fixedB = m.fixedB || {}; m.fixedB.monthly_split = 0; }
-  else { 
+  else {
+    // 確保 variable 是物件而非陣列
+    if (!m.variable || Array.isArray(m.variable)) {
+      m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
+    }
     if (!m.variable[listKey]) m.variable[listKey] = [];
-    m.variable[listKey] = m.variable[listKey].filter(i => i.id !== entryId); 
+    m.variable[listKey] = m.variable[listKey].filter(i => i.id !== entryId);
   }
   localStorage.setItem('choumei_members', JSON.stringify(members));
   document.getElementById('pending-sync-label').style.display = 'inline';
@@ -1040,25 +1044,36 @@ async function deleteEntry(mId, listKey, entryId) {
 // 編輯明細項目
 // ══════════════════════════════════════════
 function editEntry(mId, listKey, entryId) {
-  const m = members.find(x => x.id === mId);
-  if (!m) return;
-  let entry = null;
-  if (listKey === 'fixedA_monthly') {
-    entry = { desc: '月費', amount: m.fixedA?.monthly || 0 };
-  } else if (listKey === 'fixedB_monthly_split') {
-    entry = { desc: '固定分攤費', amount: m.fixedB?.monthly_split || 0 };
-  } else {
-    entry = (m.variable[listKey] || []).find(i => i.id === entryId);
+  try {
+    const m = members.find(x => x.id === mId);
+    if (!m) { alert('找不到社友資料，請重新整理後再試'); return; }
+    // 確保 variable 是物件而非陣列
+    if (!m.variable || Array.isArray(m.variable)) {
+      m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
+    }
+    let entry = null;
+    if (listKey === 'fixedA_monthly') {
+      entry = { desc: '月費', amount: m.fixedA?.monthly || 0 };
+    } else if (listKey === 'fixedB_monthly_split') {
+      entry = { desc: '固定分攤費', amount: m.fixedB?.monthly_split || 0 };
+    } else {
+      const list = m.variable[listKey];
+      if (!Array.isArray(list)) { alert('找不到明細清單（' + listKey + '），請重新整理後再試'); return; }
+      entry = list.find(i => i.id === entryId);
+    }
+    if (!entry) { alert('找不到此筆明細（可能已被刪除），請關閉帳單後重新開啟'); return; }
+    document.getElementById('edit-entry-mid').value = mId;
+    document.getElementById('edit-entry-listkey').value = listKey;
+    document.getElementById('edit-entry-id').value = entryId;
+    document.getElementById('edit-entry-desc').value = entry.desc || '';
+    document.getElementById('edit-entry-amount').value = entry.amount ?? 0;
+    // 固定欄位說明不允許修改
+    document.getElementById('edit-entry-desc').readOnly = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
+    document.getElementById('entry-edit-overlay').classList.add('show');
+  } catch (err) {
+    console.error('[editEntry]', err);
+    alert('開啟修改視窗時發生錯誤：' + err.message);
   }
-  if (!entry) return;
-  document.getElementById('edit-entry-mid').value = mId;
-  document.getElementById('edit-entry-listkey').value = listKey;
-  document.getElementById('edit-entry-id').value = entryId;
-  document.getElementById('edit-entry-desc').value = entry.desc || '';
-  document.getElementById('edit-entry-amount').value = entry.amount || 0;
-  // 固定欄位說明不允許修改
-  document.getElementById('edit-entry-desc').readOnly = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
-  document.getElementById('entry-edit-overlay').classList.add('show');
 }
 
 function closeEntryEditModal() {
@@ -1066,36 +1081,45 @@ function closeEntryEditModal() {
 }
 
 async function saveEntryEdit() {
-  const mId = document.getElementById('edit-entry-mid').value;
-  const listKey = document.getElementById('edit-entry-listkey').value;
-  const entryId = document.getElementById('edit-entry-id').value;
-  const desc = document.getElementById('edit-entry-desc').value.trim();
-  const amount = Number(document.getElementById('edit-entry-amount').value);
-  if (!desc) return alert('請輸入項目說明');
-  if (isNaN(amount)) return alert('請輸入正確金額');
-  const m = members.find(x => x.id === mId);
-  if (!m) return;
-  if (listKey === 'fixedA_monthly') {
-    m.fixedA = m.fixedA || {};
-    m.fixedA.monthly = amount;
-  } else if (listKey === 'fixedB_monthly_split') {
-    m.fixedB = m.fixedB || {};
-    m.fixedB.monthly_split = amount;
-  } else {
-    const list = m.variable[listKey];
-    if (!list) return;
-    const idx = list.findIndex(i => i.id === entryId);
-    if (idx === -1) return;
-    list[idx] = { ...list[idx], desc, amount };
-  }
-  saveLocal();
-  document.getElementById('pending-sync-label').style.display = 'inline';
-  document.getElementById('sync-btn').style.display = 'inline-block';
-  closeEntryEditModal();
-  render();
-  if (currentBillMemberId === mId) {
-    const mUpdated = members.find(x => x.id === mId);
-    document.getElementById('bill-preview-container').innerHTML = buildBillHTML(mUpdated);
+  try {
+    const mId = document.getElementById('edit-entry-mid').value;
+    const listKey = document.getElementById('edit-entry-listkey').value;
+    const entryId = document.getElementById('edit-entry-id').value;
+    const desc = document.getElementById('edit-entry-desc').value.trim();
+    const amount = Number(document.getElementById('edit-entry-amount').value);
+    if (!desc) return alert('請輸入項目說明');
+    if (isNaN(amount)) return alert('請輸入正確金額');
+    const m = members.find(x => x.id === mId);
+    if (!m) return alert('找不到社友資料，請重新整理後再試');
+    // 確保 variable 是物件而非陣列
+    if (!m.variable || Array.isArray(m.variable)) {
+      m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
+    }
+    if (listKey === 'fixedA_monthly') {
+      m.fixedA = m.fixedA || {};
+      m.fixedA.monthly = amount;
+    } else if (listKey === 'fixedB_monthly_split') {
+      m.fixedB = m.fixedB || {};
+      m.fixedB.monthly_split = amount;
+    } else {
+      const list = m.variable[listKey];
+      if (!Array.isArray(list)) return alert('找不到明細清單（' + listKey + '）');
+      const idx = list.findIndex(i => i.id === entryId);
+      if (idx === -1) return alert('找不到此筆明細，可能已被刪除');
+      list[idx] = { ...list[idx], desc, amount };
+    }
+    saveLocal();
+    document.getElementById('pending-sync-label').style.display = 'inline';
+    document.getElementById('sync-btn').style.display = 'inline-block';
+    closeEntryEditModal();
+    render();
+    if (currentBillMemberId === mId) {
+      const mUpdated = members.find(x => x.id === mId);
+      document.getElementById('bill-preview-container').innerHTML = buildBillHTML(mUpdated);
+    }
+  } catch (err) {
+    console.error('[saveEntryEdit]', err);
+    alert('儲存時發生錯誤：' + err.message);
   }
 }
 
@@ -1106,8 +1130,8 @@ function buildBillHTML(m) {
   const f = calcFees(m);
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const fs = settings.feeStructure;
-  const del = (mId, key, id) => `<button onclick="deleteEntry('${mId}','${key}','${id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
-  const editBtn = (mId, key, id) => `<button onclick="editEntry('${mId}','${key}','${id}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:11px;cursor:pointer;font-weight:700">修改</button>`;
+  const del = (mId, key, id) => `<button data-action="delete-entry" data-mid="${mId}" data-key="${key}" data-eid="${id}" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
+  const editBtn = (mId, key, id) => `<button data-action="edit-entry" data-mid="${mId}" data-key="${key}" data-eid="${id}" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:11px;cursor:pointer;font-weight:700">修改</button>`;
   const billRow = (label, amount, color, mId, key, id) =>
     `<div class="bill-row" style="color:${color||'inherit'}"><span>${label}</span><div style="display:flex;align-items:center;gap:6px"><span class="mono">$${v(amount).toLocaleString()}</span>${mId?editBtn(mId,key,id):''}${mId?del(mId,key,id):''}</div></div>`;
   const billSub = (label, amount, bg='#eef4ff', color='var(--navy-mid)') =>
@@ -1195,6 +1219,30 @@ function buildBillHTML(m) {
     </div>
   </div>`;
 }
+
+// ── 帳單按鈕 event delegation（取代 inline onclick，只掛一次）──
+// script 在 </body> 前，DOM 已解析完畢，可直接綁定
+(function initBillDelegation() {
+  const attach = () => {
+    const container = document.getElementById('bill-preview-container');
+    if (!container) return;
+    container.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const mid  = btn.dataset.mid;
+      const key  = btn.dataset.key;
+      const eid  = btn.dataset.eid;
+      if (action === 'edit-entry')   editEntry(mid, key, eid);
+      if (action === 'delete-entry') deleteEntry(mid, key, eid);
+    });
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+})();
 
 function openBill(mId) {
   const m = members.find(x => x.id === mId);
