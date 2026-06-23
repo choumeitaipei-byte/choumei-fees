@@ -1370,12 +1370,18 @@ function addSubject() {
   if (!label) return;
   settings.feeStructure[cat].items['sub_' + Date.now()] = label;
   document.getElementById('new-sub-label').value = '';
+  saveLocal();
+  pushToCloud('saveSettings', { settings });
   renderSubjects();
+  updateItemOptions();
 }
 
 function removeSubject(cat, key) {
   delete settings.feeStructure[cat].items[key];
+  saveLocal();
+  pushToCloud('saveSettings', { settings });
   renderSubjects();
+  updateItemOptions();
 }
 
 // ══════════════════════════════════════════
