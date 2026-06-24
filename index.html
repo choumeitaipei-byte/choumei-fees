@@ -143,10 +143,15 @@
         <h1 style="font-size:24px;font-weight:900;color:var(--navy)">帳務錄入</h1>
         <p style="font-size:13px;color:#888;margin-top:2px">快速新增各類費用項目</p>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="all-members-toggle" onchange="toggleAllMembers()" style="width:16px;height:16px;accent-color:var(--navy-mid)">
-        <span style="font-size:12px;font-weight:700;color:#555">全體同步模式</span>
-      </label>
+      <div style="display:flex;align-items:center;gap:16px">
+        <button onclick="openBatchModal()" style="background:#7c3aed;color:white;border:none;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <span style="font-size:15px">⚡</span> 批次代付款
+        </button>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="all-members-toggle" onchange="toggleAllMembers()" style="width:16px;height:16px;accent-color:var(--navy-mid)">
+          <span style="font-size:12px;font-weight:700;color:#555">全體同步模式</span>
+        </label>
+      </div>
     </div>
 
     <div class="card" style="padding:28px;margin-bottom:24px">
@@ -512,6 +517,54 @@
       <div style="display:flex;gap:12px">
         <button onclick="closeYearlyCarryOverlay()" style="flex:1;padding:14px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
         <button onclick="executeYearlyCarryOver()" style="flex:1;padding:14px;background:var(--navy);color:var(--gold);border:none;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer">確定年度結轉</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 批次代付款 modal -->
+<div class="overlay" id="batch-overlay">
+  <div class="modal" style="max-width:520px">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h2 style="font-size:18px;font-weight:900;color:var(--navy)">⚡ 批次代付款</h2>
+        <p style="font-size:12px;color:#888;margin-top:2px">同一筆代付款錄入多位社友</p>
+      </div>
+      <button onclick="closeBatchModal()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:24px 28px;display:grid;gap:16px">
+      <!-- 項目說明 + 日期 -->
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">項目說明</label>
+          <input class="inp" type="text" id="batch-desc" placeholder="例：理事餐費、活動費">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">日期</label>
+          <input class="inp" type="text" id="batch-date" placeholder="例：0517 或 5/17">
+        </div>
+      </div>
+      <!-- 每人金額 -->
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">每人金額 (NTD)</label>
+        <input class="inp mono" type="number" id="batch-amount" placeholder="0" style="font-size:22px;font-weight:700">
+      </div>
+      <!-- 社友清單 -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label style="font-size:11px;font-weight:700;color:#999">選擇社友</label>
+          <div style="display:flex;gap:8px">
+            <button onclick="batchSelectAll(true)" style="background:#f5f2ec;border:none;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;color:#555">全選</button>
+            <button onclick="batchSelectAll(false)" style="background:#f5f2ec;border:none;padding:4px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;color:#555">取消全選</button>
+          </div>
+        </div>
+        <div id="batch-members-list" style="max-height:260px;overflow-y:auto;border:1.5px solid #e8e4da;border-radius:12px;padding:6px"></div>
+        <div id="batch-selected-count" style="margin-top:8px;font-size:12px;font-weight:700;color:#7c3aed">已選 0 人</div>
+      </div>
+      <!-- 操作按鈕 -->
+      <div style="display:flex;gap:12px;padding-top:4px">
+        <button onclick="executeBatch()" style="flex:1;padding:14px;background:#7c3aed;color:white;border:none;border-radius:12px;font-weight:900;font-size:14px;cursor:pointer">確認錄入</button>
+        <button onclick="closeBatchModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
       </div>
     </div>
   </div>
@@ -1014,6 +1067,79 @@ async function syncToCloud() {
   }
 }
 
+// ══════════════════════════════════════════
+// 批次代付款
+// ══════════════════════════════════════════
+function openBatchModal() {
+  // 清空欄位
+  document.getElementById('batch-desc').value = '';
+  document.getElementById('batch-date').value = '';
+  document.getElementById('batch-amount').value = '';
+  // 渲染社友清單（按暱稱排序，預設全不選）
+  const sorted = [...members].sort((a, b) => sortByNickname(a, b));
+  document.getElementById('batch-members-list').innerHTML = sorted.map(m => {
+    const label = m.nickname ? `${m.nickname}（${m.name}）` : m.name;
+    return `<label style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="batch-member-cb" value="${m.id}" onchange="updateBatchCount()" style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0">
+      <span style="font-size:13px;font-weight:700">${label}</span>
+    </label>`;
+  }).join('');
+  updateBatchCount();
+  document.getElementById('batch-overlay').classList.add('show');
+  // 自動 focus 項目說明欄
+  setTimeout(() => document.getElementById('batch-desc').focus(), 80);
+}
+
+function closeBatchModal() {
+  document.getElementById('batch-overlay').classList.remove('show');
+}
+
+function batchSelectAll(checked) {
+  document.querySelectorAll('.batch-member-cb').forEach(cb => { cb.checked = checked; });
+  updateBatchCount();
+}
+
+function updateBatchCount() {
+  const count = document.querySelectorAll('.batch-member-cb:checked').length;
+  document.getElementById('batch-selected-count').textContent = `已選 ${count} 人`;
+}
+
+function executeBatch() {
+  const desc = document.getElementById('batch-desc').value.trim();
+  const dateVal = document.getElementById('batch-date').value.trim();
+  const amount = Number(document.getElementById('batch-amount').value);
+  const checkedIds = [...document.querySelectorAll('.batch-member-cb:checked')].map(cb => cb.value);
+
+  if (!desc) return alert('請輸入項目說明');
+  if (!amount || isNaN(amount) || amount <= 0) return alert('請輸入正確金額（需大於 0）');
+  if (checkedIds.length === 0) return alert('請至少選擇一位社友');
+
+  const descWithDate = dateVal ? `${dateVal} ${desc}` : desc;
+
+  checkedIds.forEach(mId => {
+    const m = members.find(x => x.id === mId);
+    if (!m) return;
+    if (!m.variable || Array.isArray(m.variable)) {
+      m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
+    }
+    const entry = {
+      id: 'T' + Date.now() + Math.random().toString(36).substr(2, 4),
+      desc: descWithDate,
+      amount,
+      date: dateVal || undefined
+    };
+    m.variable.advance_pay_list.push(entry);
+  });
+
+  saveLocal();
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
+  closeBatchModal();
+  render();
+  // 簡短結果提示
+  alert(`✅ 已將「${descWithDate}」$${amount.toLocaleString()} 錄入 ${checkedIds.length} 位社友的代付款`);
+}
+
 
 // ══════════════════════════════════════════
 // 刪除明細項目
@@ -1266,17 +1392,18 @@ async function downloadBillImage() {
   const mId = currentBillMemberId;
   const node = document.getElementById('bill-render-' + mId);
   const m = members.find(x => x.id === mId);
+  const safeName = (m.nickname || m.name).replace(/[^a-zA-Z0-9\-_]/g, '') || m.id;
   const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
   const link = document.createElement('a');
-  link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
+  link.download = `${safeName}.png`;
   link.href = dataUrl; link.click();
 }
 
 async function exportAllBills() {
   showSync('產生全體帳單...');
   const zip = new JSZip();
-  for (const m of members) {
-    // 建臨時 DOM
+  const sorted = [...members].sort((a, b) => sortByNickname(a, b));
+  for (const m of sorted) {
     const tmp = document.createElement('div');
     tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:680px';
     tmp.innerHTML = buildBillHTML(m);
@@ -1284,7 +1411,8 @@ async function exportAllBills() {
     try {
       const dataUrl = await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
       const base64 = dataUrl.split(',')[1];
-      zip.file(`洲美帳單_${m.name}.png`, base64, { base64: true });
+      const safeName = (m.nickname || m.name).replace(/[^a-zA-Z0-9\-_]/g, '') || m.id;
+      zip.file(`${safeName}.png`, base64, { base64: true });
     } catch(e) {}
     document.body.removeChild(tmp);
   }
