@@ -1842,7 +1842,7 @@ function generateReportPreview() {
 
     const advanceSet = new Set();
     mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(advGroupKey(i.desc))));
-    const advanceItems = [...advanceSet];
+    const advanceItems = [...advanceSet].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
 
     const donFixedSet = new Set();
     mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
@@ -2252,7 +2252,7 @@ function exportReport(format) {
     const serviceItems = [...serviceSet];
     const advanceSet = new Set();
     mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => advanceSet.add(advGroupKey(i.desc))));
-    const advanceItems = [...advanceSet];
+    const advanceItems = [...advanceSet].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
     const donFixedSet = new Set();
     mList.forEach(m => (m.variable.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
     const donFixedItems = [...donFixedSet];
