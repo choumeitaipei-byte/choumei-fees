@@ -1127,7 +1127,6 @@ async function submitQuickInput() {
     if (cat === 'fixedA' && item === 'monthly') { m.fixedA = m.fixedA||{}; m.fixedA.monthly = amount; }
     else if (cat === 'fixedB' && item === 'monthly_split') { m.fixedB = m.fixedB||{}; m.fixedB.monthly_split = amount; }
     else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
-    else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
     else if (cat === 'advance_pay') { entry.desc = descWithDate; m.variable.advance_pay_list.push(entry); }
     else if (cat === 'creditcard') {
       entry.desc = '信用卡扣款';
@@ -1135,6 +1134,7 @@ async function submitQuickInput() {
       m.variable.receipt_list.push(entry);
     }
     else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
+    else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
   });
 
   localStorage.setItem('choumei_members', JSON.stringify(members));
@@ -1263,13 +1263,14 @@ function buildBillHTML(m) {
     `<div class="bill-sub" style="background:${bg};color:${color}"><span>${label}</span><span class="mono">$${v(amount).toLocaleString()}</span></div>`;
 
   // 經常費 A
+  // 修正：月費（固定欄位）與其他經常費項目分開渲染，每一筆「其他經常費」明細都用自己的
+  // list key + id 個別渲染，才能正確對應到刪除／修改按鈕（跟服務經費 C 的寫法一致）
   let rowsA = '';
-  const fixedALabels = Object.values(fs.fixedA?.items||{}).map(l=>l.trim());
-  Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
-    const amt = v(m.fixedA?.[k]) || (m.variable?.fixedA_list||[]).filter(i=>i.desc?.trim()===label.trim()).reduce((s,i)=>s+v(i.amount),0);
-    if (amt > 0) rowsA += billRow(`[經常費] ${label}`, amt, '', m.id, 'fixedA_monthly', '');
-  });
-  (m.variable?.fixedA_list||[]).filter(i=>!fixedALabels.includes(i.desc?.trim())).forEach(i => {
+  if (v(m.fixedA?.monthly) > 0) {
+    const monthlyLabel = fs.fixedA?.items?.monthly || '月費';
+    rowsA += billRow(`[經常費] ${monthlyLabel}`, m.fixedA.monthly, '', m.id, 'fixedA_monthly', '');
+  }
+  (m.variable?.fixedA_list||[]).forEach(i => {
     rowsA += billRow(`[經常費] ${i.desc}`, i.amount, '', m.id, 'fixedA_list', i.id);
   });
 
