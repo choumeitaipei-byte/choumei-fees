@@ -426,6 +426,10 @@
         <input class="inp" type="text" id="edit-nickname" placeholder="暱稱 / 英文名">
       </div>
       <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">Email（用於寄送帳單）</label>
+        <input class="inp" type="email" id="edit-email" placeholder="member@example.com">
+      </div>
+      <div>
         <label style="font-size:11px;font-weight:700;color:rgb(234,88,12);display:block;margin-bottom:6px">前期未付款 (E)</label>
         <input class="inp mono" type="number" id="edit-prev-due" value="0" style="font-size:20px;font-weight:700">
       </div>
@@ -444,23 +448,23 @@
   </div>
 </div>
 
-<!-- 部分選擇社友彈窗 -->
-<div class="overlay" id="partial-select-overlay" style="z-index:650">
+<!-- 通用社友多選彈窗（帳務錄入的部分選擇、寄信收件人選擇 共用） -->
+<div class="overlay" id="member-multiselect-overlay" style="z-index:650">
   <div class="modal" style="max-width:480px">
     <div style="padding:20px 24px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
-      <h2 style="font-size:16px;font-weight:900;color:var(--navy)">選擇社友（部分套用）</h2>
-      <button onclick="closePartialSelectModal()" style="background:#f5f2ec;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer">×</button>
+      <h2 style="font-size:16px;font-weight:900;color:var(--navy)" id="member-multiselect-title">選擇社友</h2>
+      <button onclick="closeMemberMultiSelect()" style="background:#f5f2ec;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer">×</button>
     </div>
     <div style="padding:16px 24px">
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button type="button" onclick="togglePartialSelectAll(true)" style="background:#f5f2ec;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">全選</button>
-        <button type="button" onclick="togglePartialSelectAll(false)" style="background:#f5f2ec;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">取消全選</button>
+        <button type="button" onclick="toggleMemberMultiSelectAll(true)" style="background:#f5f2ec;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">全選</button>
+        <button type="button" onclick="toggleMemberMultiSelectAll(false)" style="background:#f5f2ec;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">取消全選</button>
       </div>
-      <div id="partial-select-list" style="max-height:320px;overflow-y:auto;border:1.5px solid #e8e4da;border-radius:12px;padding:8px"></div>
+      <div id="member-multiselect-list" style="max-height:320px;overflow-y:auto;border:1.5px solid #e8e4da;border-radius:12px;padding:8px"></div>
     </div>
     <div style="padding:16px 24px;display:flex;gap:12px">
-      <button onclick="confirmPartialSelect()" class="btn-primary" style="flex:1;padding:12px">確定（已選 <span id="partial-select-count">0</span> 位）</button>
-      <button onclick="closePartialSelectModal()" style="padding:12px 20px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+      <button onclick="confirmMemberMultiSelect()" class="btn-primary" style="flex:1;padding:12px">確定（已選 <span id="member-multiselect-count">0</span> 位）</button>
+      <button onclick="closeMemberMultiSelect()" style="padding:12px 20px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
     </div>
   </div>
 </div>
@@ -852,7 +856,7 @@ function refreshQuickInputTargetDisplay() {
     // 過濾掉已被刪除的社友，避免人數失準
     partialSelectedIds = partialSelectedIds.filter(id => members.some(m => m.id === id));
     if (!wrap.querySelector('select')) {
-      wrap.innerHTML = `<button type="button" onclick="openPartialSelectModal()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（${partialSelectedIds.length} 位）</button>`;
+      wrap.innerHTML = `<button type="button" onclick="openQuickInputPartialSelect()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（${partialSelectedIds.length} 位）</button>`;
     }
   } else if (quickInputMode === 'all') {
     if (!wrap.querySelector('select')) {
@@ -900,6 +904,7 @@ function renderMembersGrid() {
     <div class="card" style="padding:20px;position:relative">
       <div style="font-size:22px;font-weight:900;color:var(--navy)">${m.name} ${m.onLeave ? '<span style="background:#fef3cd;color:#b45309;border:1px solid #f59e0b;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:900">請假</span>' : ''}</div>
       <div style="font-size:11px;color:#bbb;margin-bottom:16px">${m.nickname || ''} · ${m.id}</div>
+      <div style="font-size:11px;margin-bottom:12px;color:${m.email?'#888':'#dc2626'}">✉️ ${m.email || '尚未填寫 Email'}</div>
       <div style="background:#f5f2ec;padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:11px;color:#888">前期未付款</span>
         <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--navy)">${Number(m.accounting?.previous_due||0).toLocaleString()}</span>
@@ -978,11 +983,66 @@ function updateItemOptions() {
 }
 
 // ══════════════════════════════════════════
+// 通用社友多選彈窗（帳務錄入的部分選擇、寄信收件人選擇 共用邏輯）
+// ══════════════════════════════════════════
+let memberMultiSelectTemp = [];      // 彈窗內暫存的勾選狀態
+let memberMultiSelectOnConfirm = null; // 按下確定後的 callback(ids)
+let memberMultiSelectFilter = null;    // 選填：篩選候選名單，例如只列出未繳款者
+
+function openMemberMultiSelect({ title, initialIds = [], onConfirm, filterFn = null } = {}) {
+  document.getElementById('member-multiselect-title').textContent = title || '選擇社友';
+  memberMultiSelectTemp = [...initialIds];
+  memberMultiSelectOnConfirm = onConfirm || null;
+  memberMultiSelectFilter = filterFn;
+  renderMemberMultiSelectList();
+  document.getElementById('member-multiselect-overlay').classList.add('show');
+}
+
+function closeMemberMultiSelect() {
+  document.getElementById('member-multiselect-overlay').classList.remove('show');
+}
+
+function renderMemberMultiSelectList() {
+  let list = [...members].sort((a,b) => sortByNickname(a, b));
+  if (typeof memberMultiSelectFilter === 'function') list = list.filter(memberMultiSelectFilter);
+  document.getElementById('member-multiselect-list').innerHTML = list.map(m => `
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${m.id}" ${memberMultiSelectTemp.includes(m.id)?'checked':''} onchange="onMemberMultiSelectCheckboxChange('${m.id}', this.checked)" style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
+      <span style="font-size:13px;font-weight:700">${m.name}</span>
+      <span style="font-size:11px;color:#bbb">${m.nickname || ''}</span>
+    </label>
+  `).join('') || '<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無符合條件的社友</div>';
+  updateMemberMultiSelectCount();
+}
+
+function onMemberMultiSelectCheckboxChange(id, checked) {
+  if (checked) { if (!memberMultiSelectTemp.includes(id)) memberMultiSelectTemp.push(id); }
+  else { memberMultiSelectTemp = memberMultiSelectTemp.filter(x => x !== id); }
+  updateMemberMultiSelectCount();
+}
+
+function toggleMemberMultiSelectAll(all) {
+  let list = [...members];
+  if (typeof memberMultiSelectFilter === 'function') list = list.filter(memberMultiSelectFilter);
+  memberMultiSelectTemp = all ? list.map(m => m.id) : [];
+  renderMemberMultiSelectList();
+}
+
+function updateMemberMultiSelectCount() {
+  const el = document.getElementById('member-multiselect-count');
+  if (el) el.textContent = memberMultiSelectTemp.length;
+}
+
+function confirmMemberMultiSelect() {
+  if (typeof memberMultiSelectOnConfirm === 'function') memberMultiSelectOnConfirm([...memberMultiSelectTemp]);
+  closeMemberMultiSelect();
+}
+
+// ══════════════════════════════════════════
 // 帳務錄入
 // ══════════════════════════════════════════
 let quickInputMode = 'single'; // 'single' | 'partial' | 'all'
-let partialSelectedIds = [];    // 已確認的部分選擇社友清單
-let partialSelectedIdsTemp = []; // 彈窗內暫存的勾選狀態
+let partialSelectedIds = [];    // 帳務錄入「部分選擇」已確認的社友清單
 
 function onMemberChange() {
   // 如果目前類別是信用卡，自動帶入應付款金額
@@ -1010,7 +1070,7 @@ function onTargetModeChange() {
   } else if (quickInputMode === 'partial') {
     label.textContent = '部分選擇';
     partialSelectedIds = [];
-    wrap.innerHTML = '<button type="button" onclick="openPartialSelectModal()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（0 位）</button>';
+    wrap.innerHTML = '<button type="button" onclick="openQuickInputPartialSelect()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（0 位）</button>';
   } else {
     label.textContent = '套用對象';
     wrap.innerHTML = `<div class="inp" style="background:#f5f2ec;color:#888;cursor:default">全體社友（${members.length} 位）</div>`;
@@ -1021,50 +1081,17 @@ function onTargetModeChange() {
   }
 }
 
-// ── 部分選擇彈窗 ──
-function openPartialSelectModal() {
-  partialSelectedIdsTemp = [...partialSelectedIds];
-  renderPartialSelectList();
-  document.getElementById('partial-select-overlay').classList.add('show');
-}
-
-function closePartialSelectModal() {
-  document.getElementById('partial-select-overlay').classList.remove('show');
-}
-
-function renderPartialSelectList() {
-  const sorted = [...members].sort((a,b) => sortByNickname(a, b));
-  document.getElementById('partial-select-list').innerHTML = sorted.map(m => `
-    <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
-      <input type="checkbox" value="${m.id}" ${partialSelectedIdsTemp.includes(m.id)?'checked':''} onchange="onPartialCheckboxChange('${m.id}', this.checked)" style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
-      <span style="font-size:13px;font-weight:700">${m.name}</span>
-      <span style="font-size:11px;color:#bbb">${m.nickname || ''}</span>
-    </label>
-  `).join('') || '<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無社友資料</div>';
-  updatePartialSelectCount();
-}
-
-function onPartialCheckboxChange(id, checked) {
-  if (checked) { if (!partialSelectedIdsTemp.includes(id)) partialSelectedIdsTemp.push(id); }
-  else { partialSelectedIdsTemp = partialSelectedIdsTemp.filter(x => x !== id); }
-  updatePartialSelectCount();
-}
-
-function togglePartialSelectAll(all) {
-  partialSelectedIdsTemp = all ? members.map(m => m.id) : [];
-  renderPartialSelectList();
-}
-
-function updatePartialSelectCount() {
-  const el = document.getElementById('partial-select-count');
-  if (el) el.textContent = partialSelectedIdsTemp.length;
-}
-
-function confirmPartialSelect() {
-  partialSelectedIds = [...partialSelectedIdsTemp];
-  const wrap = document.getElementById('qi-member-wrap');
-  if (wrap) wrap.innerHTML = `<button type="button" onclick="openPartialSelectModal()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（${partialSelectedIds.length} 位）</button>`;
-  closePartialSelectModal();
+// 帳務錄入的「部分選擇」按鈕 → 開啟通用社友多選彈窗
+function openQuickInputPartialSelect() {
+  openMemberMultiSelect({
+    title: '選擇社友（部分套用）',
+    initialIds: partialSelectedIds,
+    onConfirm: (ids) => {
+      partialSelectedIds = ids;
+      const wrap = document.getElementById('qi-member-wrap');
+      if (wrap) wrap.innerHTML = `<button type="button" onclick="openQuickInputPartialSelect()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（${partialSelectedIds.length} 位）</button>`;
+    }
+  });
 }
 
 async function submitQuickInput() {
@@ -1180,7 +1207,7 @@ function editEntry(mId, listKey, entryId) {
   document.getElementById('edit-entry-amount').value = entry.amount || 0;
   // 固定欄位說明不允許修改
   document.getElementById('edit-entry-desc').readOnly = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
-  document.getElementById('edit-entry-overlay').classList.add('show');
+  document.getElementById('entry-edit-overlay').classList.add('show');
 }
 
 function closeEntryEditModal() {
@@ -1401,6 +1428,7 @@ function openMemberModal(mId) {
   document.getElementById('edit-name').value = m?.name || '';
   document.getElementById('edit-on-leave').checked = m?.onLeave || false;
   document.getElementById('edit-nickname').value = m?.nickname || '';
+  document.getElementById('edit-email').value = m?.email || '';
   document.getElementById('edit-prev-due').value = m?.accounting?.previous_due || 0;
   document.getElementById('member-overlay').classList.add('show');
 }
@@ -1421,13 +1449,14 @@ async function saveMemberModal() {
   const conflict = members.find(x => x.id === customId && x.id !== originalId);
   if (conflict) return alert('此編號已被「' + conflict.name + '」使用，請換一個！');
   const m = existing || {
-    id, name: '', nickname: '',
+    id, name: '', nickname: '', email: '',
     fixedA: {}, fixedB: { monthly_split: 0 },
     variable: { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] },
     accounting: { previous_due: 0 }
   };
   m.name = name;
   m.nickname = document.getElementById('edit-nickname').value.trim();
+  m.email = document.getElementById('edit-email').value.trim();
   m.accounting = { ...(m.accounting||{}), previous_due: Number(document.getElementById('edit-prev-due').value) };
   m.onLeave = document.getElementById('edit-on-leave').checked;
   // 請假時自動調整月費為 1300
