@@ -776,14 +776,21 @@ function saveLocal() {
 // ══════════════════════════════════════════
 // 核心計算
 // ══════════════════════════════════════════
-// 代付款群組 key：取 '-' 之前的部分，並移除所有空格，用來合併同類項目
-// 例如 '0526餐費-Artgen' → '0526餐費'，'0526 餐費' → '0526餐費'
-function advGroupKey(desc) {
+// 科目分組 key：報表彙總用。會先移除開頭的日期前綴（例如「0517 」「5/17 」），
+// 再取 '-' 之前的部分（移除如「-理事」「-主委」「-眷屬社友」等後綴），最後去除所有空格。
+// 例如 '0526餐費-Artgen' → '餐費'，'0517 常年會費' → '常年會費'，'常年會費-理事' → '常年會費'
+// 注意：這只影響「報表」的彙總分類，個別帳單（buildBillHTML）仍會逐筆列出完整說明文字，不受影響。
+function subjectGroupKey(desc) {
   if (!desc) return '未分類';
-  const idx = desc.indexOf('-');
-  const base = idx > 0 ? desc.substring(0, idx) : desc;
-  return base.replace(/\s+/g, '').trim();
+  let s = desc.trim();
+  const dateMatch = s.match(/^(\d{1,2}\/\d{1,2}|\d{3,4})\s+(.+)$/);
+  if (dateMatch) s = dateMatch[2];
+  const idx = s.indexOf('-');
+  const base = idx > 0 ? s.substring(0, idx) : s;
+  return base.replace(/\s+/g, '').trim() || '未分類';
 }
+// 代付款群組沿用同一套分組邏輯（保留舊函式名稱相容既有呼叫）
+function advGroupKey(desc) { return subjectGroupKey(desc); }
 
 function sortByNickname(a, b) {
   const na = (a.nickname || a.name || '').trim().toUpperCase();
@@ -1830,17 +1837,18 @@ function generateReportPreview() {
   if (data.type === 'monthly') {
     // 動態收集欄位
     const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
-    const fixedAItemLabels = new Set(fixedAItems.map(([,l])=>l.trim()));
+    const fixedAItemGroupKeys = new Set(fixedAItems.map(([,l])=>subjectGroupKey(l)));
     const fixedAExtraSet = new Set();
     mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => {
-      if(i.desc && !fixedAItemLabels.has(i.desc.trim())) fixedAExtraSet.add(i.desc.trim());
+      const gk = subjectGroupKey(i.desc);
+      if(i.desc && !fixedAItemGroupKeys.has(gk)) fixedAExtraSet.add(gk);
     }));
     const fixedAExtras = [...fixedAExtraSet];
 
     const serviceSet = new Set();
     mList.forEach(m => {
       if (v(m.fixedB?.monthly_split) > 0) serviceSet.add('__split__');
-      (m.variable?.service_list||[]).forEach(i => serviceSet.add(i.desc));
+      (m.variable?.service_list||[]).forEach(i => serviceSet.add(subjectGroupKey(i.desc)));
     });
     const serviceItems = [...serviceSet];
 
@@ -1849,13 +1857,13 @@ function generateReportPreview() {
     const advanceItems = [...advanceSet];
 
     const donFixedSet = new Set();
-    mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
+    mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(subjectGroupKey(i.desc))));
     const donFixedItems = [...donFixedSet];
 
     const donGeneralSet = new Set();
     mList.forEach(m => {
-      (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(i.desc));
-      (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(i.desc));
+      (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
+      (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
     });
     const donGeneralItems = [...donGeneralSet];
 
@@ -1910,16 +1918,16 @@ function generateReportPreview() {
     const rows = sorted.map(m => {
       const f = calcFees(m);
       const faV = fixedAItems.map(([k, label]) => {
+        const labelKey = subjectGroupKey(label);
         let a = v(m.fixedA?.[k]);
-        // 如果 fixedA[key] 沒有值，從 fixedA_list 找同名科目
-        if (!a) a = (m.variable?.fixedA_list||[]).filter(i=>i.desc?.trim()===label.trim()).reduce((s,i)=>s+v(i.amount),0);
+        a += (m.variable?.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===labelKey).reduce((s,i)=>s+v(i.amount),0);
         totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a;
       });
-      const feV = fixedAExtras.map(d => { const a=(m.variable?.fixedA_list||[]).filter(i=>i.desc?.trim()===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a; });
+      const feV = fixedAExtras.map(d => { const a=(m.variable?.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a; });
       const adV = advanceItems.map(d => { const a=(m.variable?.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a; });
-      const svV = serviceItems.map(d => { const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable?.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a; });
-      const dfV = donFixedItems.map(d => { const a=(m.variable?.donation_fixed_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a; });
-      const dgV = donGeneralItems.map(d => { const a=[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a; });
+      const svV = serviceItems.map(d => { const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable?.service_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a; });
+      const dfV = donFixedItems.map(d => { const a=(m.variable?.donation_fixed_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a; });
+      const dgV = donGeneralItems.map(d => { const a=[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a; });
 
       const sA = faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
       const sB = adV.reduce((s,a)=>s+a,0);
@@ -2044,14 +2052,14 @@ function generateReportPreview() {
     const fixedGroups = {}, generalGroups = {};
     mList.forEach(m => {
       (m.variable?.donation_fixed_list || []).forEach(i => {
-        const key = i.desc || '固定捐款';
+        const key = i.desc ? subjectGroupKey(i.desc) : '固定捐款';
         if (!fixedGroups[key]) fixedGroups[key] = [];
-        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
       });
       [...(m.variable?.donation_general_list || []), ...(m.variable?.donation_list || [])].forEach(i => {
-        const key = i.desc || '一般捐款';
+        const key = i.desc ? subjectGroupKey(i.desc) : '一般捐款';
         if (!generalGroups[key]) generalGroups[key] = [];
-        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0) });
+        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
       });
     });
     if (Object.keys(fixedGroups).length === 0 && Object.keys(generalGroups).length === 0) {
@@ -2068,6 +2076,7 @@ function generateReportPreview() {
             <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
             <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
             <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#999">${x.desc !== item ? (x.desc||'') : ''}</td>
             <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
           </tr>`).join('');
         cards += `
@@ -2082,11 +2091,12 @@ function generateReportPreview() {
                 <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
                 <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
                 <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">細項</th>
                 <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
               </tr></thead>
               <tbody>${memberRows}</tbody>
               <tfoot><tr style="background:#f3e8ff">
-                <td colspan="3" style="padding:6px 12px;font-size:12px;font-weight:900;color:#6d28d9">${item} 小計</td>
+                <td colspan="4" style="padding:6px 12px;font-size:12px;font-weight:900;color:#6d28d9">${item} 小計</td>
                 <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#6d28d9">$${sub.toLocaleString()}</td>
               </tr></tfoot>
             </table>
@@ -2213,11 +2223,11 @@ function exportReport(format) {
     const fixedGroups = {}, generalGroups = {};
     mList.forEach(m => {
       (m.variable.donation_fixed_list||[]).forEach(i => {
-        const k = i.desc||'固定捐款'; if(!fixedGroups[k]) fixedGroups[k]=[];
+        const k = i.desc?subjectGroupKey(i.desc):'固定捐款'; if(!fixedGroups[k]) fixedGroups[k]=[];
         fixedGroups[k].push({name:m.name,nickname:m.nickname||'',amount:Number(i.amount||0)});
       });
       [...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].forEach(i => {
-        const k = i.desc||'一般捐款'; if(!generalGroups[k]) generalGroups[k]=[];
+        const k = i.desc?subjectGroupKey(i.desc):'一般捐款'; if(!generalGroups[k]) generalGroups[k]=[];
         generalGroups[k].push({name:m.name,nickname:m.nickname||'',amount:Number(i.amount||0)});
       });
     });
@@ -2242,28 +2252,29 @@ function exportReport(format) {
   } else if (data.type === 'monthly') {
     const mList = (data.members || members).map(m => ({...m, variable: normVar(m)})).sort((a,b)=>sortByNickname(a,b));
     const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
-    const fixedAItemLabels = new Set(fixedAItems.map(([,l])=>l.trim()));
+    const fixedAItemGroupKeys = new Set(fixedAItems.map(([,l])=>subjectGroupKey(l)));
     const fixedAExtraSet = new Set();
     mList.forEach(m => (m.variable.fixedA_list||[]).forEach(i => {
-      if(i.desc && !fixedAItemLabels.has(i.desc.trim())) fixedAExtraSet.add(i.desc.trim());
+      const gk = subjectGroupKey(i.desc);
+      if(i.desc && !fixedAItemGroupKeys.has(gk)) fixedAExtraSet.add(gk);
     }));
     const fixedAExtras = [...fixedAExtraSet];
     const serviceSet = new Set();
     mList.forEach(m => {
       if (v(m.fixedB?.monthly_split)>0) serviceSet.add('__split__');
-      (m.variable.service_list||[]).forEach(i => serviceSet.add(i.desc));
+      (m.variable.service_list||[]).forEach(i => serviceSet.add(subjectGroupKey(i.desc)));
     });
     const serviceItems = [...serviceSet];
     const advanceSet = new Set();
     mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => advanceSet.add(advGroupKey(i.desc))));
     const advanceItems = [...advanceSet];
     const donFixedSet = new Set();
-    mList.forEach(m => (m.variable.donation_fixed_list||[]).forEach(i => donFixedSet.add(i.desc)));
+    mList.forEach(m => (m.variable.donation_fixed_list||[]).forEach(i => donFixedSet.add(subjectGroupKey(i.desc))));
     const donFixedItems = [...donFixedSet];
     const donGeneralSet = new Set();
     mList.forEach(m => {
-      (m.variable.donation_general_list||[]).forEach(i => donGeneralSet.add(i.desc));
-      (m.variable.donation_list||[]).forEach(i => donGeneralSet.add(i.desc));
+      (m.variable.donation_general_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
+      (m.variable.donation_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
     });
     const donGeneralItems = [...donGeneralSet];
 
@@ -2277,15 +2288,16 @@ function exportReport(format) {
     const totals = { fixedA:{}, fixedAE:{}, sumA:0, adv:{}, sumB:0, svc:{}, sumC:0, donF:{}, donFT:0, donG:{}, donGT:0, sumD:0, prevDue:0, transfer:0, card:0, finalH:0 };
     mList.forEach(m => {
       const faV = fixedAItems.map(([k, label])=>{
+        const labelKey = subjectGroupKey(label);
         let a=v(m.fixedA?.[k]);
-        if(!a) a=(m.variable.fixedA_list||[]).filter(i=>i.desc?.trim()===label.trim()).reduce((s,i)=>s+v(i.amount),0);
+        a += (m.variable.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===labelKey).reduce((s,i)=>s+v(i.amount),0);
         totals.fixedA[k]=(totals.fixedA[k]||0)+a; return a;
       });
-      const feV = fixedAExtras.map(d=>{const a=(m.variable.fixedA_list||[]).filter(i=>i.desc?.trim()===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a;});
+      const feV = fixedAExtras.map(d=>{const a=(m.variable.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a;});
       const adV = advanceItems.map(d=>{const a=(m.variable.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a;});
-      const svV = serviceItems.map(d=>{const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable.service_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a;});
-      const dfV = donFixedItems.map(d=>{const a=(m.variable.donation_fixed_list||[]).filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a;});
-      const dgV = donGeneralItems.map(d=>{const a=[...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].filter(i=>i.desc===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a;});
+      const svV = serviceItems.map(d=>{const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable.service_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a;});
+      const dfV = donFixedItems.map(d=>{const a=(m.variable.donation_fixed_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a;});
+      const dgV = donGeneralItems.map(d=>{const a=[...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a;});
       const sA=faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
       const sB=adV.reduce((s,a)=>s+a,0);
       const sC=svV.reduce((s,a)=>s+a,0);
