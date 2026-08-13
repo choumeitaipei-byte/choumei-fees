@@ -776,18 +776,39 @@ function saveLocal() {
 // ══════════════════════════════════════════
 // 核心計算
 // ══════════════════════════════════════════
-// 科目分組 key：報表彙總用。會先移除開頭的日期前綴（例如「0517 」「5/17 」），
-// 再取 '-' 之前的部分（移除如「-理事」「-主委」「-眷屬社友」等後綴），最後去除所有空格。
-// 例如 '0526餐費-Artgen' → '餐費'，'0517 常年會費' → '常年會費'，'常年會費-理事' → '常年會費'
+// 科目分組 key：報表彙總用。用來把「同一個科目」的不同寫法合併成一欄，例如：
+//   '0517 常年會費'      → '常年會費'（日期 + 空白 + 科目，去掉日期）
+//   '常年會費-理事'       → '常年會費'（科目 + '-職稱' 後綴，去掉後綴）
+//   '7/1-常年會費'        → '常年會費'（日期直接用 '-' 接科目，去掉日期，保留科目）
+//   '7/1-常年會費-理事'   → '常年會費'（日期 + 科目 + 職稱後綴，都去掉，只留科目）
+//   '0526餐費-Artgen'     → '0526餐費'（代付款慣用寫法：日期黏在說明文字前面，視為科目的一部分，只去掉後面的人名後綴）
 // 注意：這只影響「報表」的彙總分類，個別帳單（buildBillHTML）仍會逐筆列出完整說明文字，不受影響。
 function subjectGroupKey(desc) {
   if (!desc) return '未分類';
   let s = desc.trim();
-  const dateMatch = s.match(/^(\d{1,2}\/\d{1,2}|\d{3,4})\s+(.+)$/);
-  if (dateMatch) s = dateMatch[2];
-  const idx = s.indexOf('-');
-  const base = idx > 0 ? s.substring(0, idx) : s;
-  return base.replace(/\s+/g, '').trim() || '未分類';
+  const isDateToken = t => /^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(t) || /^\d{3,4}$/.test(t);
+
+  // 情況一：開頭是「日期 + 空白」，去掉日期前綴
+  const spaceMatch = s.match(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{3,4})\s+(.+)$/);
+  if (spaceMatch) s = spaceMatch[2].trim();
+
+  // 情況二：處理 '-'，可能是「日期-科目」或「科目-職稱後綴」
+  const dashIdx = s.indexOf('-');
+  if (dashIdx > 0) {
+    const left = s.substring(0, dashIdx).trim();
+    const right = s.substring(dashIdx + 1).trim();
+    if (isDateToken(left) && right) {
+      // 左邊是純日期 → 日期只是前綴，真正科目名稱在右邊
+      s = right;
+      const idx2 = s.indexOf('-');
+      if (idx2 > 0) s = s.substring(0, idx2).trim(); // 再去掉右邊可能還有的「-職稱」後綴
+    } else {
+      // 左邊才是科目名稱，右邊是職稱／人名等後綴，去掉
+      s = left;
+    }
+  }
+
+  return s.replace(/\s+/g, '') || '未分類';
 }
 // 代付款群組沿用同一套分組邏輯（保留舊函式名稱相容既有呼叫）
 function advGroupKey(desc) { return subjectGroupKey(desc); }
