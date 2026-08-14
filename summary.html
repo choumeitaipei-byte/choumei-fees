@@ -108,7 +108,17 @@ function money(n) {
   return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString();
 }
 
+function dedupeMembers(members) {
+  const seen = {};
+  const deduped = [];
+  [...members].reverse().forEach(m => {
+    if (m && m.id && !seen[m.id]) { seen[m.id] = true; deduped.push(m); }
+  });
+  return deduped.reverse();
+}
+
 function render(members, settings) {
+  members = dedupeMembers(members);
   const sorted = [...members].sort(sortByNickname);
   let totalA=0, totalB=0, totalC=0, totalD=0, totalE=0, totalPaid=0, totalH=0;
 
