@@ -49,6 +49,8 @@
   .badge-ok  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 3px 12px; border-radius: 99px; font-size: 12px; font-weight: 900; }
   .badge-leave { background: #fef3cd; color: #b45309; border: 1px solid #f59e0b; padding: 1px 8px; border-radius: 99px; font-size: 10px; font-weight: 900; margin-left: 6px; }
   tfoot td { padding: 12px 14px; font-size: 13px; font-weight: 900; background: var(--navy); color: var(--gold); text-align: right; }
+  .detail-link { font-size: 12px; font-weight: 700; color: var(--navy-mid); text-decoration: none; border: 1.5px solid #e2ddd4; padding: 4px 12px; border-radius: 99px; white-space: nowrap; }
+  .detail-link:active { background: #f5f2ec; }
   tfoot td:first-child { text-align: left; }
 
   .note { text-align: center; font-size: 11px; color: #aaa; margin-top: 18px; line-height: 1.8; }
@@ -117,10 +119,11 @@ function dedupeMembers(members) {
   return deduped.reverse();
 }
 
-function render(members, settings) {
+function render(members, settings, apiUrl) {
   members = dedupeMembers(members);
   const sorted = [...members].sort(sortByNickname);
   let totalA=0, totalB=0, totalC=0, totalD=0, totalE=0, totalPaid=0, totalH=0;
+  const base = location.href.replace('summary.html','').replace(/\?.*$/,'');
 
   const rows = sorted.map(m => {
     const f = calcFees(m);
@@ -129,6 +132,7 @@ function render(members, settings) {
     const badge = f.finalH > 0
       ? `<span class="badge-due">${money(f.finalH)}</span>`
       : `<span class="badge-ok">${money(f.finalH)}</span>`;
+    const detailUrl = base + 'view.html?id=' + encodeURIComponent(m.id) + (apiUrl ? '&api=' + encodeURIComponent(apiUrl) : '');
     return `<tr class="${m.onLeave ? 'on-leave' : ''}">
       <td>
         <div class="name-cell">${m.name}${m.onLeave ? '<span class="badge-leave">請假</span>' : ''}</div>
@@ -141,6 +145,7 @@ function render(members, settings) {
       <td class="mono" style="color:#888">${money(f.sumE)}</td>
       <td class="mono" style="color:#16a34a">${money(f.sumF + f.sumG)}</td>
       <td>${badge}</td>
+      <td style="text-align:center"><a href="${detailUrl}" target="_blank" rel="noopener" class="detail-link">查看明細 ↗</a></td>
     </tr>`;
   }).join('');
 
@@ -188,9 +193,10 @@ function render(members, settings) {
               <th>前期(E)</th>
               <th>已收(F+G)</th>
               <th>未付款(H)</th>
+              <th>明細</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="8" style="text-align:center;padding:40px;color:#bbb">尚無社友資料</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="9" style="text-align:center;padding:40px;color:#bbb">尚無社友資料</td></tr>'}</tbody>
           <tfoot>
             <tr>
               <td>合計</td>
@@ -201,6 +207,7 @@ function render(members, settings) {
               <td class="mono">${money(totalE)}</td>
               <td class="mono">${money(totalPaid)}</td>
               <td class="mono">${money(totalH)}</td>
+              <td></td>
             </tr>
           </tfoot>
         </table>
@@ -239,7 +246,7 @@ function init() {
     .then(r => r.json())
     .then(data => {
       if (!data.ok) throw new Error(data.error || '讀取失敗');
-      render(data.members || [], data.settings || {});
+      render(data.members || [], data.settings || {}, apiUrl);
     })
     .catch(err => showError(err.message));
 }
