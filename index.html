@@ -240,6 +240,7 @@
         <p style="font-size:13px;color:#888;margin-top:2px">預覽、下載、分享帳單</p>
       </div>
       <div style="display:flex;gap:10px">
+        <button onclick="copySummaryLink()" style="background:#f5f2ec;border:1.5px solid #e2ddd4;color:var(--navy);padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">📊 複製財務總表連結</button>
         <button onclick="exportAllBills()" class="btn-gold">📦 批次匯出全體 ZIP</button>
         <button onclick="openReportModal()" class="btn-primary">📊 匯出報表</button>
       </div>
@@ -1439,6 +1440,13 @@ function copyShareLink() {
     url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&data=' + encodeURIComponent(JSON.stringify({ m, settings: minSettings }));
   }
   navigator.clipboard.writeText(url).then(() => alert('✅ 分享連結已複製！\n對方用手機或電腦打開即可查看帳單。'));
+}
+
+function copySummaryLink() {
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，財務總表需要連線雲端資料才能使用。'); return; }
+  const base = location.href.replace('index.html','').replace(/\?.*$/,'');
+  const url = base + 'summary.html?api=' + encodeURIComponent(API_URL);
+  navigator.clipboard.writeText(url).then(() => alert('✅ 財務總表連結已複製！\n這是唯讀連結，對方打開後可以看到全體社友的帳務彙總，但無法修改任何資料。\n\n⚠️ 請確認 summary.html 這個檔案已經和 index.html 放在同一個資料夾／同一個網址下，連結才能正常開啟。'));
 }
 
 function copyText(text) {
