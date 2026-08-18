@@ -239,8 +239,10 @@
         <h1 style="font-size:24px;font-weight:900;color:var(--navy)">帳單管理</h1>
         <p style="font-size:13px;color:#888;margin-top:2px">預覽、下載、分享帳單</p>
       </div>
-      <div style="display:flex;gap:10px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button onclick="copySummaryLink()" style="background:#f5f2ec;border:1.5px solid #e2ddd4;color:var(--navy);padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">📊 複製財務總表連結</button>
+        <button onclick="openSendBillsModal()" style="background:#f5f2ec;border:1.5px solid #e2ddd4;color:var(--navy);padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">📧 寄送帳單 Email</button>
+        <button onclick="sendTestEmail()" style="background:#fefce8;border:1.5px solid #fde68a;color:#92400e;padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">🧪 寄送測試信</button>
         <button onclick="exportAllBills()" class="btn-gold">📦 批次匯出全體 ZIP</button>
         <button onclick="openReportModal()" class="btn-primary">📊 匯出報表</button>
       </div>
@@ -1403,10 +1405,27 @@ async function downloadBillImage() {
   link.href = dataUrl; link.click();
 }
 
+// 月份轉成英數字格式，例如 "115年07月" → "2026-07"（民國年+1911=西元年），供檔名使用避免中文亂碼
+function toAsciiMonth(monthStr) {
+  const match = (monthStr || '').match(/(\d+)年(\d+)月/);
+  if (!match) return 'bills';
+  const year = parseInt(match[1]) + 1911;
+  const month = String(match[2]).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+// 把字串轉成只剩英數字/底線/連字號，中文等其他字元一律移除，供檔名使用避免壓縮後亂碼
+function asciiSafeName(str) {
+  if (!str) return '';
+  return String(str).replace(/[^A-Za-z0-9_-]/g, '').trim();
+}
+
 async function exportAllBills() {
   showSync('產生全體帳單...');
   const zip = new JSZip();
-  for (const m of members) {
+  const sorted = [...members].sort((a,b) => sortByNickname(a,b));
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
     // 建臨時 DOM
     const tmp = document.createElement('div');
     tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:680px';
@@ -1415,13 +1434,15 @@ async function exportAllBills() {
     try {
       const dataUrl = await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
       const base64 = dataUrl.split(',')[1];
-      zip.file(`洲美帳單_${m.name}.png`, base64, { base64: true });
+      const seq = String(i + 1).padStart(2, '0');
+      const safeName = asciiSafeName(m.nickname) || asciiSafeName(m.id) || `Member${seq}`;
+      zip.file(`${seq}_${safeName}.png`, base64, { base64: true });
     } catch(e) {}
     document.body.removeChild(tmp);
   }
   const blob = await zip.generateAsync({ type: 'blob' });
   const link = document.createElement('a');
-  link.download = `洲美全體帳單_${settings.currentMonth}.zip`;
+  link.download = `ChouMei_Bills_${toAsciiMonth(settings.currentMonth)}.zip`;
   link.href = URL.createObjectURL(blob);
   link.click();
   hideSync();
@@ -1447,6 +1468,138 @@ function copySummaryLink() {
   const base = location.href.replace('index.html','').replace(/\?.*$/,'');
   const url = base + 'summary.html?api=' + encodeURIComponent(API_URL);
   navigator.clipboard.writeText(url).then(() => alert('✅ 財務總表連結已複製！\n這是唯讀連結，對方打開後可以看到全體社友的帳務彙總，但無法修改任何資料。\n\n⚠️ 請確認 summary.html 這個檔案已經和 index.html 放在同一個資料夾／同一個網址下，連結才能正常開啟。'));
+}
+
+// ══════════════════════════════════════════
+// 寄送帳單 Email
+// ══════════════════════════════════════════
+function buildBillEmailContent(m) {
+  const f = calcFees(m);
+  const base = location.href.replace('index.html','').replace(/\?.*$/,'');
+  const link = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
+  const deadlineText = settings.paymentDeadline || '__月__日';
+  const dueColor = f.finalH > 0 ? '#dc2626' : '#16a34a';
+  const subject = `${settings.currentMonth} 洲美扶輪社會費對帳單 - ${m.name}`;
+
+  const plainBody =
+`${m.name} 您好，
+
+您 ${settings.currentMonth} 本期社費合計 (D) 為 NT $${f.sumD.toLocaleString()}，
+本期未付款 (H) 為 NT $${f.finalH.toLocaleString()}。
+${f.sumE ? `前期未付款 (E)：NT $${f.sumE.toLocaleString()}\n` : ''}
+應收款請於 ${deadlineText} 前繳清，以避免會籍被終止，謝謝！
+
+完整帳單明細請開啟：${link}
+
+財務聯絡：${settings.financialContact?.name || ''} ${settings.financialContact?.phone || ''}`;
+
+  const htmlBody = `
+  <div style="font-family:'Noto Sans TC',Arial,sans-serif;max-width:480px;margin:0 auto;background:#faf7f2;padding:24px 16px">
+    <div style="background:#002147;border-radius:16px 16px 0 0;padding:20px 24px;color:#fff">
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:700;margin-bottom:6px">${settings.currentMonth} 會費對帳單</div>
+      <div style="font-size:24px;font-weight:900">${m.name}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px">${m.nickname ? m.nickname + ' · ' : ''}${m.id}</div>
+    </div>
+    <div style="background:#fff;padding:20px 24px;border-radius:0 0 16px 16px">
+      <p style="font-size:13px;color:#333;margin:0 0 10px">${m.name} 您好：</p>
+      <p style="font-size:13px;color:#333;margin:0 0 14px;line-height:1.8">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D) 為 <strong style="color:#002147">NT $${f.sumD.toLocaleString()}</strong>${f.sumE ? `，前期未付款 (E) 為 NT $${f.sumE.toLocaleString()}` : ''}。</p>
+      <div style="background:${f.finalH>0?'#fef2f2':'#f0fdf4'};border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:12px;color:#888">本期未付款 (H)</span>
+        <span style="font-family:monospace;font-weight:900;font-size:22px;color:${dueColor}">$${f.finalH.toLocaleString()}</span>
+      </div>
+      <p style="font-size:12px;color:#dc2626;font-weight:700;margin:0 0 18px">⚠️ 請於 ${deadlineText} 前繳清，以避免會籍被終止，謝謝！</p>
+      <a href="${link}" style="display:block;text-align:center;background:#002147;color:#C9A84C;text-decoration:none;font-weight:900;font-size:14px;padding:14px;border-radius:12px;margin-bottom:18px">查看完整帳單明細 →</a>
+      <p style="font-size:11px;color:#888;margin:0 0 4px">若對帳單內容有疑問，請於三天內告知社辦，將盡快為您處理。</p>
+      <p style="font-size:12px;color:#002147;font-weight:700;margin:10px 0 0">財務聯絡：${settings.financialContact?.name || ''} ${settings.financialContact?.phone || ''}</p>
+    </div>
+  </div>`;
+
+  return { subject, plainBody, htmlBody };
+}
+
+async function sendMemberEmailApi(payload) {
+  // 用 text/plain 避免觸發瀏覽器的 CORS 預檢請求（Apps Script 不支援 OPTIONS）
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+function openSendBillsModal() {
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，寄送 Email 需要連線雲端資料才能使用。'); return; }
+  const withEmail = members.filter(m => (m.email || '').trim());
+  if (withEmail.length === 0) { alert('目前沒有任何社友填寫 Email，請先到「社友主檔」補上 Email 資料。'); return; }
+  openMemberMultiSelect({
+    title: `寄送帳單 Email（共 ${withEmail.length} 位有填 Email）`,
+    initialIds: withEmail.map(m => m.id),
+    filterFn: m => (m.email || '').trim(),
+    onConfirm: (ids) => {
+      if (ids.length === 0) return;
+      if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出。`)) return;
+      sendBillsToMembers(ids);
+    }
+  });
+}
+
+async function sendBillsToMembers(ids) {
+  const targets = members.filter(m => ids.includes(m.id));
+  let successCount = 0;
+  const failed = [];
+
+  showSync(`寄送中 0/${targets.length}...`);
+  for (let i = 0; i < targets.length; i++) {
+    const m = targets[i];
+    showSync(`寄送中 ${i+1}/${targets.length}...（${m.name}）`);
+    try {
+      const { subject, plainBody, htmlBody } = buildBillEmailContent(m);
+      const r = await sendMemberEmailApi({
+        action: 'sendMemberEmail',
+        to: m.email.trim(),
+        subject, plainBody, htmlBody
+      });
+      if (r.ok) successCount++;
+      else failed.push(`${m.name}（${r.error || '未知錯誤'}）`);
+    } catch (e) {
+      failed.push(`${m.name}（${e.message}）`);
+    }
+  }
+  hideSync();
+
+  let msg = `✅ 寄送完成！成功 ${successCount} / ${targets.length} 封`;
+  if (failed.length > 0) msg += `\n\n❌ 寄送失敗：\n${failed.join('\n')}`;
+  alert(msg);
+}
+
+// 寄送測試信：不會動到任何社友的 Email，套用某一位社友的真實帳務資料當範本，
+// 但收件人是你自己輸入的信箱，信件內容也會清楚標示這是測試信
+async function sendTestEmail() {
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，才能測試寄信。'); return; }
+  if (members.length === 0) { alert('目前沒有社友資料可以當作測試範本。'); return; }
+  const testEmail = (prompt('請輸入要接收測試信的 Email（建議填你自己的信箱）：', '') || '').trim();
+  if (!testEmail) return;
+  if (!testEmail.includes('@')) { alert('Email 格式看起來不太對，請確認後再試一次。'); return; }
+
+  const template = [...members].sort((a,b) => sortByNickname(a,b))[0];
+  showSync('寄送測試信中...');
+  try {
+    const { subject, plainBody, htmlBody } = buildBillEmailContent(template);
+    const noticeText = `⚠️ 這是測試信，內容套用「${template.name}」的帳務資料，僅供確認信件格式與寄送功能是否正常，不代表你的實際帳務。`;
+    const r = await sendMemberEmailApi({
+      action: 'sendMemberEmail',
+      to: testEmail,
+      subject: '【測試信】' + subject,
+      plainBody: noticeText + '\n\n' + plainBody,
+      htmlBody: `<div style="max-width:480px;margin:0 auto 0;background:#fef3cd;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;font-weight:700">${noticeText}</div>` + htmlBody
+    });
+    hideSync();
+    if (r.ok) alert(`✅ 測試信已寄出，請到 ${testEmail} 收信確認（若沒看到，記得檢查垃圾郵件匣）。`);
+    else alert('❌ 測試信寄送失敗：' + (r.error || '未知錯誤'));
+  } catch (e) {
+    hideSync();
+    alert('❌ 測試信寄送失敗：' + e.message);
+  }
 }
 
 function copyText(text) {
@@ -1811,13 +1964,14 @@ function updateReportOptions() {
   const months = [...new Set([settings.currentMonth, ...history.map(h => h.month)])].filter(Boolean);
   monthSel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
   
-  // 年度選項：從月份中提取年份
-  const years = [...new Set(months.map(m => {
-    const match = m.match(/(\d+)年/);
-    return match ? match[1] : null;
-  }).filter(Boolean))];
-  yearSel.innerHTML = years.length > 0 
-    ? years.map(y => `<option value="${y}">${y} 年度（民國）</option>`).join('')
+  // 年度選項：改用扶輪年度分組（7月～隔年6月），而不是用民國曆年數字硬切
+  const rotaryYears = [...new Set(months.map(m => getRotaryYear(m)).filter(Boolean))]
+    .sort((a,b) => parseInt(b.split('-')[0]) - parseInt(a.split('-')[0])); // 新年度排前面
+  yearSel.innerHTML = rotaryYears.length > 0
+    ? rotaryYears.map(y => {
+        const [y1, y2] = y.split('-');
+        return `<option value="${y}">${y1}年07月 - ${y2}年06月</option>`;
+      }).join('')
     : `<option value="">尚無資料</option>`;
 
   generateReportPreview();
@@ -1835,14 +1989,14 @@ function getReportData() {
     const data = snap ? snap.members : members;
     return { type, month, members: data };
   } else {
-    // 年度報表
-    const year = document.getElementById('report-year').value;
-    const yearMonths = history.filter(h => {
-      if (!h.month) return false;
-      const match = h.month.match(/(\d+)年/);
-      return match && match[1] === year;
-    });
-    return { type: 'yearly', year, history: yearMonths };
+    // 年度報表：改用扶輪年度（7月～隔年6月）分組。
+    // history 只有「已經結轉過」的月份快照，這裡把目前這個月（還沒結轉）的即時資料也一併補進來，
+    // 這樣年度報表才看得到最新、還沒結轉的當月資料
+    const rotaryYear = document.getElementById('report-year').value;
+    const hasCurrentInHistory = history.some(h => h.month === settings.currentMonth);
+    const allSnaps = hasCurrentInHistory ? history : [{ month: settings.currentMonth, members }, ...history];
+    const yearMonths = allSnaps.filter(h => h.month && getRotaryYear(h.month) === rotaryYear);
+    return { type: 'yearly', year: rotaryYear, history: yearMonths };
   }
 }
 
@@ -2186,8 +2340,10 @@ function generateReportPreview() {
     const gB=Object.values(monthTotals).reduce((s,t)=>s+t.sumC,0);
     const gC=Object.values(monthTotals).reduce((s,t)=>s+t.sumB,0);
     const gD=Object.values(monthTotals).reduce((s,t)=>s+t.sumD,0);
+    const [ry1, ry2] = String(data.year).split('-');
+    const yearLabel = (ry1 && ry2) ? `${ry1}年07月 - ${ry2}年06月` : data.year;
     preview.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表（A=經常費 B=代付款 C=服務費 D=合計）</div>
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表（${yearLabel}，A=經常費 B=代付款 C=服務費 D=合計）</div>
       <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px;white-space:nowrap">
         <thead>
           <tr style="background:#f5f2ec"><th rowspan="2" style="padding:6px 10px;text-align:left;font-size:10px;color:#888">姓名</th><th rowspan="2" style="padding:6px 8px;text-align:left;font-size:10px;color:#888">暱稱</th>${mhd}<th colspan="4" style="padding:5px 8px;text-align:center;font-size:10px;color:white;background:#002147;border-left:3px solid #C9A84C">年度合計</th></tr>
@@ -2358,15 +2514,55 @@ function exportReport(format) {
   } else {
     const history = data.history || [];
     if (history.length === 0) { alert('尚無年度歷史資料'); return; }
-    csv = '月份,經常費(A)合計,代付款(B)合計,服務費(C)合計,本期社費(D)合計\n';
-    history.forEach(snap => {
-      const mSnap = (snap.members||[]).map(m=>({...m, variable: normVar(m)}));
-      const t = mSnap.reduce((acc,m)=>{
-        const f=calcFees(m);
-        return {sumA:acc.sumA+f.sumA,sumB:acc.sumB+f.sumC,sumC:acc.sumC+f.sumB,sumD:acc.sumD+f.sumD};
-      },{sumA:0,sumB:0,sumC:0,sumD:0});
-      csv += `"${snap.month}",${t.sumA},${t.sumB},${t.sumC},${t.sumD}\n`;
+
+    const sortedSnaps = [...history].sort((a,b) => {
+      const ma=(a.month||'').match(/(\d+)年(\d+)月/), mb=(b.month||'').match(/(\d+)年(\d+)月/);
+      if(!ma||!mb) return 0;
+      return (parseInt(ma[1])*12+parseInt(ma[2]))-(parseInt(mb[1])*12+parseInt(mb[2]));
     });
+    const yearMonths = sortedSnaps.map(s=>s.month);
+    const allIds = {};
+    sortedSnaps.forEach(snap=>(snap.members||[]).forEach(m=>{if(m.id) allIds[m.id]={name:m.name,nickname:m.nickname||''};}));
+    const sortedMemberEntries = Object.entries(allIds).sort((a,b)=>{
+      const na=(a[1].nickname||a[1].name).toUpperCase(), nb=(b[1].nickname||b[1].name).toUpperCase();
+      return na<nb?-1:na>nb?1:0;
+    });
+
+    // 每人 × 每月：經常費(A)、代付款(B，含所有代付項目加總，不逐筆列)、服務費(C，含所有服務費+捐款加總，不逐筆列)、合計(D)
+    const monthHeaders = [];
+    yearMonths.forEach(mo => { monthHeaders.push(`${mo} 經常費(A)`, `${mo} 代付款(B)`, `${mo} 服務費(C)`, `${mo} 合計(D)`); });
+    csv = ['姓名','暱稱','社友編號', ...monthHeaders, '年度經常費(A)合計','年度代付款(B)合計','年度服務費(C)合計','年度總合計(D)'].join(',') + '\n';
+
+    const grandTotals = { A:0, B:0, C:0, D:0 };
+    sortedMemberEntries.forEach(([mId, info]) => {
+      let tA=0, tB=0, tC=0, tD=0;
+      const cells = [];
+      yearMonths.forEach(mo => {
+        const snap = sortedSnaps.find(s=>s.month===mo);
+        const m = (snap?.members||[]).find(x=>x.id===mId);
+        if (!m) { cells.push('', '', '', ''); return; }
+        const f = calcFees(normVar(m));
+        tA += f.sumA; tB += f.sumC; tC += f.sumB; tD += f.sumD;
+        cells.push(f.sumA, f.sumC, f.sumB, f.sumD);
+      });
+      grandTotals.A += tA; grandTotals.B += tB; grandTotals.C += tC; grandTotals.D += tD;
+      csv += [`"${info.name}"`, `"${info.nickname||''}"`, `"${mId}"`, ...cells, tA, tB, tC, tD].join(',') + '\n';
+    });
+
+    // 每月全社合計列，方便對照
+    const monthTotalCells = [];
+    yearMonths.forEach(mo => {
+      const snap = sortedSnaps.find(s=>s.month===mo);
+      const t = (snap?.members||[]).reduce((acc,m)=>{
+        const f=calcFees(normVar(m));
+        return {A:acc.A+f.sumA,B:acc.B+f.sumC,C:acc.C+f.sumB,D:acc.D+f.sumD};
+      },{A:0,B:0,C:0,D:0});
+      monthTotalCells.push(t.A, t.B, t.C, t.D);
+    });
+    csv += ['"合計"','""','""', ...monthTotalCells, grandTotals.A, grandTotals.B, grandTotals.C, grandTotals.D].join(',') + '\n';
+
+    downloadCSV(csv, `洲美年度報表_${data.year}.csv`);
+    return;
     downloadCSV(csv, `洲美年度報表_${data.year}.csv`);
     return;
   }
