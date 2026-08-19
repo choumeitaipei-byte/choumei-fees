@@ -242,7 +242,6 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button onclick="copySummaryLink()" style="background:#f5f2ec;border:1.5px solid #e2ddd4;color:var(--navy);padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">📊 複製財務總表連結</button>
         <button onclick="openSendBillsModal()" style="background:#f5f2ec;border:1.5px solid #e2ddd4;color:var(--navy);padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">📧 寄送帳單 Email</button>
-        <button onclick="sendTestEmail()" style="background:#fefce8;border:1.5px solid #fde68a;color:#92400e;padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">🧪 寄送測試信</button>
         <button onclick="exportAllBills()" class="btn-gold">📦 批次匯出全體 ZIP</button>
         <button onclick="openReportModal()" class="btn-primary">📊 匯出報表</button>
       </div>
@@ -395,6 +394,7 @@
           <button onclick="setBillScale('fit')" style="background:white;border:1px solid #ddd;padding:0 8px;height:26px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;color:var(--navy)">自動</button>
         </div>
         <button onclick="copyShareLink()" style="background:#f5f2ec;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy)">🔗 分享</button>
+        <button onclick="openSendSingleModal()" style="background:#f5f2ec;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy)">📧 寄送帳單</button>
         <button onclick="downloadBillImage()" class="btn-primary" style="font-size:12px">↓ 下載 A4</button>
         <button onclick="closeBillOverlay()" style="background:#f5f2ec;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer">×</button>
       </div>
@@ -402,6 +402,33 @@
     <div style="padding:16px;background:#e8e4da;overflow:auto;max-height:80vh;display:flex;justify-content:center;align-items:flex-start">
       <div id="bill-scale-wrapper" style="transform-origin:top center;transition:transform 0.2s">
         <div id="bill-preview-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 寄送單一帳單彈窗 -->
+<div class="overlay" id="send-single-overlay" style="z-index:700">
+  <div class="modal" style="max-width:460px">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)">📧 寄送帳單</h2>
+      <button onclick="closeSendSingleModal()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:28px;display:grid;gap:16px">
+      <div id="send-single-target-name" style="font-size:13px;color:#888"></div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">收件人 Email（可修改，例如改成自己的信箱測試）</label>
+        <input class="inp" type="email" id="send-single-email" placeholder="member@example.com">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">📎 附件（可選，收據／IOU單等，最多3張，單檔上限8MB）</label>
+        <p style="font-size:11px;color:#aaa;margin-bottom:8px">這次寄送才會用到，寄出後系統不會保留這個檔案，也不會記錄在帳務明細裡。</p>
+        <input class="inp" type="file" id="send-single-attachments" multiple accept="image/*,.pdf" style="padding:8px 14px">
+        <div id="send-single-hint" style="font-size:11px;color:#aaa;margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:12px;padding-top:4px">
+        <button onclick="sendSingleBillEmail()" class="btn-primary" style="flex:1;padding:14px">寄送</button>
+        <button onclick="closeSendSingleModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
       </div>
     </div>
   </div>
@@ -1572,33 +1599,67 @@ async function sendBillsToMembers(ids) {
   alert(msg);
 }
 
-// 寄送測試信：不會動到任何社友的 Email，套用某一位社友的真實帳務資料當範本，
-// 但收件人是你自己輸入的信箱，信件內容也會清楚標示這是測試信
-async function sendTestEmail() {
-  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，才能測試寄信。'); return; }
-  if (members.length === 0) { alert('目前沒有社友資料可以當作測試範本。'); return; }
-  const testEmail = (prompt('請輸入要接收測試信的 Email（建議填你自己的信箱）：', '') || '').trim();
-  if (!testEmail) return;
-  if (!testEmail.includes('@')) { alert('Email 格式看起來不太對，請確認後再試一次。'); return; }
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
-  const template = [...members].sort((a,b) => sortByNickname(a,b))[0];
-  showSync('寄送測試信中...');
+// 寄送單一帳單（從帳單預覽點「📧 寄送帳單」開啟）：
+// 收件人預設帶入該社友的 Email，但可以改成任何信箱（例如改成自己的信箱測試）；
+// 附件是這次寄送當下才讀取、轉成郵件附件寄出，寄完不會保留檔案、也不會記錄在帳務明細裡
+function openSendSingleModal() {
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，才能寄送 Email。'); return; }
+  const m = members.find(x => x.id === currentBillMemberId);
+  if (!m) return;
+  document.getElementById('send-single-target-name').textContent = `寄送對象：${m.name}${m.nickname ? '（' + m.nickname + '）' : ''}`;
+  document.getElementById('send-single-email').value = m.email || '';
+  document.getElementById('send-single-attachments').value = '';
+  document.getElementById('send-single-hint').textContent = '';
+  document.getElementById('send-single-overlay').classList.add('show');
+}
+
+function closeSendSingleModal() {
+  document.getElementById('send-single-overlay').classList.remove('show');
+}
+
+async function sendSingleBillEmail() {
+  const m = members.find(x => x.id === currentBillMemberId);
+  if (!m) return;
+  const toEmail = document.getElementById('send-single-email').value.trim();
+  if (!toEmail) return alert('請輸入收件人 Email');
+  if (!toEmail.includes('@')) return alert('Email 格式看起來不太對，請確認後再試一次。');
+
+  const fileInput = document.getElementById('send-single-attachments');
+  const files = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
+  if (files.length > 3) return alert('附件最多 3 張，請重新選擇。');
+  const oversized = files.find(f => f.size > 8 * 1024 * 1024);
+  if (oversized) return alert(`「${oversized.name}」超過 8MB，請壓縮後再上傳。`);
+
+  const hint = document.getElementById('send-single-hint');
   try {
-    const { subject, plainBody, htmlBody } = buildBillEmailContent(template);
-    const noticeText = `⚠️ 這是測試信，內容套用「${template.name}」的帳務資料，僅供確認信件格式與寄送功能是否正常，不代表你的實際帳務。`;
-    const r = await sendMemberEmailApi({
-      action: 'sendMemberEmail',
-      to: testEmail,
-      subject: '【測試信】' + subject,
-      plainBody: noticeText + '\n\n' + plainBody,
-      htmlBody: `<div style="max-width:480px;margin:0 auto 0;background:#fef3cd;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;font-weight:700">${noticeText}</div>` + htmlBody
-    });
-    hideSync();
-    if (r.ok) alert(`✅ 測試信已寄出，請到 ${testEmail} 收信確認（若沒看到，記得檢查垃圾郵件匣）。`);
-    else alert('❌ 測試信寄送失敗：' + (r.error || '未知錯誤'));
+    const attachments = [];
+    for (let i = 0; i < files.length; i++) {
+      hint.textContent = `準備附件中 ${i+1}/${files.length}...`;
+      const base64 = await fileToBase64(files[i]);
+      attachments.push({ filename: files[i].name, mimeType: files[i].type || 'application/octet-stream', base64 });
+    }
+    hint.textContent = '寄送中...';
+    const { subject, plainBody, htmlBody } = buildBillEmailContent(m);
+    const r = await sendMemberEmailApi({ action: 'sendMemberEmail', to: toEmail, subject, plainBody, htmlBody, attachments });
+    hint.textContent = '';
+    if (r.ok) {
+      alert(`✅ 已寄送到 ${toEmail}`);
+      closeSendSingleModal();
+    } else {
+      alert('❌ 寄送失敗：' + (r.error || '未知錯誤'));
+    }
   } catch (e) {
-    hideSync();
-    alert('❌ 測試信寄送失敗：' + e.message);
+    hint.textContent = '';
+    alert('❌ 寄送失敗：' + e.message);
   }
 }
 
