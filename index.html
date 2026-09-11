@@ -470,6 +470,13 @@
           <div style="font-size:11px;color:#78350f;margin-top:2px">月費自動調整為 $1,300（正常月費對半）</div>
         </div>
       </div>
+      <div style="background:#f3f4f6;border:1.5px solid #9ca3af;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="edit-withdrawn" style="width:18px;height:18px;accent-color:#4b5563;cursor:pointer">
+        <div>
+          <label for="edit-withdrawn" style="font-size:13px;font-weight:900;color:#374151;cursor:pointer">已退社</label>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">保留她的歷史資料與目前餘額，但帳務錄入（下拉選單／部分選擇／全體同步）跟批次寄信都不會再帶到她；月結轉也不會再幫她套用新的月費</div>
+        </div>
+      </div>
       <div style="display:flex;gap:12px;padding-top:8px">
         <button onclick="saveMemberModal()" class="btn-primary" style="flex:1;padding:14px">儲存</button>
         <button onclick="closeMemberModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
@@ -918,7 +925,8 @@ function refreshQuickInputTargetDisplay() {
     }
   } else if (quickInputMode === 'all') {
     if (!wrap.querySelector('select')) {
-      wrap.innerHTML = `<div class="inp" style="background:#f5f2ec;color:#888;cursor:default">全體社友（${members.length} 位）</div>`;
+      const activeCount = members.filter(m => !m.withdrawn).length;
+      wrap.innerHTML = `<div class="inp" style="background:#f5f2ec;color:#888;cursor:default">全體社友（${activeCount} 位，不含已退社）</div>`;
     }
   }
 }
@@ -926,14 +934,15 @@ function refreshQuickInputTargetDisplay() {
 function renderMemberSelect() {
   const sel = document.getElementById('qi-member');
   if (!sel) return; // 部分選擇/全體同步模式下，qi-member 下拉已被替換為其他元素
-  const sorted = [...members].sort((a,b) => sortByNickname(a, b));
+  const sorted = [...members].filter(m => !m.withdrawn).sort((a,b) => sortByNickname(a, b));
   sel.innerHTML = '<option value="">-- 選擇社友 --</option>' +
     sorted.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
 }
 
 function renderMembersTable() {
-  const sorted = [...members].sort((a,b) => sortByNickname(a, b));
-  document.getElementById('member-count').textContent = sorted.length + ' 位社友';
+  const sorted = [...members].filter(m => !m.withdrawn).sort((a,b) => sortByNickname(a, b));
+  const withdrawnCount = members.length - sorted.length;
+  document.getElementById('member-count').textContent = sorted.length + ' 位社友' + (withdrawnCount > 0 ? `（另有 ${withdrawnCount} 位已退社，未顯示）` : '');
   const fs = settings.feeStructure;
   document.getElementById('members-table-body').innerHTML = sorted.map(m => {
     const f = calcFees(m);
@@ -959,8 +968,8 @@ function renderMembersGrid() {
   document.getElementById('members-grid').innerHTML = [...members]
     .sort((a,b) => sortByNickname(a, b))
     .map(m => `
-    <div class="card" style="padding:20px;position:relative">
-      <div style="font-size:22px;font-weight:900;color:var(--navy)">${m.name} ${m.onLeave ? '<span style="background:#fef3cd;color:#b45309;border:1px solid #f59e0b;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:900">請假</span>' : ''}</div>
+    <div class="card" style="padding:20px;position:relative${m.withdrawn ? ';opacity:0.6' : ''}">
+      <div style="font-size:22px;font-weight:900;color:var(--navy)">${m.name} ${m.withdrawn ? '<span style="background:#f3f4f6;color:#374151;border:1px solid #9ca3af;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:900">已退社</span>' : ''} ${m.onLeave ? '<span style="background:#fef3cd;color:#b45309;border:1px solid #f59e0b;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:900">請假</span>' : ''}</div>
       <div style="font-size:11px;color:#bbb;margin-bottom:16px">${m.nickname || ''} · ${m.id}</div>
       <div style="font-size:11px;margin-bottom:12px;color:${m.email?'#888':'#dc2626'}">✉️ ${m.email || '尚未填寫 Email'}</div>
       <div style="background:#f5f2ec;padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
@@ -1144,6 +1153,7 @@ function openQuickInputPartialSelect() {
   openMemberMultiSelect({
     title: '選擇社友（部分套用）',
     initialIds: partialSelectedIds,
+    filterFn: m => !m.withdrawn,
     onConfirm: (ids) => {
       partialSelectedIds = ids;
       const wrap = document.getElementById('qi-member-wrap');
@@ -1168,7 +1178,7 @@ async function submitQuickInput() {
     if (partialSelectedIds.length === 0) return alert('請先點「選擇社友」勾選要套用的社友');
     targetIds = [...partialSelectedIds];
   } else {
-    targetIds = members.map(m => m.id);
+    targetIds = members.filter(m => !m.withdrawn).map(m => m.id);
   }
 
   targetIds.forEach(mId => {
@@ -1556,12 +1566,12 @@ async function sendMemberEmailApi(payload) {
 
 function openSendBillsModal() {
   if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，寄送 Email 需要連線雲端資料才能使用。'); return; }
-  const withEmail = members.filter(m => (m.email || '').trim());
-  if (withEmail.length === 0) { alert('目前沒有任何社友填寫 Email，請先到「社友主檔」補上 Email 資料。'); return; }
+  const withEmail = members.filter(m => (m.email || '').trim() && !m.withdrawn);
+  if (withEmail.length === 0) { alert('目前沒有任何（未退社的）社友填寫 Email，請先到「社友主檔」補上 Email 資料。'); return; }
   openMemberMultiSelect({
     title: `寄送帳單 Email（共 ${withEmail.length} 位有填 Email）`,
     initialIds: withEmail.map(m => m.id),
-    filterFn: m => (m.email || '').trim(),
+    filterFn: m => (m.email || '').trim() && !m.withdrawn,
     onConfirm: (ids) => {
       if (ids.length === 0) return;
       if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出。`)) return;
@@ -1678,6 +1688,7 @@ function openMemberModal(mId) {
   document.getElementById('edit-custom-id').value = m?.id || '';
   document.getElementById('edit-name').value = m?.name || '';
   document.getElementById('edit-on-leave').checked = m?.onLeave || false;
+  document.getElementById('edit-withdrawn').checked = m?.withdrawn || false;
   document.getElementById('edit-nickname').value = m?.nickname || '';
   document.getElementById('edit-email').value = m?.email || '';
   document.getElementById('edit-prev-due').value = m?.accounting?.previous_due || 0;
@@ -1710,8 +1721,11 @@ async function saveMemberModal() {
   m.email = document.getElementById('edit-email').value.trim();
   m.accounting = { ...(m.accounting||{}), previous_due: Number(document.getElementById('edit-prev-due').value) };
   m.onLeave = document.getElementById('edit-on-leave').checked;
-  // 請假時自動調整月費為 1300
-  if (m.onLeave) {
+  m.withdrawn = document.getElementById('edit-withdrawn').checked;
+  // 請假時自動調整月費為 1300；已退社則不再套用任何固定月費（已退社狀態優先）
+  if (m.withdrawn) {
+    m.fixedA = { ...(m.fixedA || {}), monthly: 0 };
+  } else if (m.onLeave) {
     m.fixedA = { ...(m.fixedA || {}), monthly: 1300 };
   }
   if (existing && id !== originalId) {
@@ -1839,14 +1853,20 @@ async function executeCarryOver() {
     const { finalH } = calcFees(m);
     m.accounting = { previous_due: finalH, already_paid: 0, credit_card: 0 };
     m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
-    // 請假社友自動套半價，一般社友套預設月費
-    if (m.onLeave) {
+    if (m.withdrawn) {
+      // 已退社：不再套用任何新的固定費用，只保留原本結轉下來的餘額（前面已設定 previous_due）
+      m.fixedA = {};
+      m.fixedB = { monthly_split: 0 };
+    } else if (m.onLeave) {
+      // 請假社友自動套半價
       const base = settings.defaultMonthly || 0;
       m.fixedA = { monthly: Math.round(base / 2) };
+      m.fixedB = { monthly_split: settings.defaultSplit || 0 };
     } else {
+      // 一般社友套預設月費
       m.fixedA = settings.defaultMonthly ? { monthly: settings.defaultMonthly } : {};
+      m.fixedB = { monthly_split: settings.defaultSplit || 0 };
     }
-    m.fixedB = { monthly_split: settings.defaultSplit || 0 };
   });
 
   // ③ 推進月份
@@ -1919,13 +1939,13 @@ function triggerYearlyCarryOver() {
   document.getElementById('yearly-period-label').textContent = 
     `目前年度：${currentYear} → 新年度：${nextYear}（${parseInt(nextYear)+1911}年7月起）`;
   
-  // 列出所有社友供勾選
+  // 列出所有社友供勾選（已退社的預設不勾選，新年度自然移除）
   const list = document.getElementById('yearly-members-list');
   list.innerHTML = members.sort((a,b) => sortByNickname(a, b)).map(m => `
     <label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
-      <input type="checkbox" value="${m.id}" checked style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
+      <input type="checkbox" value="${m.id}" ${m.withdrawn ? '' : 'checked'} style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
       <div>
-        <div style="font-size:14px;font-weight:700">${m.name}</div>
+        <div style="font-size:14px;font-weight:700">${m.name} ${m.withdrawn ? '<span style="background:#f3f4f6;color:#374151;border:1px solid #9ca3af;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:900">已退社</span>' : ''}</div>
         <div style="font-size:11px;color:#bbb">${m.nickname || ''} · ${m.id}</div>
       </div>
       <div style="margin-left:auto;font-size:12px;color:#888">
