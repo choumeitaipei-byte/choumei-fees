@@ -544,6 +544,17 @@
         <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">項目說明</label>
         <input class="inp" type="text" id="edit-entry-desc" placeholder="輸入說明">
       </div>
+      <div id="edit-entry-category-wrap">
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">所屬分類</label>
+        <select class="inp" id="edit-entry-category">
+          <option value="fixedA_list">經常費 (A)</option>
+          <option value="service_list">服務經費 (B)</option>
+          <option value="advance_pay_list">代付款 (C)</option>
+          <option value="donation_general_list">一般捐款</option>
+          <option value="donation_fixed_list">固定捐款</option>
+        </select>
+        <p style="font-size:11px;color:#aaa;margin-top:4px">如果這筆原本分類錯了（例如捐款誤存成服務經費），改這裡存檔就會自動搬到正確的分類，報表也會馬上抓到。</p>
+      </div>
       <div>
         <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">金額 (NTD)</label>
         <input class="inp mono" type="number" id="edit-entry-amount" placeholder="0" style="font-size:22px;font-weight:700">
@@ -850,6 +861,17 @@ function subjectGroupKey(desc) {
 }
 // 代付款群組沿用同一套分組邏輯（保留舊函式名稱相容既有呼叫）
 function advGroupKey(desc) { return subjectGroupKey(desc); }
+
+// 捐款專用分組 key：跟 subjectGroupKey 不同，「只」去掉開頭的日期前綴，不會拆解 '-' 後面的文字。
+// 因為經常費/服務經費的 '-' 後面通常是可以合併的職稱後綴（理事/主委），但捐款的 '-' 後面常常才是重點
+// （例如「指定捐款-熊本」，熊本是關鍵對象，不該被砍掉、更不該跟未來的「指定捐款-花蓮」誤合併）。
+function donationGroupKey(desc) {
+  if (!desc) return '未分類';
+  let s = desc.trim();
+  const spaceMatch = s.match(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{3,4})\s+(.+)$/);
+  if (spaceMatch) s = spaceMatch[2].trim();
+  return s.replace(/\s+/g, '') || '未分類';
+}
 
 function sortByNickname(a, b) {
   const na = (a.nickname || a.name || '').trim().toUpperCase();
@@ -1283,6 +1305,7 @@ function editEntry(mId, listKey, entryId) {
   const m = members.find(x => x.id === mId);
   if (!m) return;
   let entry = null;
+  const isFixedField = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
   if (listKey === 'fixedA_monthly') {
     entry = { desc: '月費', amount: m.fixedA?.monthly || 0 };
   } else if (listKey === 'fixedB_monthly_split') {
@@ -1296,8 +1319,17 @@ function editEntry(mId, listKey, entryId) {
   document.getElementById('edit-entry-id').value = entryId;
   document.getElementById('edit-entry-desc').value = entry.desc || '';
   document.getElementById('edit-entry-amount').value = entry.amount || 0;
-  // 固定欄位說明不允許修改
-  document.getElementById('edit-entry-desc').readOnly = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
+  // 固定欄位說明不允許修改，也不能改分類（月費/固定分攤費是寫在專屬欄位，不是明細清單）
+  document.getElementById('edit-entry-desc').readOnly = isFixedField;
+  const categoryWrap = document.getElementById('edit-entry-category-wrap');
+  const categorySelect = document.getElementById('edit-entry-category');
+  if (isFixedField) {
+    categoryWrap.style.display = 'none';
+  } else {
+    categoryWrap.style.display = '';
+    // 如果目前的分類不在標準選項裡（例如舊資料的 donation_list），先不選任何值，讓使用者自己挑一個正確分類存檔
+    categorySelect.value = [...categorySelect.options].some(o => o.value === listKey) ? listKey : '';
+  }
   document.getElementById('entry-edit-overlay').classList.add('show');
 }
 
@@ -1313,20 +1345,32 @@ async function saveEntryEdit() {
   const amount = Number(document.getElementById('edit-entry-amount').value);
   if (!desc) return alert('請輸入項目說明');
   if (isNaN(amount)) return alert('請輸入正確金額');
+  const isFixedField = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
   const m = members.find(x => x.id === mId);
   if (!m) return;
-  if (listKey === 'fixedA_monthly') {
-    m.fixedA = m.fixedA || {};
-    m.fixedA.monthly = amount;
-  } else if (listKey === 'fixedB_monthly_split') {
-    m.fixedB = m.fixedB || {};
-    m.fixedB.monthly_split = amount;
+  if (isFixedField) {
+    if (listKey === 'fixedA_monthly') {
+      m.fixedA = m.fixedA || {};
+      m.fixedA.monthly = amount;
+    } else {
+      m.fixedB = m.fixedB || {};
+      m.fixedB.monthly_split = amount;
+    }
   } else {
-    const list = m.variable[listKey];
-    if (!list) return;
-    const idx = list.findIndex(i => i.id === entryId);
+    const newListKey = document.getElementById('edit-entry-category').value || listKey;
+    const oldList = m.variable[listKey];
+    if (!oldList) return;
+    const idx = oldList.findIndex(i => i.id === entryId);
     if (idx === -1) return;
-    list[idx] = { ...list[idx], desc, amount };
+    const updated = { ...oldList[idx], desc, amount };
+    if (newListKey !== listKey) {
+      // 分類有變更：從原本的清單移除，放進新分類的清單（例如從服務經費搬到一般捐款）
+      oldList.splice(idx, 1);
+      if (!m.variable[newListKey]) m.variable[newListKey] = [];
+      m.variable[newListKey].push(updated);
+    } else {
+      oldList[idx] = updated;
+    }
   }
   saveLocal();
   document.getElementById('pending-sync-label').style.display = 'inline';
@@ -2144,13 +2188,13 @@ function generateReportPreview() {
     const advanceItems = [...advanceSet];
 
     const donFixedSet = new Set();
-    mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(subjectGroupKey(i.desc))));
+    mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(donationGroupKey(i.desc))));
     const donFixedItems = [...donFixedSet];
 
     const donGeneralSet = new Set();
     mList.forEach(m => {
-      (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
-      (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
+      (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
+      (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
     });
     const donGeneralItems = [...donGeneralSet];
 
@@ -2213,8 +2257,8 @@ function generateReportPreview() {
       const feV = fixedAExtras.map(d => { const a=(m.variable?.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a; });
       const adV = advanceItems.map(d => { const a=(m.variable?.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a; });
       const svV = serviceItems.map(d => { const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable?.service_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a; });
-      const dfV = donFixedItems.map(d => { const a=(m.variable?.donation_fixed_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a; });
-      const dgV = donGeneralItems.map(d => { const a=[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a; });
+      const dfV = donFixedItems.map(d => { const a=(m.variable?.donation_fixed_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a; });
+      const dgV = donGeneralItems.map(d => { const a=[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a; });
 
       const sA = faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
       const sB = adV.reduce((s,a)=>s+a,0);
@@ -2339,12 +2383,12 @@ function generateReportPreview() {
     const fixedGroups = {}, generalGroups = {};
     mList.forEach(m => {
       (m.variable?.donation_fixed_list || []).forEach(i => {
-        const key = i.desc ? subjectGroupKey(i.desc) : '固定捐款';
+        const key = i.desc ? donationGroupKey(i.desc) : '固定捐款';
         if (!fixedGroups[key]) fixedGroups[key] = [];
         fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
       });
       [...(m.variable?.donation_general_list || []), ...(m.variable?.donation_list || [])].forEach(i => {
-        const key = i.desc ? subjectGroupKey(i.desc) : '一般捐款';
+        const key = i.desc ? donationGroupKey(i.desc) : '一般捐款';
         if (!generalGroups[key]) generalGroups[key] = [];
         generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
       });
@@ -2512,11 +2556,11 @@ function exportReport(format) {
     const fixedGroups = {}, generalGroups = {};
     mList.forEach(m => {
       (m.variable.donation_fixed_list||[]).forEach(i => {
-        const k = i.desc?subjectGroupKey(i.desc):'固定捐款'; if(!fixedGroups[k]) fixedGroups[k]=[];
+        const k = i.desc?donationGroupKey(i.desc):'固定捐款'; if(!fixedGroups[k]) fixedGroups[k]=[];
         fixedGroups[k].push({name:m.name,nickname:m.nickname||'',amount:Number(i.amount||0)});
       });
       [...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].forEach(i => {
-        const k = i.desc?subjectGroupKey(i.desc):'一般捐款'; if(!generalGroups[k]) generalGroups[k]=[];
+        const k = i.desc?donationGroupKey(i.desc):'一般捐款'; if(!generalGroups[k]) generalGroups[k]=[];
         generalGroups[k].push({name:m.name,nickname:m.nickname||'',amount:Number(i.amount||0)});
       });
     });
@@ -2558,12 +2602,12 @@ function exportReport(format) {
     mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => advanceSet.add(advGroupKey(i.desc))));
     const advanceItems = [...advanceSet];
     const donFixedSet = new Set();
-    mList.forEach(m => (m.variable.donation_fixed_list||[]).forEach(i => donFixedSet.add(subjectGroupKey(i.desc))));
+    mList.forEach(m => (m.variable.donation_fixed_list||[]).forEach(i => donFixedSet.add(donationGroupKey(i.desc))));
     const donFixedItems = [...donFixedSet];
     const donGeneralSet = new Set();
     mList.forEach(m => {
-      (m.variable.donation_general_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
-      (m.variable.donation_list||[]).forEach(i => donGeneralSet.add(subjectGroupKey(i.desc)));
+      (m.variable.donation_general_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
+      (m.variable.donation_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
     });
     const donGeneralItems = [...donGeneralSet];
 
@@ -2585,8 +2629,8 @@ function exportReport(format) {
       const feV = fixedAExtras.map(d=>{const a=(m.variable.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.fixedAE[d]=(totals.fixedAE[d]||0)+a; return a;});
       const adV = advanceItems.map(d=>{const a=(m.variable.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.adv[d]=(totals.adv[d]||0)+a; return a;});
       const svV = serviceItems.map(d=>{const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable.service_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a;});
-      const dfV = donFixedItems.map(d=>{const a=(m.variable.donation_fixed_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a;});
-      const dgV = donGeneralItems.map(d=>{const a=[...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a;});
+      const dfV = donFixedItems.map(d=>{const a=(m.variable.donation_fixed_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a;});
+      const dgV = donGeneralItems.map(d=>{const a=[...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a;});
       const sA=faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
       const sB=adV.reduce((s,a)=>s+a,0);
       const sC=svV.reduce((s,a)=>s+a,0);
