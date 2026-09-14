@@ -169,6 +169,7 @@
             <option value="fixedA">經常費 (A)</option>
             <option value="fixedB">服務經費 (B)</option>
             <option value="advance_pay">代付款 (C)</option>
+            <option value="donation">捐款</option>
             <option value="receipt">收款錄入</option>
             <option value="creditcard">信用卡扣款（自動帶入應付款）</option>
           </select>
@@ -931,12 +932,17 @@ function refreshQuickInputTargetDisplay() {
   }
 }
 
+// 選擇社友時優先顯示英文暱稱（方便用英文打字跳轉），沒有暱稱才 fallback 用中文姓名
+function displayName(m) {
+  return (m && (m.nickname || '').trim()) || (m && m.name) || '';
+}
+
 function renderMemberSelect() {
   const sel = document.getElementById('qi-member');
   if (!sel) return; // 部分選擇/全體同步模式下，qi-member 下拉已被替換為其他元素
   const sorted = [...members].filter(m => !m.withdrawn).sort((a,b) => sortByNickname(a, b));
   sel.innerHTML = '<option value="">-- 選擇社友 --</option>' +
-    sorted.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    sorted.map(m => `<option value="${m.id}">${displayName(m)}${m.nickname && m.name ? ' (' + m.name + ')' : ''}</option>`).join('');
 }
 
 function renderMembersTable() {
@@ -1038,6 +1044,14 @@ function updateItemOptions() {
     }
   } else if (cat === 'advance_pay') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
+  } else if (cat === 'donation') {
+    wrap.innerHTML = `<div style="display:flex;gap:6px">
+      <select class="inp" id="qi-donation-type" style="flex:0 0 108px">
+        <option value="general">一般捐款</option>
+        <option value="fixed">固定捐款</option>
+      </select>
+      <input class="inp" type="text" id="qi-item" placeholder="捐款項目說明" style="flex:1">
+    </div>`;
   } else if (cat === 'receipt') {
     wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
   } else if (cat === 'fixedB') {
@@ -1075,8 +1089,8 @@ function renderMemberMultiSelectList() {
   document.getElementById('member-multiselect-list').innerHTML = list.map(m => `
     <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
       <input type="checkbox" value="${m.id}" ${memberMultiSelectTemp.includes(m.id)?'checked':''} onchange="onMemberMultiSelectCheckboxChange('${m.id}', this.checked)" style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
-      <span style="font-size:13px;font-weight:700">${m.name}</span>
-      <span style="font-size:11px;color:#bbb">${m.nickname || ''}</span>
+      <span style="font-size:13px;font-weight:700">${displayName(m)}</span>
+      <span style="font-size:11px;color:#bbb">${m.nickname ? m.name : ''}</span>
     </label>
   `).join('') || '<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無符合條件的社友</div>';
   updateMemberMultiSelectCount();
@@ -1185,6 +1199,9 @@ async function submitQuickInput() {
     const m = members.find(x => x.id === mId);
     if (!m) return;
     if (!m.variable || Array.isArray(m.variable)) m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[] };
+    // 防禦性補齊：舊資料的 m.variable 可能是在還沒有捐款欄位時建立的，缺這兩個陣列
+    if (!m.variable.donation_fixed_list) m.variable.donation_fixed_list = [];
+    if (!m.variable.donation_general_list) m.variable.donation_general_list = [];
     if (!m.accounting) m.accounting = {};
 
     const label = settings.feeStructure[cat]?.items?.[item] || item || '項目';
@@ -1196,6 +1213,12 @@ async function submitQuickInput() {
     else if (cat === 'fixedB' && item === 'monthly_split') { m.fixedB = m.fixedB||{}; m.fixedB.monthly_split = amount; }
     else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
     else if (cat === 'advance_pay') { entry.desc = descWithDate; m.variable.advance_pay_list.push(entry); }
+    else if (cat === 'donation') {
+      entry.desc = descWithDate;
+      const donationType = document.getElementById('qi-donation-type')?.value || 'general';
+      if (donationType === 'fixed') m.variable.donation_fixed_list.push(entry);
+      else m.variable.donation_general_list.push(entry);
+    }
     else if (cat === 'creditcard') {
       entry.desc = '信用卡扣款';
       entry.type = 'receipt_card';
@@ -1945,8 +1968,8 @@ function triggerYearlyCarryOver() {
     <label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
       <input type="checkbox" value="${m.id}" ${m.withdrawn ? '' : 'checked'} style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
       <div>
-        <div style="font-size:14px;font-weight:700">${m.name} ${m.withdrawn ? '<span style="background:#f3f4f6;color:#374151;border:1px solid #9ca3af;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:900">已退社</span>' : ''}</div>
-        <div style="font-size:11px;color:#bbb">${m.nickname || ''} · ${m.id}</div>
+        <div style="font-size:14px;font-weight:700">${displayName(m)} ${m.withdrawn ? '<span style="background:#f3f4f6;color:#374151;border:1px solid #9ca3af;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:900">已退社</span>' : ''}</div>
+        <div style="font-size:11px;color:#bbb">${m.nickname ? m.name : ''} · ${m.id}</div>
       </div>
       <div style="margin-left:auto;font-size:12px;color:#888">
         未付款：<span style="font-weight:700;color:${calcFees(m).finalH>0?'#dc2626':'#16a34a'}">$${calcFees(m).finalH.toLocaleString()}</span>
