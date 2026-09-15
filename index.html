@@ -2260,11 +2260,13 @@ function generateReportPreview() {
       const dfV = donFixedItems.map(d => { const a=(m.variable?.donation_fixed_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a; });
       const dgV = donGeneralItems.map(d => { const a=[...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a; });
 
-      const sA = faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
+      onst sA = faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
       const sB = adV.reduce((s,a)=>s+a,0);
-      const sC = svV.reduce((s,a)=>s+a,0);
       const sDF = dfV.reduce((s,a)=>s+a,0);
       const sDG = dgV.reduce((s,a)=>s+a,0);
+      const sDD = ddV.reduce((s,a)=>s+a,0);
+      // 服務費(B) = 服務經費項目(含固定分攤) + 固定捐款 + 一般捐款 + 指定捐款
+      const sC = svV.reduce((s,a)=>s+a,0) + sDF + sDG + sDD;
       const sD = sA+sB+sC;
       const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((s,i)=>s+v(i.amount),0);
       const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((s,i)=>s+v(i.amount),0);
@@ -2604,21 +2606,25 @@ function exportReport(format) {
     const donFixedSet = new Set();
     mList.forEach(m => (m.variable.donation_fixed_list||[]).forEach(i => donFixedSet.add(donationGroupKey(i.desc))));
     const donFixedItems = [...donFixedSet];
-    const donGeneralSet = new Set();
+       const donGeneralSet = new Set();
     mList.forEach(m => {
       (m.variable.donation_general_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
       (m.variable.donation_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
     });
     const donGeneralItems = [...donGeneralSet];
+    const donDesignatedSet = new Set();
+    mList.forEach(m => (m.variable.donation_designated_list||[]).forEach(i => donDesignatedSet.add(donationGroupKey(i.desc))));
+    const donDesignatedItems = [...donDesignatedSet];
 
     const aH = [...fixedAItems.map(([,l])=>l), ...fixedAExtras, '經常費合計(A)'];
-    const bH = [...advanceItems, '代付款合計(B)'];
-    const cH = [...serviceItems.map(d=>d==='__split__'?'固定分攤':d), '服務費合計(C)'];
+    const bH = [...advanceItems, '代付款合計(C)'];
+    const cH = [...serviceItems.map(d=>d==='__split__'?'固定分攤':d), '服務經費小計'];
     const dfH = donFixedItems.length>0 ? [...donFixedItems,'固定捐款小計'] : [];
     const dgH = donGeneralItems.length>0 ? [...donGeneralItems,'一般捐款小計'] : [];
-    csv = ['姓名','暱稱','社友編號',...aH,...bH,...cH,...dfH,...dgH,'本期社費(D)','前期(E)','匯款(F)','信用卡(G)','未付款(H)'].join(',') + '\n';
+    const ddH = donDesignatedItems.length>0 ? [...donDesignatedItems,'指定捐款小計'] : [];
+    csv = ['姓名','暱稱','社友編號',...aH,...bH,...cH,...dfH,...dgH,...ddH,'服務費合計(B)','本期社費(D)','前期(E)','匯款(F)','信用卡(G)','未付款(H)'].join(',') + '\n';
 
-    const totals = { fixedA:{}, fixedAE:{}, sumA:0, adv:{}, sumB:0, svc:{}, sumC:0, donF:{}, donFT:0, donG:{}, donGT:0, sumD:0, prevDue:0, transfer:0, card:0, finalH:0 };
+    const totals = { fixedA:{}, fixedAE:{}, sumA:0, adv:{}, sumB:0, svc:{}, sumC:0, donF:{}, donFT:0, donG:{}, donGT:0, donD:{}, donDT:0, sumBAll:0, sumD:0, prevDue:0, transfer:0, card:0, finalH:0 };
     mList.forEach(m => {
       const faV = fixedAItems.map(([k, label])=>{
         const labelKey = subjectGroupKey(label);
@@ -2631,30 +2637,36 @@ function exportReport(format) {
       const svV = serviceItems.map(d=>{const a=d==='__split__'?v(m.fixedB?.monthly_split):(m.variable.service_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.svc[d]=(totals.svc[d]||0)+a; return a;});
       const dfV = donFixedItems.map(d=>{const a=(m.variable.donation_fixed_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donF[d]=(totals.donF[d]||0)+a; return a;});
       const dgV = donGeneralItems.map(d=>{const a=[...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donG[d]=(totals.donG[d]||0)+a; return a;});
+      const ddV = donDesignatedItems.map(d=>{const a=(m.variable.donation_designated_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0); totals.donD[d]=(totals.donD[d]||0)+a; return a;});
       const sA=faV.reduce((s,a)=>s+a,0)+feV.reduce((s,a)=>s+a,0);
       const sB=adV.reduce((s,a)=>s+a,0);
       const sC=svV.reduce((s,a)=>s+a,0);
       const sDF=dfV.reduce((s,a)=>s+a,0);
       const sDG=dgV.reduce((s,a)=>s+a,0);
-      const sD=sA+sB+sC;
+      const sDD=ddV.reduce((s,a)=>s+a,0);
+      const sBAll = sC + sDF + sDG + sDD; // 服務費(B)真正合計
+      const sD=sA+sB+sBAll;
       const transfer=(m.variable.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((s,i)=>s+v(i.amount),0);
       const card=(m.variable.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((s,i)=>s+v(i.amount),0);
       const prevDue=v(m.accounting?.previous_due);
       const H=sD+prevDue-transfer-card;
-      totals.sumA+=sA; totals.sumB+=sB; totals.sumC+=sC; totals.donFT+=sDF; totals.donGT+=sDG;
+      totals.sumA+=sA; totals.sumB+=sB; totals.sumC+=sC; totals.donFT+=sDF; totals.donGT+=sDG; totals.donDT+=sDD;
+      totals.sumBAll+=sBAll;
       totals.sumD+=sD; totals.prevDue+=prevDue; totals.transfer+=transfer; totals.card+=card; totals.finalH+=H;
       const dfRow = donFixedItems.length>0 ? [...dfV, sDF] : [];
       const dgRow = donGeneralItems.length>0 ? [...dgV, sDG] : [];
+      const ddRow = donDesignatedItems.length>0 ? [...ddV, sDD] : [];
       csv += [`"${m.name}"`,`"${m.nickname||''}"`,`"${m.id}"`,
-        ...faV,...feV,sA,...adV,sB,...svV,sC,...dfRow,...dgRow,sD,prevDue,transfer,card,H].join(',') + '\n';
+        ...faV,...feV,sA,...adV,sB,...svV,sC,...dfRow,...dgRow,...ddRow,sBAll,sD,prevDue,transfer,card,H].join(',') + '\n';
     });
     const dfFoot = donFixedItems.length>0 ? [...donFixedItems.map(d=>totals.donF[d]||0), totals.donFT] : [];
     const dgFoot = donGeneralItems.length>0 ? [...donGeneralItems.map(d=>totals.donG[d]||0), totals.donGT] : [];
+    const ddFoot = donDesignatedItems.length>0 ? [...donDesignatedItems.map(d=>totals.donD[d]||0), totals.donDT] : [];
     csv += ['"合計"','""','""',
       ...fixedAItems.map(([k])=>totals.fixedA[k]||0),...fixedAExtras.map(d=>totals.fixedAE[d]||0),totals.sumA,
       ...advanceItems.map(d=>totals.adv[d]||0),totals.sumB,
       ...serviceItems.map(d=>totals.svc[d]||0),totals.sumC,
-      ...dfFoot,...dgFoot,totals.sumD,totals.prevDue,totals.transfer,totals.card,totals.finalH].join(',') + '\n';
+      ...dfFoot,...dgFoot,...ddFoot,totals.sumBAll,totals.sumD,totals.prevDue,totals.transfer,totals.card,totals.finalH].join(',') + '\n';
     downloadCSV(csv, `洲美月結報表_${data.month}.csv`);
     return;
 
