@@ -2165,6 +2165,13 @@ function getReportData() {
   }
 }
 
+// 金額顯示：0 顯示「-」佔位，正數顯示 $金額，負數（例如前期多收、餘額為負）要正確顯示 -$金額，
+// 不能被誤判成空值而藏起來看不到（原本用 val>0 判斷，負數會被吃掉）
+function fmtAmt(val) {
+  const v = isNaN(Number(val)) ? 0 : Number(val);
+  return v === 0 ? '-' : (v < 0 ? '-$' + Math.abs(v).toLocaleString() : '$' + v.toLocaleString());
+}
+
 function generateReportPreview() {
   try {
   const data = getReportData();
@@ -2257,7 +2264,7 @@ function generateReportPreview() {
 
     const tdC = (val,color='inherit',bold=false) => {
       const s = `padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;color:${color};${bold?'font-weight:900':''}`;
-      return `<td style="${s}">${val>0?'$'+val.toLocaleString():'-'}</td>`;
+      return `<td style="${s}">${fmtAmt(val)}</td>`;
     };
 
     const totals = {
@@ -2316,11 +2323,11 @@ function generateReportPreview() {
         ${tdC(prevDue,'#92400e')}
         ${tdC(transfer,'#166534')}
         ${tdC(card,'#7c3aed')}
-        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;font-weight:900;color:${H>0?'#dc2626':'#16a34a'}">${H===0?'-':'$'+H.toLocaleString()}</td>
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;font-weight:900;color:${H>0?'#dc2626':'#16a34a'}">${fmtAmt(H)}</td>
       </tr>`;
     }).join('');
 
-    const ftd = (val,c='#C9A84C') => `<td style="padding:7px 8px;text-align:right;font-family:monospace;font-weight:900;color:${c}">${val>0?'$'+val.toLocaleString():'-'}</td>`;
+    const ftd = (val,c='#C9A84C') => `<td style="padding:7px 8px;text-align:right;font-family:monospace;font-weight:900;color:${c}">${fmtAmt(val)}</td>`;
     const footRow = `<tr style="background:#002147;color:white">
       <td colspan="2" style="padding:8px 12px;font-weight:900">合計</td>
       ${fixedAItems.map(([k])=>ftd(totals.fixedA[k]||0,'#93c5fd')).join('')}
@@ -2517,9 +2524,9 @@ function generateReportPreview() {
         const m=(snap?.members||[]).find(x=>x.id===mId);
         if(!m) return `<td style="padding:5px 6px;text-align:right;color:#ddd;border-left:2px solid #eee">-</td><td>-</td><td>-</td><td>-</td>`;
         const f=calcFees(m); tA+=f.sumA;tB+=f.sumB;tC+=f.sumC;tD+=f.sumD;
-        return `<td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;border-left:2px solid #eee">${f.sumA>0?'$'+f.sumA.toLocaleString():'-'}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px">${f.sumB>0?'$'+f.sumB.toLocaleString():'-'}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${f.sumC>0?'$'+f.sumC.toLocaleString():'-'}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;color:#002147">${f.sumD>0?'$'+f.sumD.toLocaleString():'-'}</td>`;
+        return `<td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;border-left:2px solid #eee">${fmtAmt(f.sumA)}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px">${fmtAmt(f.sumB)}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${fmtAmt(f.sumC)}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;color:#002147">${fmtAmt(f.sumD)}</td>`;
       }).join('');
-      return `<tr><td style="padding:5px 10px;font-weight:700;white-space:nowrap">${info.name}</td><td style="padding:5px 8px;color:#bbb;font-size:11px">${info.nickname}</td>${cells}<td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;border-left:3px solid #002147">${tA>0?'$'+tA.toLocaleString():'-'}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px">${tB>0?'$'+tB.toLocaleString():'-'}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${tC>0?'$'+tC.toLocaleString():'-'}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;background:#eef4ff;color:#002147">${tD>0?'$'+tD.toLocaleString():'-'}</td></tr>`;
+      return `<tr><td style="padding:5px 10px;font-weight:700;white-space:nowrap">${info.name}</td><td style="padding:5px 8px;color:#bbb;font-size:11px">${info.nickname}</td>${cells}<td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;border-left:3px solid #002147">${fmtAmt(tA)}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px">${fmtAmt(tB)}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${fmtAmt(tC)}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;background:#eef4ff;color:#002147">${fmtAmt(tD)}</td></tr>`;
     }).join('');
     const tCells = months.map(mo=>{const t=monthTotals[mo]||{sumA:0,sumB:0,sumC:0,sumD:0};return `<td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:2px solid rgba(255,255,255,0.2)">$${t.sumA.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${t.sumB.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${t.sumC.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${t.sumD.toLocaleString()}</td>`;}).join('');
     const gA=Object.values(monthTotals).reduce((s,t)=>s+t.sumA,0);
