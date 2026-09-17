@@ -376,6 +376,13 @@
         </div>
       </div>
     </div>
+
+    <div class="card" style="padding:28px;margin-top:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">☁️ 歷史紀錄雲端備份</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">每月結轉的歷史快照（年度報表、舊月份報表都靠這個）現在會自動備份到雲端。若你在啟用這個功能之前已經累積了幾個月的紀錄，按下面的按鈕可以把它們一次補上去，只需要按這一次。</p>
+      <button onclick="backfillHistoryToCloud()" class="btn-gold">☁️ 補齊歷史紀錄備份</button>
+      <span id="history-backfill-status" style="font-size:12px;color:#16a34a;margin-left:12px"></span>
+    </div>
   </div>
 
 </div>
@@ -721,12 +728,41 @@ async function loadFromCloud() {
           });
         });
       }
+      // 合併雲端歷史快照：以月份為鍵，雲端有的以雲端為準，本機獨有的（還沒備份上去）保留
+      if (Array.isArray(r.history)) {
+        const localHistory = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+        const byMonth = {};
+        localHistory.forEach(h => { if (h && h.month) byMonth[h.month] = h; });
+        r.history.forEach(h => { if (h && h.month) byMonth[h.month] = h; });
+        const merged = Object.values(byMonth).sort((a, b) => {
+          const ma = (a.month||'').match(/(\d+)年(\d+)月/), mb = (b.month||'').match(/(\d+)年(\d+)月/);
+          if (!ma || !mb) return 0;
+          return (parseInt(mb[1])*12+parseInt(mb[2])) - (parseInt(ma[1])*12+parseInt(ma[2])); // 新的在前
+        });
+        localStorage.setItem('choumei_history', JSON.stringify(merged));
+      }
       saveLocal();
     }
     hideSync();
   } catch(e) {
     hideSync();
     console.log('離線模式:', e.message);
+  }
+}
+
+// 把單一月份的歷史快照備份到雲端（結轉時自動呼叫，或由「補齊歷史紀錄備份」按鈕批次呼叫）
+async function saveHistoryToCloud(snapshot) {
+  if (!API_URL || !snapshot || !snapshot.month) return { ok: false };
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'saveHistorySnapshot', snapshot })
+    });
+    return await res.json();
+  } catch (e) {
+    console.warn('歷史快照雲端備份失敗:', e.message);
+    return { ok: false, error: e.message };
   }
 }
 
@@ -1927,10 +1963,13 @@ async function executeCarryOver() {
   // ① 先存本月快照（在清空 variable 之前，確保代付款等資料完整）
   const nums0 = (settings.currentMonth || '').match(/\d+/g);
   const snapshotMonth = settings.currentMonth;
+  const snapshot = { month: snapshotMonth, members: JSON.parse(JSON.stringify(members)), savedAt: new Date().toISOString() };
   const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
-  history.unshift({ month: snapshotMonth, members: JSON.parse(JSON.stringify(members)), savedAt: new Date().toISOString() });
+  history.unshift(snapshot);
   if (history.length > 24) history.pop();
   localStorage.setItem('choumei_history', JSON.stringify(history));
+  // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
+  await saveHistoryToCloud(snapshot);
 
   // ② 結轉：清空 variable、套下月預設費用
   members.forEach(m => {
@@ -2060,15 +2099,18 @@ ${removed.join('、')}
   showSync('執行年度結轉...');
 
   // 儲存歷史快照
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
-  history.unshift({ 
-    month: settings.currentMonth, 
-    members: JSON.parse(JSON.stringify(members)), 
+  const yearEndSnapshot = {
+    month: settings.currentMonth,
+    members: JSON.parse(JSON.stringify(members)),
     savedAt: new Date().toISOString(),
     isYearEnd: true
-  });
+  };
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  history.unshift(yearEndSnapshot);
   if (history.length > 24) history.pop();
   localStorage.setItem('choumei_history', JSON.stringify(history));
+  // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
+  await saveHistoryToCloud(yearEndSnapshot);
 
   // 只保留留任社友，重置所有費用
   members = members.filter(m => checked.includes(m.id)).map(m => ({
@@ -2780,6 +2822,31 @@ function downloadCSV(csv, filename) {
   link.href = URL.createObjectURL(blob);
   link.download = filename;
   link.click();
+}
+
+// 一次性把本機既有的歷史快照全部補寫到雲端（啟用雲端備份前累積的紀錄）
+async function backfillHistoryToCloud() {
+  if (!API_URL) { alert('請先到上方設定並儲存 API 網址。'); return; }
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const valid = history.filter(h => h && h.month);
+  if (valid.length === 0) { alert('本機目前沒有歷史紀錄可以備份。'); return; }
+  if (!confirm(`準備把本機的 ${valid.length} 筆月份歷史紀錄備份到雲端，確定嗎？\n\n（同月份若雲端已有，會以本機這份覆蓋更新）`)) return;
+
+  const statusEl = document.getElementById('history-backfill-status');
+  let success = 0;
+  const failed = [];
+  for (let i = 0; i < valid.length; i++) {
+    statusEl.textContent = `備份中 ${i+1}/${valid.length}...`;
+    statusEl.style.color = '#888';
+    const r = await saveHistoryToCloud(valid[i]);
+    if (r && r.ok) success++;
+    else failed.push(valid[i].month);
+  }
+  statusEl.style.color = failed.length ? '#dc2626' : '#16a34a';
+  statusEl.textContent = failed.length
+    ? `完成 ${success}/${valid.length}，失敗：${failed.join('、')}`
+    : `✅ 已備份 ${success} 筆歷史紀錄到雲端`;
+  setTimeout(() => { statusEl.textContent = ''; }, 8000);
 }
 
 function exportData() {
