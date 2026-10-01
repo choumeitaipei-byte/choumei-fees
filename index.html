@@ -59,6 +59,8 @@ input[type=number]{font-size:1.3rem;width:8em;text-align:center;margin-right:8px
 .vt .ln{border-top:2px solid var(--ink);margin-top:2px}
 .dg{width:1.6em;height:1.6em;font:inherit;text-align:center;border:1.5px solid var(--acc);border-radius:6px;background:var(--bg);color:var(--ink);padding:0}
 .dg.wr{border-color:var(--bad)}.dg.fix{border-color:var(--ok);color:var(--ok)}
+.dg.ok2{border-color:var(--ok);color:var(--ok)}
+.dg:disabled{opacity:1;-webkit-text-fill-color:currentColor}
 .bx{display:inline-block;width:1.3em;height:1.3em;line-height:1.3em;border:1.5px solid var(--acc);border-radius:6px;font-size:.9em}
 </style>
 </head>
@@ -318,7 +320,7 @@ if(q.k=="mc"){app.innerHTML=hd+`<div class="card q"><p>${q.t}</p>${q.o.map((o,j)
 app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{const g=+b.dataset.j==q.a;done(g,g?"":"正確答案："+q.o[q.a]+"。",q.why)})}
 else if(q.k=="vert"){app.innerHTML=hd+`<div class="card q"><div>在 □ 中填入適當的數字：</div><div class="hd">${vHtml(q,true)}</div><button class="go chk">檢查答案</button><div class="fb"></div></div>`;
 const ds=[...app.querySelectorAll(".dg")];ds.forEach((d,j)=>{d.oninput=()=>{d.value=d.value.replace(/\D/g,"").slice(-1);if(d.value&&ds[j+1])ds[j+1].focus()};d.onkeydown=e=>{if(e.key=="Backspace"&&!d.value&&ds[j-1])ds[j-1].focus()}});if(ds[0])ds[0].focus();
-app.querySelector(".chk").onclick=()=>{if(ds.some(d=>d.value==="")){app.querySelector(".fb").innerHTML='<span class="bad">每個格子都要填喔。</span>';return}let g=true;ds.forEach(d=>{const x=q.bl[+d.dataset.b][2];if(+d.value!==x){g=false;d.classList.add("wr");d.value=x;d.classList.add("fix")}});done(g,g?"":"正確答案："+q.a+"。",q.why)}}
+app.querySelector(".chk").onclick=()=>{if(ds.some(d=>d.value==="")){app.querySelector(".fb").innerHTML='<span class="bad">每個格子都要填喔。</span>';return}let g=true;const CN=["千位","百位","十位","個位"],RN={a:"上面的數",b:"下面的數",s:"答案"},wl=[];ds.forEach(d=>{const [r,c,x]=q.bl[+d.dataset.b];d.disabled=true;if(+d.value===x)d.classList.add("ok2");else{g=false;d.classList.add("wr");wl.push(`${RN[r]}的${CN[c]}：你填 ${d.value}，應該是 ${x}`)}});done(g,g?"":"紅框是填錯的格子 —— "+wl.join("；")+"。完整算式是 "+q.a+"。",q.why)}}
 else if(q.k=="num"){app.innerHTML=hd+`<div class="card q"><div>${q.t}</div><input id="ans" type="number" inputmode="numeric" placeholder="答案"><button class="go chk">檢查答案</button><div class="fb"></div></div>`;
 const f=()=>{const v=document.getElementById("ans").value;if(v==="")return;const g=+v==q.a;done(g,g?"":"正確答案："+q.a+"。",q.why)};app.querySelector(".chk").onclick=f;document.getElementById("ans").onkeydown=e=>{if(e.key=="Enter")f()}}
 else{const op='<option value="">選成語</option>'+(q.bank||IDIOMS.map(d=>d.w)).map(w=>`<option>${esc(w)}</option>`).join("");
