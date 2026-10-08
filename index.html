@@ -1,342 +1,3069 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>三年級小學堂</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>洲美扶輪社 — 帳務管理系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--serif:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;--bg:#f6f0ea;--card:#fffdfa;--ink:#3a2f33;--sub:#85757a;--acc:#a4545f;--onacc:#fff;--acc2:#ecdcd6;--gold:#c2994f;--ok:#3f8f6b;--bad:#b84a5b;--tag:#f3e6cf;--line:#e7d9d1}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1e1a1c;--card:#2a2427;--ink:#f3e9e4;--sub:#b8a8ad;--acc:#e0909c;--onacc:#2a1a1f;--acc2:#3d3236;--gold:#dbb56b;--ok:#7fcfa5;--bad:#f0909f;--tag:#4a3f2a;--line:#3a3034}}
-:root[data-theme="dark"]{--bg:#1e1a1c;--card:#2a2427;--ink:#f3e9e4;--sub:#b8a8ad;--acc:#e0909c;--onacc:#2a1a1f;--acc2:#3d3236;--gold:#dbb56b;--ok:#7fcfa5;--bad:#f0909f;--tag:#4a3f2a;--line:#3a3034}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;font-size:17px;line-height:1.85}
-main{max-width:720px;margin:0 auto;padding:20px 16px 40px}
-h1{font-family:var(--serif);text-align:center;margin:10px 0 0;font-size:1.9rem;letter-spacing:.18em;font-weight:700}
-h1::after{content:"";display:block;width:48px;height:2px;background:var(--gold);margin:10px auto 0}
-.sub{text-align:center;color:var(--sub);margin:8px 0 14px;font-size:.95rem}
-button,select,input{font:inherit}
-nav{display:flex;gap:8px;justify-content:center;margin:12px 0}
-nav button{padding:7px 20px;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:999px;cursor:pointer;letter-spacing:.08em}
-nav button.on{background:var(--acc);border-color:var(--acc);color:var(--onacc)}
-.subj{display:flex;justify-content:center;margin:10px 0 2px}
-.subj button{padding:5px 26px;border:1px solid var(--acc);background:transparent;color:var(--acc);cursor:pointer;font-family:var(--serif);font-weight:700;letter-spacing:.2em}
-.subj button:first-child{border-radius:999px 0 0 999px}.subj button:last-child{border-radius:0 999px 999px 0;border-left:0}
-.subj button.on{background:var(--acc);color:var(--onacc)}
-.bar{display:flex;align-items:center;justify-content:center;gap:10px;min-height:28px}
-.bar b{font-family:var(--serif)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 20px;margin:14px 0;box-shadow:0 2px 12px rgba(90,60,60,.06)}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.grid button{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:14px 8px;cursor:pointer;text-align:center;box-shadow:0 1px 8px rgba(90,60,60,.05)}
-.grid button:hover:not(:disabled){border-color:var(--acc)}
-.grid button:disabled{opacity:.45;cursor:not-allowed}
-.grid .em{display:block;font-family:var(--serif);font-size:.85rem;color:var(--sub);letter-spacing:.1em}
-.grid b{font-family:var(--serif);font-size:1.25rem;letter-spacing:.1em}
-.zy{color:var(--sub);font-size:.85rem;letter-spacing:.08em}
-h2{font-family:var(--serif);margin:4px 0;font-size:2rem;letter-spacing:.15em;text-align:center}
-.hd{text-align:center}
-h3{font-family:var(--serif);margin:0 0 6px;font-size:1rem;letter-spacing:.12em;color:var(--acc);padding-left:10px;border-left:3px solid var(--gold)}
-.tag{display:inline-block;background:var(--tag);border-radius:6px;padding:1px 10px;font-size:.8rem;margin:2px 8px 4px 0}
-.back{background:none;border:none;color:var(--acc);cursor:pointer;padding:4px 0;font-size:.95rem}
-.q p{margin:0 0 8px}
-select,input[type=number]{padding:4px 10px;border-radius:10px;border:1px solid var(--acc);background:var(--bg);color:var(--ink)}
-input[type=number]{font-size:1.3rem;width:8em;text-align:center;margin-right:8px}
-.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
-.opt:hover:not(:disabled){border-color:var(--acc)}
-.go{padding:8px 24px;border:none;background:var(--acc);color:var(--onacc);border-radius:999px;cursor:pointer;margin-top:6px;letter-spacing:.1em}
-.fb{margin-top:10px;font-size:.98rem}
-.fb .ok{display:inline-block;animation:pop .4s}
-@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
-.ok{color:var(--ok)}.bad{color:var(--bad)}
-.score{text-align:center;font-size:1.2rem}
-.st{color:var(--gold);letter-spacing:.12em}
-.eq{font-family:var(--serif);font-size:1.5rem;text-align:center;margin:8px 0 14px;line-height:1.9}
-.stars{font-weight:700}
-.pick{display:block;text-align:center}
-.vt{display:inline-block;font-family:var(--serif);font-size:1.6rem;margin:10px auto}
-.vt .r{display:flex;justify-content:flex-end}
-.vt .c{width:2.1em;height:2.3em;line-height:2.3em;text-align:center}
-.vt .ln{border-top:2px solid var(--ink);margin-top:2px}
-.dg{width:1.6em;height:1.6em;font:inherit;text-align:center;border:1.5px solid var(--acc);border-radius:6px;background:var(--bg);color:var(--ink);padding:0}
-.dg.wr{border-color:var(--bad)}.dg.fix{border-color:var(--ok);color:var(--ok)}
-.dg.ok2{border-color:var(--ok);color:var(--ok)}
-.dg:disabled{opacity:1;-webkit-text-fill-color:currentColor}
-.bx{display:inline-block;width:1.3em;height:1.3em;line-height:1.3em;border:1.5px solid var(--acc);border-radius:6px;font-size:.9em}
+  :root {
+    --navy: #002147;
+    --navy-mid: #003366;
+    --gold: #C9A84C;
+    --gold-light: #f0d080;
+    --cream: #faf7f2;
+    --ink: #1a1a2e;
+  }
+  * { font-family: 'Noto Sans TC', sans-serif; }
+  body { background: var(--cream); color: var(--ink); min-height: 100vh; }
+  .mono { font-family: 'DM Mono', monospace; }
+
+  /* API 設定提示橫幅 */
+  #api-banner { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+
+  /* 側欄 */
+  #sidebar { background: var(--navy); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100; }
+  #main-content { margin-left: 240px; }
+
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 12px; cursor: pointer; color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 700; transition: all 0.2s; margin: 2px 12px; }
+  .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+  .nav-item.active { background: var(--gold); color: var(--navy); }
+  .nav-icon { width: 18px; height: 18px; opacity: 0.8; }
+
+  /* 卡片 */
+  .card { background: white; border-radius: 20px; border: 1px solid #e8e4da; box-shadow: 0 2px 12px rgba(0,33,71,0.06); }
+
+  /* 按鈕 */
+  .btn-primary { background: var(--navy-mid); color: white; padding: 10px 24px; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary:hover { background: var(--navy); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-gold { background: var(--gold); color: var(--navy); padding: 10px 24px; border-radius: 12px; font-weight: 900; font-size: 13px; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .btn-danger:hover { background: #fee2e2; }
+
+  /* 輸入框 */
+  .inp { width: 100%; padding: 10px 14px; border: 1.5px solid #e2ddd4; border-radius: 12px; font-size: 14px; font-weight: 500; outline: none; background: #faf8f4; transition: border-color 0.2s; }
+  .inp:focus { border-color: var(--navy-mid); background: white; }
+  select.inp { cursor: pointer; }
+
+  /* 帳單樣式 */
+  .bill-wrap { background: white; width: 794px; margin: 0 auto; padding: 40px 48px; border-radius: 16px; box-shadow: 0 4px 32px rgba(0,33,71,0.12); }
+  .bill-head { background: var(--navy); color: white; padding: 14px 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; }
+  .bill-row { display: flex; justify-content: space-between; padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #f5f2ec; }
+  .bill-sub { background: #eef4ff; padding: 8px 20px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; color: var(--navy-mid); }
+  .bill-total { background: var(--navy); color: var(--gold); display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-radius: 0 0 12px 12px; margin-top: 4px; }
+
+  /* 狀態標籤 */
+  .badge-due { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 900; }
+  .badge-ok  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 4px 14px; border-radius: 99px; font-size: 12px; font-weight: 900; }
+
+  /* 同步提示 */
+  .sync-toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; background: var(--navy); color: #4ade80; padding: 10px 20px; border-radius: 99px; font-size: 12px; font-weight: 900; box-shadow: 0 8px 30px rgba(0,33,71,0.25); display: none; }
+  .sync-toast.show { display: flex; align-items: center; gap: 8px; }
+
+  /* 彈窗 */
+  .overlay { position: fixed; inset: 0; background: rgba(0,33,71,0.7); backdrop-filter: blur(8px); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .overlay.show { display: flex; }
+  .modal { background: white; border-radius: 28px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 40px 80px rgba(0,33,71,0.3); }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  thead th { background: #f5f2ec; padding: 12px 16px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #6b6358; }
+  thead th:first-child { border-radius: 12px 0 0 0; }
+  thead th:last-child { border-radius: 0 12px 0 0; }
+  tbody tr { transition: background 0.15s; }
+  tbody tr:hover { background: #faf8f4; }
+  tbody td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid #f0ece4; }
+
+  /* 月份標籤 */
+  .month-badge { background: rgba(201,168,76,0.15); border: 1.5px solid var(--gold); color: var(--navy); padding: 5px 16px; border-radius: 99px; font-size: 12px; font-weight: 900; mono; }
+
+  @media print {
+    #sidebar, .no-print, #api-banner { display: none !important; }
+    #main-content { margin-left: 0 !important; }
+    .bill-wrap { width: 100%; box-shadow: none; padding: 20px; }
+  }
+  @media (max-width: 768px) {
+    #sidebar { display: none; }
+    #main-content { margin-left: 0; }
+  }
 </style>
 </head>
 <body>
-<main>
-<h1>三年級小學堂</h1>
-<p class="sub">成語．數學　每天進步一點點</p>
-<div id="bar" class="bar"></div>
-<div id="subj" class="subj"></div>
-<nav><button id="t1" class="on">闖關</button><button id="t2">認識成語</button><button id="t3">換裝</button></nav>
-<div id="app"></div>
-</main>
+
+<!-- API 設定提示 -->
+<div id="api-banner" class="hidden text-white text-center py-3 px-4 text-sm font-bold" style="font-family:'Noto Sans TC',sans-serif">
+  ⚠️ 尚未設定 Google Apps Script API 網址，請前往「系統設定」填入後儲存。目前為離線展示模式。
+</div>
+
+<!-- 側欄 -->
+<div id="sidebar">
+  <div style="padding:28px 20px 20px">
+    <div style="color:var(--gold);font-size:11px;font-weight:900;letter-spacing:0.15em;margin-bottom:4px">CHOU MEI ROTARY</div>
+    <div style="color:white;font-size:18px;font-weight:900;line-height:1.2">洲美扶輪社<br>帳務系統</div>
+  </div>
+  <div style="padding:0 12px;margin-bottom:8px">
+    <div id="month-display" class="month-badge" style="display:inline-block;margin-left:8px">載入中...</div>
+  </div>
+  <div style="height:1px;background:rgba(255,255,255,0.08);margin:12px 20px"></div>
+  <nav>
+    <div class="nav-item active" onclick="switchTab('accounting')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      帳務錄入
+    </div>
+    <div class="nav-item" onclick="switchTab('members')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      社友主檔
+    </div>
+    <div class="nav-item" onclick="switchTab('bills')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      帳單管理
+    </div>
+    <div class="nav-item" onclick="switchTab('settings')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      系統設定
+    </div>
+  </nav>
+  <div style="position:absolute;bottom:24px;left:0;right:0;padding:0 20px">
+    <button onclick="triggerCarryOver()" class="btn-gold w-full" style="width:calc(100% - 0px)">⇒ 啟動月份結轉</button>
+  </div>
+</div>
+
+<!-- 主內容 -->
+<div id="main-content" style="padding:32px">
+
+  <!-- 帳務錄入 -->
+  <div id="tab-accounting" class="tab-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <h1 style="font-size:24px;font-weight:900;color:var(--navy)">帳務錄入</h1>
+        <p style="font-size:13px;color:#888;margin-top:2px">快速新增各類費用項目</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;font-weight:700;color:#555">套用範圍</span>
+        <select class="inp" id="qi-target-mode" onchange="onTargetModeChange()" style="width:140px">
+          <option value="single">單一社友</option>
+          <option value="partial">部分選擇</option>
+          <option value="all">全體同步</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 1fr auto;gap:12px;align-items:end">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px" id="qi-member-label">指定社友</label>
+          <div id="qi-member-wrap">
+            <select class="inp" id="qi-member" onchange="onMemberChange()">
+              <option value="">-- 選擇社友 --</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">費用類別</label>
+          <select class="inp" id="qi-category" onchange="updateItemOptions()">
+            <option value="fixedA">經常費 (A)</option>
+            <option value="fixedB">服務經費 (B)</option>
+            <option value="advance_pay">代付款 (C)</option>
+            <option value="donation">捐款</option>
+            <option value="receipt">收款錄入</option>
+            <option value="creditcard">信用卡扣款（自動帶入應付款）</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">項目說明</label>
+          <div id="qi-item-wrap">
+            <select class="inp" id="qi-item"></select>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">日期</label>
+          <input class="inp" type="text" id="qi-date" placeholder="例：0517 或 5/17">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">金額 (NTD)</label>
+          <input class="inp mono" type="number" id="qi-amount" placeholder="0" style="font-size:18px;font-weight:700">
+        </div>
+        <button onclick="submitQuickInput()" class="btn-primary" style="height:44px;white-space:nowrap">✚ 錄入</button>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f0ece4">
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">📎 附件（可選，收據／IOU單等，最多5張，單檔上限8MB）</label>
+        <input class="inp" type="file" id="qi-attachments" multiple accept="image/*,.pdf" style="padding:8px 14px">
+        <div id="qi-attachments-hint" style="font-size:11px;color:#aaa;margin-top:4px"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <input class="inp" type="text" id="member-search" placeholder="🔍 搜尋姓名／暱稱" oninput="renderMembersTable()" style="width:220px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#374151;cursor:pointer;background:#f5f2ec;padding:8px 14px;border-radius:12px">
+          <input type="checkbox" id="unpaid-only-toggle" onchange="renderMembersTable()" style="width:15px;height:15px;accent-color:#dc2626;cursor:pointer">
+          只顯示未付款
+        </label>
+        <span id="unpaid-summary" style="font-size:12px;color:#dc2626;font-weight:700"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="pending-sync-label" style="font-size:12px;color:#dc2626;font-weight:700;display:none">⚠️ 有未同步的資料</span>
+        <button onclick="syncToCloud()" id="sync-btn" style="background:#002147;color:white;border:none;padding:8px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;display:none">☁️ 同步至雲端</button>
+      </div>
+    </div>
+
+    <div class="card" style="overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px;font-weight:700">社友帳務總覽</span>
+        <span id="member-count" style="font-size:12px;color:#888">0 位社友</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left">社友姓名</th>
+            <th style="text-align:center">經常費(A)</th>
+            <th style="text-align:center">服務費(B)</th>
+            <th style="text-align:center">代付款(C)</th>
+            <th style="text-align:center">前期(E)</th>
+            <th style="text-align:center">未付款(H)</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody id="members-table-body">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:#bbb">載入中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 社友主檔 -->
+  <div id="tab-members" class="tab-panel" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:24px;font-weight:900;color:var(--navy)">社友主檔</h1>
+        <p style="font-size:13px;color:#888;margin-top:2px">管理社友基本資料</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input class="inp" type="text" id="member-grid-search" placeholder="🔍 搜尋姓名／暱稱" oninput="renderMembersGrid()" style="width:200px">
+        <button onclick="openMemberModal(null)" class="btn-primary">+ 新增社友</button>
+      </div>
+    </div>
+    <div id="members-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+  </div>
+
+  <!-- 帳單管理 -->
+  <div id="tab-bills" class="tab-panel" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <h1 style="font-size:24px;font-weight:900;color:var(--navy)">帳單管理</h1>
+        <p style="font-size:13px;color:#888;margin-top:2px">預覽、下載、分享帳單</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="copySummaryLink()" style="background:#f5f2ec;border:1.5px solid #e2ddd4;color:var(--navy);padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">📊 複製財務總表連結</button>
+        <button onclick="openSendBillsModal()" style="background:#f5f2ec;border:1.5px solid #e2ddd4;color:var(--navy);padding:10px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">📧 寄送帳單 Email</button>
+        <button onclick="exportAllBills()" class="btn-gold">📦 批次匯出全體 ZIP</button>
+        <button onclick="openReportModal()" class="btn-primary">📊 匯出報表</button>
+      </div>
+    </div>
+
+    <!-- 報表匯出區塊 -->
+    <div id="report-panel" class="card" style="padding:24px;margin-bottom:24px;display:none">
+      <h3 style="font-size:15px;font-weight:900;color:var(--navy);margin-bottom:16px">📊 報表匯出 <span style="font-size:10px;background:#C9A84C;color:white;padding:2px 6px;border-radius:4px;font-weight:700">v2.1</span></h3>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">報表類型</label>
+          <select class="inp" id="report-type" onchange="updateReportOptions()" style="width:160px">
+            <option value="monthly">月結報表</option>
+            <option value="yearly">年度報表</option>
+            <option value="advance">代付款明細報表</option>
+            <option value="donation">捐款明細報表</option>
+          </select>
+        </div>
+        <div id="report-month-wrap">
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇月份</label>
+          <select class="inp" id="report-month" onchange="generateReportPreview()" style="width:160px"></select>
+        </div>
+        <div id="report-year-wrap" style="display:none">
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇年度</label>
+          <select class="inp" id="report-year" style="width:120px"></select>
+        </div>
+        <div style="align-self:flex-end;display:flex;gap:8px">
+          <button onclick="exportReport('excel')" class="btn-primary" style="background:#16a34a">📋 匯出 CSV</button>
+          <button onclick="closeReportPanel()" style="background:#f5f2ec;border:none;padding:10px 16px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer">關閉</button>
+        </div>
+      </div>
+      <div id="report-preview" style="margin-top:20px;overflow-x:auto"></div>
+    </div>
+    <div id="bills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+  </div>
+
+  <!-- 系統設定 -->
+  <div id="tab-settings" class="tab-panel" style="display:none">
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:24px;font-weight:900;color:var(--navy)">系統設定</h1>
+      <p style="font-size:13px;color:#888;margin-top:2px">API 連線與全域配置</p>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">🔌 Google Apps Script API 網址</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">部署 Code.gs 後，將「網頁應用程式」的 URL 貼到這裡</p>
+      <div style="display:flex;gap:12px">
+        <input class="inp" type="url" id="api-url-input" placeholder="https://script.google.com/macros/s/..." style="flex:1">
+        <button onclick="saveApiUrl()" class="btn-primary">儲存連線</button>
+        <button onclick="testApi()" style="background:#f5f2ec;color:var(--navy);padding:10px 20px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;border:none">測試連線</button>
+      </div>
+      <div id="api-status" style="margin-top:12px;font-size:12px;color:#888"></div>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:16px;color:var(--navy)">全域配置</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">財務負責人</label>
+          <input class="inp" type="text" id="cfg-contact-name">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">聯絡電話</label>
+          <input class="inp" type="text" id="cfg-contact-phone">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">對帳月份</label>
+          <input class="inp" type="text" id="cfg-month">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">應收款繳清期限（顯示於帳單）</label>
+          <div style="display:flex;gap:8px">
+            <input class="inp" type="text" id="cfg-deadline" placeholder="例：6月30日" style="flex:1">
+            <button type="button" onclick="autoFillDeadline()" style="background:#f5f2ec;border:none;padding:0 14px;border-radius:12px;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer;white-space:nowrap">🔄 自動帶入</button>
+          </div>
+          <p style="font-size:10px;color:#aaa;margin-top:4px">結轉時會自動算好（本期月份+1個月的月底），此按鈕可手動重算或覆蓋</p>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">本月信件主旨（寄送帳單 Email 用）</label>
+          <input class="inp" type="text" id="cfg-email-subject" placeholder="留空則自動用預設格式">
+          <p style="font-size:10px;color:#aaa;margin-top:4px">每個月自己填想要的主旨文字，系統會自動在後面加上「- 社友姓名」；留空則用預設格式：{對帳月份} 洲美扶輪社會費對帳單 - 姓名</p>
+        </div>
+      </div>
+      <button onclick="saveSettings()" class="btn-primary">儲存設定</button>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">📌 每月固定費用預設</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">結轉時自動套用到所有社友，不需每月重新輸入</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">月費 (經常費A) 預設金額</label>
+          <input class="inp mono" type="number" id="cfg-default-monthly" placeholder="0" style="font-size:18px;font-weight:700">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">固定分攤費 (服務費B) 預設金額</label>
+          <input class="inp mono" type="number" id="cfg-default-split" placeholder="0" style="font-size:18px;font-weight:700">
+        </div>
+      </div>
+      <p style="font-size:11px;color:#f59e0b;margin-top:12px;font-weight:700">⚡ 結轉後，下個月所有社友會自動套用這個金額。若個別社友金額不同，結轉後再個別修改即可。</p>
+      <button onclick="saveDefaultFees()" class="btn-gold" style="margin-top:16px">💾 儲存固定費用預設</button>
+      <span id="default-fee-saved" style="font-size:12px;color:#16a34a;margin-left:12px;display:none">✅ 已儲存！</span>
+    </div>
+
+    <div class="card" style="padding:28px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">自訂費用科目</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">新增帳務錄入時的下拉選項</p>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <select class="inp" id="new-sub-cat" style="flex:0 0 160px">
+          <option value="fixedA">經常費 (A)</option>
+          <option value="fixedB">服務經費 (B)</option>
+        </select>
+        <input class="inp" type="text" id="new-sub-label" placeholder="輸入科目名稱" style="flex:1">
+        <button onclick="addSubject()" class="btn-primary">+ 新增</button>
+      </div>
+      <div id="subjects-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+
+    <div class="card" style="padding:28px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:16px;color:var(--navy)">資料備份與還原</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="background:#f5f2ec;padding:20px;border-radius:16px">
+          <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px">下載備份</div>
+          <p style="font-size:11px;color:#888;margin-bottom:12px">將目前資料下載為 JSON 備份檔</p>
+          <button onclick="exportData()" style="background:var(--navy-mid);color:white;padding:10px 20px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;border:none;width:100%">下載備份 JSON</button>
+        </div>
+        <div style="background:#1a1a2e;padding:20px;border-radius:16px">
+          <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">還原備份</div>
+          <p style="font-size:11px;color:#555;margin-bottom:12px">從 JSON 檔案覆蓋還原資料</p>
+          <input type="file" accept=".json" onchange="importData(event)" style="font-size:11px;color:#aaa;width:100%">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:28px;margin-top:20px">
+      <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">☁️ 歷史紀錄雲端備份</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">每月結轉的歷史快照（年度報表、舊月份報表都靠這個）現在會自動備份到雲端。若你在啟用這個功能之前已經累積了幾個月的紀錄，按下面的按鈕可以把它們一次補上去，只需要按這一次。</p>
+      <button onclick="backfillHistoryToCloud()" class="btn-gold">☁️ 補齊歷史紀錄備份</button>
+      <span id="history-backfill-status" style="font-size:12px;color:#16a34a;margin-left:12px"></span>
+    </div>
+  </div>
+
+</div>
+
+<!-- 同步提示 -->
+<div class="sync-toast" id="sync-toast">
+  <div style="width:8px;height:8px;background:#4ade80;border-radius:50%;animation:pulse 1s infinite"></div>
+  <span id="sync-msg">同步中...</span>
+</div>
+
+<!-- 帳單預覽彈窗 -->
+<div class="overlay" id="bill-overlay">
+  <div class="modal" style="max-width:860px;width:95vw">
+    <div style="padding:16px 20px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)">帳單預覽</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;background:#f5f2ec;border-radius:10px;padding:4px 10px">
+          <span style="font-size:11px;color:#888;font-weight:700">縮放</span>
+          <button onclick="adjustBillScale(-0.1)" style="background:white;border:1px solid #ddd;width:26px;height:26px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:900;line-height:1">−</button>
+          <span id="bill-scale-label" style="font-size:12px;font-weight:700;color:var(--navy);min-width:36px;text-align:center">75%</span>
+          <button onclick="adjustBillScale(0.1)" style="background:white;border:1px solid #ddd;width:26px;height:26px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:900;line-height:1">＋</button>
+          <button onclick="setBillScale('fit')" style="background:white;border:1px solid #ddd;padding:0 8px;height:26px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;color:var(--navy)">自動</button>
+        </div>
+        <button onclick="copyShareLink()" style="background:#f5f2ec;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy)">🔗 分享</button>
+        <button onclick="openSendSingleModal()" style="background:#f5f2ec;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy)">📧 寄送帳單</button>
+        <button onclick="downloadBillImage()" class="btn-primary" style="font-size:12px">↓ 下載 A4</button>
+        <button onclick="closeBillOverlay()" style="background:#f5f2ec;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer">×</button>
+      </div>
+    </div>
+    <div style="padding:16px;background:#e8e4da;overflow:auto;max-height:80vh;display:flex;justify-content:center;align-items:flex-start">
+      <div id="bill-scale-wrapper" style="transform-origin:top center;transition:transform 0.2s">
+        <div id="bill-preview-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 寄送單一帳單彈窗 -->
+<div class="overlay" id="send-single-overlay" style="z-index:700">
+  <div class="modal" style="max-width:460px">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)">📧 寄送帳單</h2>
+      <button onclick="closeSendSingleModal()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:28px;display:grid;gap:16px">
+      <div id="send-single-target-name" style="font-size:13px;color:#888"></div>
+      <div id="send-single-sent-note" style="display:none;font-size:12px;color:#16a34a;font-weight:700;background:#f0fdf4;border:1px solid #bbf7d0;padding:8px 12px;border-radius:10px"></div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">收件人 Email（可修改，例如改成自己的信箱測試）</label>
+        <input class="inp" type="email" id="send-single-email" placeholder="member@example.com">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">📎 附件（可選，收據／IOU單等，最多3張，單檔上限8MB）</label>
+        <p style="font-size:11px;color:#aaa;margin-bottom:8px">這次寄送才會用到，寄出後系統不會保留這個檔案，也不會記錄在帳務明細裡。</p>
+        <input class="inp" type="file" id="send-single-attachments" multiple accept="image/*,.pdf" style="padding:8px 14px">
+        <div id="send-single-hint" style="font-size:11px;color:#aaa;margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:12px;padding-top:4px">
+        <button onclick="sendSingleBillEmail()" class="btn-primary" style="flex:1;padding:14px">寄送</button>
+        <button onclick="closeSendSingleModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 社友編輯彈窗 -->
+<div class="overlay" id="member-overlay">
+  <div class="modal">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)" id="member-modal-title">編輯社友</h2>
+      <button onclick="closeMemberModal()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:28px;display:grid;gap:16px">
+      <input type="hidden" id="edit-member-id">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">社友編號（可自訂，例如 CM-001）</label>
+        <input class="inp mono" type="text" id="edit-custom-id" placeholder="留空則自動產生">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">姓名</label>
+        <input class="inp" type="text" id="edit-name" placeholder="社友姓名">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">暱稱</label>
+        <input class="inp" type="text" id="edit-nickname" placeholder="暱稱 / 英文名">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">Email（用於寄送帳單）</label>
+        <input class="inp" type="email" id="edit-email" placeholder="member@example.com">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:rgb(234,88,12);display:block;margin-bottom:6px">前期未付款 (E)</label>
+        <input class="inp mono" type="number" id="edit-prev-due" value="0" style="font-size:20px;font-weight:700">
+      </div>
+      <div style="background:#fef3cd;border:1.5px solid #f59e0b;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="edit-on-leave" style="width:18px;height:18px;accent-color:#b45309;cursor:pointer">
+        <div>
+          <label for="edit-on-leave" style="font-size:13px;font-weight:900;color:#b45309;cursor:pointer">長期請假中</label>
+          <div style="font-size:11px;color:#78350f;margin-top:2px">月費自動調整為 $1,300（正常月費對半）</div>
+        </div>
+      </div>
+      <div style="background:#f3f4f6;border:1.5px solid #9ca3af;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="edit-withdrawn" style="width:18px;height:18px;accent-color:#4b5563;cursor:pointer">
+        <div>
+          <label for="edit-withdrawn" style="font-size:13px;font-weight:900;color:#374151;cursor:pointer">已退社</label>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">保留她的歷史資料與目前餘額，但帳務錄入（下拉選單／部分選擇／全體同步）跟批次寄信都不會再帶到她；月結轉也不會再幫她套用新的月費</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;padding-top:8px">
+        <button onclick="saveMemberModal()" class="btn-primary" style="flex:1;padding:14px">儲存</button>
+        <button onclick="closeMemberModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通用社友多選彈窗（帳務錄入的部分選擇、寄信收件人選擇 共用） -->
+<div class="overlay" id="member-multiselect-overlay" style="z-index:650">
+  <div class="modal" style="max-width:480px">
+    <div style="padding:20px 24px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:16px;font-weight:900;color:var(--navy)" id="member-multiselect-title">選擇社友</h2>
+      <button onclick="closeMemberMultiSelect()" style="background:#f5f2ec;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:16px 24px">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button type="button" onclick="toggleMemberMultiSelectAll(true)" style="background:#f5f2ec;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">全選</button>
+        <button type="button" onclick="toggleMemberMultiSelectAll(false)" style="background:#f5f2ec;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">取消全選</button>
+      </div>
+      <div id="member-multiselect-list" style="max-height:320px;overflow-y:auto;border:1.5px solid #e8e4da;border-radius:12px;padding:8px"></div>
+    </div>
+    <div style="padding:16px 24px;display:flex;gap:12px">
+      <button onclick="confirmMemberMultiSelect()" class="btn-primary" style="flex:1;padding:12px">確定（已選 <span id="member-multiselect-count">0</span> 位）</button>
+      <button onclick="closeMemberMultiSelect()" style="padding:12px 20px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 結轉確認彈窗 -->
+<div class="overlay" id="carry-overlay">
+  <div class="modal" style="max-width:420px;text-align:center">
+    <div style="padding:40px 32px">
+      <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+      <h2 style="font-size:22px;font-weight:900;color:var(--navy);margin-bottom:12px">啟動月份結轉？</h2>
+      <div style="background:#eef4ff;border:1.5px solid #93c5fd;border-radius:12px;padding:14px 16px;margin:12px 0;text-align:left">
+        <p style="font-size:13px;font-weight:900;color:#1e40af;">☁️ 資料已同步雲端，任何裝置都能安全結轉</p>
+        <p style="font-size:12px;color:#1e3a8a;margin-top:4px">結轉快照會自動備份到 Google 試算表，不限定要用哪一台電腦操作</p>
+      </div>
+      <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:16px;margin:16px 0;text-align:left">
+        <p style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px">此操作將執行：</p>
+        <p style="font-size:12px;color:#555;line-height:1.8">① 全體本期未付款結轉為「前期餘額」<br>② 清空所有變動明細<br>③ 月份自動推進 1 個月</p>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button onclick="closeCarryOverlay()" style="flex:1;padding:14px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+        <button onclick="executeCarryOver()" class="btn-gold" style="flex:1;padding:14px">確定結轉</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 費用明細編輯彈窗 -->
+<div class="overlay" id="entry-edit-overlay" style="z-index:600">
+  <div class="modal" style="max-width:420px">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:18px;font-weight:900;color:var(--navy)">✏ 修改明細</h2>
+      <button onclick="closeEntryEditModal()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:28px;display:grid;gap:16px">
+      <input type="hidden" id="edit-entry-mid">
+      <input type="hidden" id="edit-entry-listkey">
+      <input type="hidden" id="edit-entry-id">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">項目說明</label>
+        <input class="inp" type="text" id="edit-entry-desc" placeholder="輸入說明">
+      </div>
+      <div id="edit-entry-category-wrap">
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">所屬分類</label>
+        <select class="inp" id="edit-entry-category">
+          <option value="fixedA_list">經常費 (A)</option>
+          <option value="service_list">服務經費 (B)</option>
+          <option value="advance_pay_list">代付款 (C)</option>
+          <option value="donation_general_list">一般捐款</option>
+          <option value="donation_fixed_list">固定捐款</option>
+          <option value="donation_designated_list">指定捐款</option>
+        </select>
+        <p style="font-size:11px;color:#aaa;margin-top:4px">如果這筆原本分類錯了（例如捐款誤存成服務經費），改這裡存檔就會自動搬到正確的分類，報表也會馬上抓到。</p>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">金額 (NTD)</label>
+        <input class="inp mono" type="number" id="edit-entry-amount" placeholder="0" style="font-size:22px;font-weight:700">
+      </div>
+      <div id="edit-entry-attachments-wrap">
+        <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">📎 附件</label>
+        <div id="edit-entry-attachments-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+        <input class="inp" type="file" id="edit-entry-attachments-input" multiple accept="image/*,.pdf" style="padding:8px 14px">
+        <div id="edit-entry-attachments-hint" style="font-size:11px;color:#aaa;margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:12px;padding-top:4px">
+        <button onclick="saveEntryEdit()" class="btn-primary" style="flex:1;padding:14px">儲存修改</button>
+        <button onclick="closeEntryEditModal()" style="padding:14px 24px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 年度結轉彈窗 -->
+<div class="overlay" id="yearly-carry-overlay">
+  <div class="modal" style="max-width:560px">
+    <div style="padding:24px 28px;border-bottom:1px solid #f0ece4;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h2 style="font-size:20px;font-weight:900;color:var(--navy)">★ 年度結轉</h2>
+        <p style="font-size:12px;color:#888;margin-top:2px" id="yearly-period-label"></p>
+      </div>
+      <button onclick="closeYearlyCarryOverlay()" style="background:#f5f2ec;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:24px 28px">
+      <div style="background:#eef4ff;border:1.5px solid #93c5fd;border-radius:12px;padding:14px;margin-bottom:20px">
+        <p style="font-size:13px;font-weight:900;color:#1e40af">☁️ 資料已同步雲端，任何裝置都能安全結轉</p>
+        <p style="font-size:12px;color:#1e3a8a;margin-top:4px">結轉快照會自動備份到 Google 試算表，不限定要用哪一台電腦操作</p>
+      </div>
+      <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">請勾選「留任」的社友，未勾選的將於新年度移除：</p>
+      <div id="yearly-members-list" style="max-height:300px;overflow-y:auto;border:1.5px solid #e8e4da;border-radius:12px;padding:8px;margin-bottom:20px"></div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;margin-bottom:20px;font-size:12px;color:#15803d;font-weight:700">
+        ✅ 年度結轉將執行：<br>
+        <span style="font-weight:400;line-height:2">
+          ① 未勾選社友將從系統移除<br>
+          ② 所有費用明細清空，重新開始<br>
+          ③ 未付款不結轉（新年度從零開始）<br>
+          ④ 年度自動推進
+        </span>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button onclick="closeYearlyCarryOverlay()" style="flex:1;padding:14px;background:#f5f2ec;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+        <button onclick="executeYearlyCarryOver()" style="flex:1;padding:14px;background:var(--navy);color:var(--gold);border:none;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer">確定年度結轉</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .tab-panel { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+</style>
+
 <script>
-/* ===== 想新增成語：照下面格式在 IDIOMS 最後面多加一筆就好 =====
- e:圖示 w:成語 zy:注音 mean:意思
- o:{s:"出處",t:[典故段落]} 或 o:null 加 n:"沒有特定典故的說明"
- tg:三國故事的標籤 sg:[三國故事段落] use:用法 ex:[例句] tip:小提醒 */
-const IDIOMS=[
-{e:"🚣",w:"木已成舟",zy:"ㄇㄨˋ ㄧˇ ㄔㄥˊ ㄓㄡ",
-mean:"樹木已經做成了船，比喻事情已經成為定局，沒辦法再改變了。",
-o:null,n:"這個成語沒有特定的故事。教育部《成語典》記錄的早期用例出自清代小說《鏡花緣》。",
-tg:"三國歷史小故事（幫助你記）",
-sg:["赤壁之戰時，黃蓋把裝滿乾柴的火船駛向曹軍。當時風很大，曹軍的船又連在一起。","火一點起來，火船已經衝過去，曹軍再想補救也來不及，這就是「木已成舟」。"],
-use:"用在事情已經做完、沒辦法挽回的時候。",
-ex:["作業已經交給老師了，木已成舟，再擔心也沒有用。","花瓶已經打破了，木已成舟，我們一起想辦法補救吧。"],
-tip:"事情還可以修改的時候，不能用喔！"},
-{e:"✍️",w:"洋洋灑灑",zy:"ㄧㄤˊ ㄧㄤˊ ㄙㄚˇ ㄙㄚˇ",
-mean:"形容文章或說話的篇幅很長，內容豐富，寫得很流暢。",
-o:null,n:"這個成語沒有特定的故事。教育部《成語典》的解釋是形容言論或文章「長篇大論」。",
-tg:"三國歷史小故事（幫助你記）",
-sg:["袁紹想對付曹操，請文人陳琳寫了一篇〈為袁紹檄豫州〉。","陳琳一條一條寫出曹操的罪狀，寫了長長一篇，文字又流暢又有氣勢，這就是「洋洋灑灑」。"],
-use:"主要用來形容寫文章、演講、說話，內容很多又很流暢。",
-ex:["哥哥的日記洋洋灑灑，一次就寫了三大頁。","校長的演講洋洋灑灑，講了好多有趣的故事。"],
-tip:"只寫一兩句話，就不能說洋洋灑灑喔！"},
-{e:"🎒",w:"滿載而歸",zy:"ㄇㄢˇ ㄗㄞˋ ㄦˊ ㄍㄨㄟ",
-mean:"裝了滿滿的東西回來，形容收穫很多。",
-o:null,n:"這個成語沒有特定的故事。意思相近的說法「稛載而歸」，出現在古書《國語·齊語》裡。",
-tg:"《三國演義》故事（幫助你記）",
-sg:["孔明的二十條草船在大霧中靠近曹營，曹兵看不清楚，不停放箭，箭都插在草人身上。","船上插滿了箭，孔明帶著好多箭回來，真是「滿載而歸」。"],
-use:"去玩、去採買、去做事，得到很多東西或收穫的時候。",
-ex:["我們去果園採水果，大家都滿載而歸。","爸爸出海捕魚，滿載而歸。"],
-tip:"可以是東西很多，也可以是收穫很多（例如學到很多）。"},
-{e:"🙋",w:"當仁不讓",zy:"ㄉㄤ ㄖㄣˊ ㄅㄨˋ ㄖㄤˋ",
-mean:"遇到應該做的事，就主動承擔，不推辭、不謙讓。",
-o:{s:"《論語·衛靈公》",t:["孔子說：「當仁不讓於師。」意思是：遇到應該做的好事，就算是面對老師，也不需要客氣推讓。"]},
-tg:"三國歷史小故事（幫助你記）",
-sg:["長坂坡兵敗時，趙雲知道保護主公的家人是自己該做的事，衝進戰場，救出劉備的兒子阿斗和甘夫人。","遇到該做的事，就勇敢承擔，這就是「當仁不讓」。"],
-use:"用在遇到該做的事，主動說「我來」的時候。",
-ex:["班上需要有人當值日生，他當仁不讓，馬上舉手。","班長說：「這件事我來吧！」他真是當仁不讓。"],
-tip:"要用在好的、應該做的事，不能用在搶東西喔。"},
-{e:"🤩",w:"嘆為觀止",zy:"ㄊㄢˋ ㄨㄟˊ ㄍㄨㄢ ㄓˇ",
-mean:"看到極好的事物，讚嘆到覺得已經好到極點，不用再看別的了。",
-o:{s:"《左傳·襄公二十九年》",t:["吳國公子季札到魯國，欣賞各國的音樂和舞蹈。看到《韶箾》舞時，他說「觀止矣」，意思是已經好到極點了，如果還有別的，也不敢再請你們表演了。","後來人們就用「嘆為觀止」，形容事物好到極點。"]},
-tg:"《三國演義》故事（幫助你記）",
-sg:["赤壁大戰前，孔明在七星壇上祭風。壇上風一吹起來，東南風真的來了。","在旁邊看的人都驚訝極了，覺得太神奇，簡直嘆為觀止。"],
-use:"看到很棒的表演、風景或作品，讚美到說不出話的時候。",
-ex:["魔術師的表演精彩極了，讓大家嘆為觀止。","這座橋設計得太漂亮，讓人嘆為觀止。"],
-tip:"是讚美「很好」，不是形容「很糟」喔。"},
-{e:"🐭",w:"投鼠忌器",zy:"ㄊㄡˊ ㄕㄨˇ ㄐㄧˋ ㄑㄧˋ",
-mean:"想打老鼠，又怕打壞旁邊的器物，比喻做事有顧慮，不敢放手去做。",
-o:{s:"《漢書·賈誼傳》",t:["賈誼引用一句民間的諺語：「欲投鼠而忌器」。意思是：老鼠躲在珍貴的器物旁邊，人想丟東西打牠，又怕把器物打壞。"]},
-tg:"《三國演義》故事（幫助你記）",
-sg:["曹操打獵時，身邊跟著皇帝。關羽很生氣，想殺曹操。","劉備攔住他，說「投鼠忌器」：曹操身邊有皇帝，動手可能會傷到皇帝，不能亂來。"],
-use:"想解決問題，卻怕波及旁邊重要的人事物時。",
-ex:["小偷躲在花瓶旁，警察投鼠忌器，不敢隨便動手。","他很想罵弟弟，又怕吵醒睡覺的寶寶，只好投鼠忌器。"],
-tip:"重點是「有顧慮」，不是害怕。"},
-{e:"🎵",w:"餘音繞樑",zy:"ㄩˊ ㄧㄣ ㄖㄠˋ ㄌㄧㄤˊ",
-mean:"美妙的聲音消失後，好像還在屋樑上繞著，形容歌聲或音樂動聽，讓人久久難忘。",
-o:{s:"《宋書·樂志》等古書",t:["古書記載：有位叫韓娥的女歌手，路過齊國，糧食吃完了，就在城門邊唱歌換飯吃。","她離開後，大家覺得歌聲還在屋樑上繞了三天。後來就用「餘音繞樑」形容動聽的聲音久久不散。"]},
-tg:"《三國演義》例子（幫助你記）",
-sg:["空城計裡，孔明坐在城樓上彈琴，琴聲傳得很遠。","城外的司馬懿聽著琴聲，覺得琴聲一直繞在耳邊，讓他更不敢進城。"],
-use:"形容歌聲、樂聲很好聽，結束了還讓人回味的時候。",
-ex:["她的歌聲餘音繞樑，大家聽完都還在回味。","音樂會結束了，鋼琴聲仍然餘音繞樑。"],
-tip:"用來形容好聽的聲音，噪音不能用喔。"},
-{e:"🙈",w:"咎由自取",zy:"ㄐㄧㄡˋ ㄧㄡˊ ㄗˋ ㄑㄩˇ",
-mean:"壞的結果是自己造成的，怪不了別人。",
-o:null,n:"這個成語沒有找到特定的典故，我們就直接看意思和故事吧。",
-tg:"《三國演義》故事（幫助你記）",
-sg:["馬謖守街亭時，副將王平勸他，要守在要道上。馬謖不聽，偏偏把軍隊帶上山。","結果被魏軍包圍，蜀軍大敗。這是他自己不聽勸造成的，就是「咎由自取」。"],
-use:"用在壞結果是自己不聽勸、做錯事造成的時候。",
-ex:["他考試前都在玩，成績不好是咎由自取。","不聽老師的提醒就跑去玩水，感冒了也是咎由自取。"],
-tip:"帶有責備的意思，別隨便用在別人身上。"},
-{e:"🐰",w:"撲朔迷離",zy:"ㄆㄨ ㄕㄨㄛˋ ㄇㄧˊ ㄌㄧˊ",
-mean:"事情很複雜，讓人分不清真假、看不出真相。",
-o:{s:"〈木蘭詩〉",t:["〈木蘭詩〉裡有這樣的句子：雄兔的腳撲朔（容易亂動），雌兔的眼睛迷離（容易瞇起來）。","兩隻兔子一起跑的時候，就分不出誰是雄、誰是雌。後來人們用「撲朔迷離」形容事情複雜難辨。"]},
-tg:"《三國演義》故事（幫助你記）",
-sg:["空城計裡，司馬懿看見城門大開，孔明在城樓上彈琴。","他搞不清楚是真的沒人，還是有埋伏，心裡一團亂，這就是「撲朔迷離」。這是小說裡的故事，歷史上並沒有這一段喔！"],
-use:"用在事情很難看清真相、很難判斷的時候。",
-ex:["這個案件撲朔迷離，誰也猜不出兇手是誰。","魔術師的手法撲朔迷離，我看不出是怎麼變的。"],
-tip:"重點是「分不清」，不只是「很難」。"},
-{e:"🐴",w:"塞翁失馬",zy:"ㄙㄞˋ ㄨㄥ ㄕ ㄇㄚˇ",
-mean:"一時的壞事，說不定後來變成好事，比喻好壞可以互相轉變。",
-o:{s:"《淮南子·人間訓》",t:["邊塞有位老人，他的馬跑丟了，鄰居都替他難過，他卻說：說不定是好事。","後來馬帶著別的好馬回來了；他的兒子騎馬摔斷了腿。一年後打仗，年輕人大多戰死，只有兒子因為腿受傷沒有上戰場，平安活了下來。"]},
-tg:"《三國演義》故事（幫助你記）",
-sg:["赤壁之戰前，周瑜當眾打了老將黃蓋，黃蓋被打得很慘，看起來是壞事。","可是這個苦肉計，讓黃蓋能假裝投降曹操，幫了大忙。壞事變成好事，就像塞翁失馬。"],
-use:"用來安慰別人，或提醒自己：現在的壞事可能是好事的開始。",
-ex:["比賽輸了不要難過，塞翁失馬，焉知非福。","這次沒選上，塞翁失馬，也許有更適合你的機會。"],
-tip:"常搭配「焉知非福」（怎麼知道不是好事）一起用。"},
-{e:"🎭",w:"隨機應變",zy:"ㄙㄨㄟˊ ㄐㄧ ㄧㄥˋ ㄅㄧㄢˋ",
-mean:"依照當時的情況，靈活調整做法，把事情處理好。",
-o:null,n:"這個成語沒有找到特定的故事。意思很像的「臨機應變」，有資料說出自《舊唐書》。",
-tg:"《三國演義》故事（幫助你記）",
-sg:["曹操請劉備喝酒，突然說：「天下的英雄，只有你和我。」劉備嚇了一大跳，手上的筷子都掉了。","這時剛好打了一聲雷，劉備就說自己是被雷聲嚇到，把心裡的驚慌掩飾過去。這種臨時想辦法的本事，就是「隨機應變」。"],
-use:"用在遇到沒想到的狀況，馬上想出辦法處理的時候。",
-ex:["演講時麥克風突然壞了，她隨機應變，大聲把話講完。","下雨了，野餐不能在草地上，我們隨機應變，改到室內玩桌遊。"],
-tip:"重點是「配合情況調整」，不是隨便亂做。"},
-{e:"👣",w:"腳踏實地",zy:"ㄐㄧㄠˇ ㄊㄚˋ ㄕˊ ㄉㄧˋ",
-mean:"比喻做事認真、穩當，一步一步踏實地做，不好高騖遠。",
-o:{s:"常見說法：《邵氏聞見前錄》",t:["有一個常見的說法：宋代邵雍稱讚司馬光（字君實）是「腳踏實地」的人，意思是他做事認真、不虛浮。","另外，教育部《成語典》列的早期用例，是元代的戲曲《勘頭巾》。所以這個成語的由來，不同資料說法不太一樣。"]},
-tg:"三國歷史小故事（幫助你記）",
-sg:["諸葛亮北伐，駐紮在五丈原時，讓士兵一邊種田，一邊和魏軍對峙，自己解決糧食的問題。","這種一步一步把基礎做好、不急著求成的做法，就是「腳踏實地」。"],
-use:"用在做事、讀書時，認真穩定，一步一步來。",
-ex:["想把成績變好，就要腳踏實地，每天複習一點點。","他做事腳踏實地，不會偷懶，也不會亂吹牛。"],
-tip:"它的相反是「好高騖遠」（只想著很高很遠的目標）。"}
-];
-const BLANKS=[
-{t:"赤壁之戰時，黃蓋的火船已經衝向曹軍，曹軍想補救也來不及，這就是【1】。陳琳替袁紹寫的檄文，長長一篇又流暢，可以說是【2】。",a:["木已成舟","洋洋灑灑"]},
-{t:"弟弟把玩具摔壞了，【1】，哭也沒有用，不如想辦法修好。他昨天寫日記寫得【2】，整整寫了兩頁。",a:["木已成舟","洋洋灑灑"]},
-{t:"小美的演講稿寫得【1】，可是上台的時候緊張得要命。她已經站上舞台了，【2】，只好硬著頭皮念完。結果大家都聽得入神，結束後掌聲不斷。",a:["洋洋灑灑","木已成舟"]},
-{t:"老師問誰想當小組長，班長【1】，馬上舉手。這次去果園採水果，大家都【2】。",a:["當仁不讓","滿載而歸"]},
-{t:"她的歌聲讓大家【1】，演唱結束後還【2】，久久不散。",a:["嘆為觀止","餘音繞樑"]},
-{t:"他不聽媽媽的提醒，考試前一直玩，成績不好是【1】。爺爺說遇到壞事不要氣餒，就像【2】，說不定是好事。",a:["咎由自取","塞翁失馬"]},
-{t:"警察想抓小偷，又怕打破旁邊珍貴的花瓶，真是【1】。這個案件【2】，大家都猜不出是誰做的。",a:["投鼠忌器","撲朔迷離"]},
-{t:"演講時投影機突然壞了，小明【1】，改成用口說明。他平常準備得很認真，做事一向【2】。",a:["隨機應變","腳踏實地"]},
-{t:"他不想只靠運氣，決定【1】，每天練習一點點；比賽時遇到沒想過的狀況，他也能【2】。",a:["腳踏實地","隨機應變"]}
-];
-const app=document.getElementById("app"),t1=document.getElementById("t1"),t2=document.getElementById("t2"),t3=document.getElementById("t3");
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function home(){
-app.innerHTML='<div class="grid">'+IDIOMS.map((d,i)=>`<button data-i="${i}"><b>${esc(d.w)}</b><br><span class="zy">${esc(d.zy)}</span></button>`).join("")+'</div><p class="sub">目前有 '+IDIOMS.length+' 個成語，會慢慢增加喔！</p>';
-app.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>show(+b.dataset.i));
+// ══════════════════════════════════════════
+// 核心資料與狀態
+// ══════════════════════════════════════════
+let API_URL = localStorage.getItem('choumei_api_url') || '';
+// variable 正規化：將 [] 或 null 轉成正確的物件格式，並補齊所有 entry 的 id
+function normalizeVariable(m) {
+  if (!m.variable || Array.isArray(m.variable)) {
+    m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[], donation_designated_list:[] };
+  } else {
+    // 確保每個子陣列都存在
+    if (!Array.isArray(m.variable.fixedA_list)) m.variable.fixedA_list = [];
+    if (!Array.isArray(m.variable.service_list)) m.variable.service_list = [];
+    if (!Array.isArray(m.variable.advance_pay_list)) m.variable.advance_pay_list = [];
+    if (!Array.isArray(m.variable.receipt_list)) m.variable.receipt_list = [];
+    if (!Array.isArray(m.variable.credit_card_list)) m.variable.credit_card_list = [];
+    if (!Array.isArray(m.variable.donation_fixed_list)) m.variable.donation_fixed_list = [];
+    if (!Array.isArray(m.variable.donation_general_list)) m.variable.donation_general_list = [];
+    if (!Array.isArray(m.variable.donation_designated_list)) m.variable.donation_designated_list = [];
+  }
+  // 補齊所有缺少 id 的 entry（舊資料或雲端匯入可能沒有 id，導致修改/刪除失效）
+  let _seq = 0;
+  const _listKeys = ['fixedA_list','service_list','advance_pay_list','receipt_list','credit_card_list','donation_fixed_list','donation_general_list','donation_designated_list'];
+  _listKeys.forEach(key => {
+    m.variable[key].forEach(entry => {
+      if (!entry.id) entry.id = 'T' + Date.now() + '_' + (++_seq) + Math.random().toString(36).substr(2,4);
+    });
+  });
+  return m;
 }
-function show(i){
-const d=IDIOMS[i];
-const org=d.o?`<span class="tag">出處：${esc(d.o.s)}</span>`+d.o.t.map(p=>"<p>"+esc(p)+"</p>").join(""):`<p>${esc(d.n)}</p>`;
-app.innerHTML=`<button class="back">← 回到列表</button>
-<div class="card hd"><h2>${esc(d.w)}</h2><div class="zy">${esc(d.zy)}</div></div>
-<div class="card"><h3>意思</h3>${esc(d.mean)}</div>
-<div class="card"><h3>成語的由來</h3>${org}</div>
-<div class="card"><h3>三國故事</h3><span class="tag">${esc(d.tg)}</span>${d.sg.map(p=>"<p>"+esc(p)+"</p>").join("")}</div>
-<div class="card"><h3>什麼時候用</h3>${esc(d.use)}<br><span class="tag">小提醒</span>${esc(d.tip)}</div>
-<div class="card"><h3>例句</h3>${d.ex.map(e=>"<p>"+esc(e)+"</p>").join("")}</div>`;
-app.querySelector(".back").onclick=home;window.scrollTo(0,0);
+
+let members = JSON.parse(localStorage.getItem('choumei_members') || '[]').map(normalizeVariable);
+let settings = JSON.parse(localStorage.getItem('choumei_settings') || 'null') || {
+  currentMonth: "114年02月",
+  financialContact: { name: "Joey Ku", phone: "0921-111565" },
+  feeStructure: {
+    fixedA: { items: { monthly: "月費" } },
+    fixedB: { items: { monthly_split: "服務經費分攤" } }
+  }
+};
+let currentBillMemberId = null;
+
+// ── 初始化 ──
+window.onload = async () => {
+  document.getElementById('api-url-input').value = API_URL;
+  if (!API_URL) {
+    document.getElementById('api-banner').classList.remove('hidden');
+  } else {
+    await loadFromCloud();
+  }
+  render();
+};
+
+// ══════════════════════════════════════════
+// API 通訊
+// ══════════════════════════════════════════
+async function callApi(data) {
+  if (!API_URL) throw new Error('API 網址未設定');
+  const action = data.action || 'getAll';
+  // 資料小的用 GET，資料大的用 no-cors form POST
+  const payload = JSON.stringify(data);
+  if (payload.length < 1500) {
+    // 短資料用 GET
+    const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload);
+    const res = await fetch(url);
+    return res.json();
+  } else {
+    // 長資料用 form POST（繞過 CORS preflight）
+    const form = new FormData();
+    form.append('action', action);
+    form.append('payload', payload);
+    // Apps Script 接受 form data，用 GET 帶 action 參數
+    const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload.substring(0, 1400));
+    const res = await fetch(url);
+    return res.json();
+  }
 }
-const CH={kongming:{n:"孔明",skin:"#ffe0c2",robe:"#dfeee9",trim:"#2a9d8f",hair:"#3a2a2a"},zhaoyun:{n:"趙雲",skin:"#ffe0c2",robe:"#e8edf5",trim:"#3b6fd4",hair:"#2b2b3a"},shangxiang:{n:"孫尚香",skin:"#ffe3cf",robe:"#ffd6dc",trim:"#e2557a",hair:"#5a3222",note:"史書裡稱她「孫夫人」，「尚香」是戲曲裡的名字"}};
-const wp=(g)=>`<g transform="translate(104 104) rotate(20)"><rect x="-3" y="-42" width="6" height="42" fill="#d8dde6" stroke="#7a8aa5"/><rect x="-10" y="0" width="20" height="5" fill="#f2c14e"/><rect x="-2" y="5" width="4" height="13" fill="${g}"/></g>`;
-const IT=[
-{id:"km_hair",ch:"kongming",s:"hair",n:"長髮飄逸",c:2,bk:h=>`<path d="M28 44Q20 104 44 116L76 116Q100 104 92 44Z" fill="${h.hair}"/>`,d:h=>""},
-{id:"km_head",ch:"kongming",s:"head",n:"綸巾（軍師帽）",c:3,d:h=>`<path d="M31 36Q60 -6 89 36Q60 22 31 36Z" fill="#2a9d8f" stroke="#1d6f66" stroke-width="2"/><path d="M89 34Q106 42 100 66" stroke="#2a9d8f" stroke-width="5" fill="none" stroke-linecap="round"/>`},
-{id:"km_out",ch:"kongming",s:"outfit",n:"鶴氅",c:4,d:h=>`<path d="M20 128L30 68H90L100 128Z" fill="#fff" stroke="#2a9d8f" stroke-width="4"/><path d="M50 68L60 94L70 68" fill="none" stroke="#2a9d8f" stroke-width="4"/><path d="M28 112H92" stroke="#bfe3dc" stroke-width="3" stroke-dasharray="4 4"/>`},
-{id:"km_wp",ch:"kongming",s:"weapon",n:"白羽扇",c:3,d:h=>`<g transform="translate(98 102) rotate(-12)"><path d="M0 0Q-18 -30 0 -50Q18 -30 0 0Z" fill="#fff" stroke="#9aa5b1" stroke-width="2"/><path d="M0 0V16" stroke="#8a5a2b" stroke-width="4" stroke-linecap="round"/></g>`},
-{id:"zy_hair",ch:"zhaoyun",s:"hair",n:"高馬尾",c:2,d:h=>`<path d="M82 24Q120 22 110 76Q104 46 80 36Z" fill="${h.hair}"/><rect x="30" y="26" width="60" height="7" rx="3" fill="${h.trim}"/>`},
-{id:"zy_head",ch:"zhaoyun",s:"head",n:"銀盔",c:3,d:h=>`<path d="M30 40Q30 4 60 4Q90 4 90 40Z" fill="#c9d3e0" stroke="#7a8aa5" stroke-width="3"/><path d="M60 4Q62 -14 80 -10Q66 -6 66 4Z" fill="#e2553a"/>`},
-{id:"zy_out",ch:"zhaoyun",s:"outfit",n:"白袍銀甲",c:4,d:h=>`<rect x="28" y="68" width="64" height="58" rx="22" fill="#fff" stroke="#7a8aa5" stroke-width="3"/><rect x="34" y="72" width="52" height="32" rx="10" fill="#c9d3e0" stroke="#7a8aa5" stroke-width="3"/><rect x="28" y="106" width="64" height="7" fill="#3b6fd4"/>`},
-{id:"zy_wp",ch:"zhaoyun",s:"weapon",n:"龍膽亮銀槍",c:4,d:h=>`<line x1="106" y1="134" x2="106" y2="-2" stroke="#8a5a2b" stroke-width="4"/><path d="M106 -12L99 10H113Z" fill="#dfe6f0" stroke="#7a8aa5" stroke-width="2"/><circle cx="106" cy="14" r="4" fill="#e2553a"/>`},
-{id:"zy_wp2",ch:"zhaoyun",s:"weapon",n:"青釭劍",c:3,d:h=>wp("#3b6fd4")},
-{id:"sx_hair",ch:"shangxiang",s:"hair",n:"雙髻",c:2,d:h=>`<circle cx="36" cy="12" r="11" fill="${h.hair}"/><circle cx="84" cy="12" r="11" fill="${h.hair}"/>`},
-{id:"sx_head",ch:"shangxiang",s:"head",n:"金釵髮飾",c:3,d:h=>`<path d="M84 30L68 46" stroke="#f2c14e" stroke-width="3" stroke-linecap="round"/><circle cx="86" cy="24" r="9" fill="#f2c14e"/><circle cx="86" cy="24" r="4" fill="#e2557a"/>`},
-{id:"sx_out",ch:"shangxiang",s:"outfit",n:"紅色勁裝",c:4,d:h=>`<rect x="28" y="68" width="64" height="58" rx="22" fill="#e2557a" stroke="#a83a58" stroke-width="3"/><rect x="28" y="98" width="64" height="8" fill="#f2c14e"/><path d="M50 68L60 86L70 68" fill="none" stroke="#fff" stroke-width="3"/>`},
-{id:"sx_wp",ch:"shangxiang",s:"weapon",n:"弓",c:3,d:h=>`<path d="M100 56Q130 96 100 136" fill="none" stroke="#8a5a2b" stroke-width="5" stroke-linecap="round"/><line x1="100" y1="56" x2="100" y2="136" stroke="#888" stroke-width="1.5"/>`},
-{id:"sx_wp2",ch:"shangxiang",s:"weapon",n:"短劍",c:3,d:h=>wp("#e2557a")},
-{id:"crown",s:"head",e:"👑",n:"皇冠",c:4},{id:"flower",s:"head",e:"🌸",n:"花髮飾",c:1},{id:"bow",s:"head",e:"🎀",n:"蝴蝶結",c:1},{id:"spark",s:"fx",e:"✨",n:"閃亮特效",c:3}];
-const SL={hair:"髮型",head:"頭飾",outfit:"衣服",weapon:"武器",fx:"特效"};
-const newG=()=>({char:null,best:{},spent:0,own:[],wear:{},v:2,sub:"idiom",wrong:[]});
-function fix(g){g=Object.assign(newG(),g||{});if(g.v!=2){const ref={helmet:3,feather:3,sword:3,arrow:4,crown:1,flower:1,bow:1,spark:1};(g.own||[]).forEach(id=>{g.spent=Math.max(0,g.spent-(ref[id]||0))});g.own=(g.own||[]).filter(id=>!["helmet","feather","sword","arrow"].includes(id));g.wear={};g.v=2}const mm={m0:"add",m1:"sub",m2:"mul",m3:"div",m4:"cmp",m5:"word"};Object.keys(mm).forEach(k=>{if(g.best[k]!=null){g.best["m:"+mm[k]]=g.best[k];delete g.best[k]}});return g}
-let R={cur:0,slots:[null,null,null]};
-try{const r=localStorage.getItem("idiomGame3");if(r)R=JSON.parse(r);else{const o=localStorage.getItem("idiomGame");if(o)R.slots[0]=JSON.parse(o)}}catch(e){}
-R.slots=[0,1,2].map(k=>R.slots[k]?fix(R.slots[k]):null);
-let G=R.slots[R.cur]||(R.slots[R.cur]=newG());
-const save=()=>{R.slots[R.cur]=G;try{localStorage.setItem("idiomGame3",JSON.stringify(R))}catch(e){}};
-const wallet=()=>Object.values(G.best).reduce((a,b)=>a+b,0)-G.spent;
-const sh=a=>a.map(x=>[Math.random(),x]).sort((x,y)=>x[0]-y[0]).map(x=>x[1]);
-function av(c,w,z){const h=CH[c];if(!h)return"";w=w||{};const g=s=>IT.find(x=>x.id===w[s]);const dr=s=>{const x=g(s);return x&&x.d?x.d(h):""};const emo=s=>{const x=g(s);return x&&x.e?x.e:""};
-const hi=g("hair"),ou=g("outfit");
-const extra=hi?dr("hair"):(c=="shangxiang"?`<circle cx="26" cy="46" r="9" fill="${h.hair}"/><circle cx="94" cy="46" r="9" fill="${h.hair}"/>`:c=="kongming"?`<circle cx="60" cy="10" r="8" fill="${h.hair}"/>`:`<rect x="30" y="26" width="60" height="7" rx="3" fill="${h.trim}"/>`);
-const back=hi&&hi.bk?hi.bk(h):"";
-const body=ou?ou.d(h):`<rect x="28" y="68" width="64" height="58" rx="24" fill="${h.robe}" stroke="${h.trim}" stroke-width="4"/><rect x="52" y="68" width="16" height="30" rx="6" fill="${h.trim}"/>`;
-return `<svg width="${z}" height="${Math.round(z*152/140)}" viewBox="-10 -14 140 152" role="img" aria-label="${h.n}">${back}${body}<circle cx="60" cy="44" r="30" fill="${h.skin}"/><path d="M30 42Q32 12 60 12Q88 12 90 42Q76 28 60 28Q44 28 30 42Z" fill="${h.hair}"/>${extra}<circle cx="49" cy="46" r="3.5" fill="#3a2a2a"/><circle cx="71" cy="46" r="3.5" fill="#3a2a2a"/><circle cx="42" cy="55" r="5" fill="#ffb3c6" opacity=".7"/><circle cx="78" cy="55" r="5" fill="#ffb3c6" opacity=".7"/><path d="M53 56Q60 63 67 56" stroke="#3a2a2a" stroke-width="2.5" fill="none" stroke-linecap="round"/>${dr("head")}<text x="60" y="14" font-size="26" text-anchor="middle">${emo("head")}</text>${dr("weapon")}<text x="14" y="30" font-size="22" text-anchor="middle">${emo("fx")}</text></svg>`}
-function bar(){document.getElementById("bar").innerHTML=(G.char?`${av(G.char,G.wear[G.char],40)}<b>${CH[G.char].n}</b><span class="stars">★ ${wallet()}</span>`:"")+`<button class="back" id="sv">💾 存檔${R.cur+1}</button>`;document.getElementById("sv").onclick=slotsUI}
-function slotsUI(){R.slots[R.cur]=G;app.innerHTML='<p class="sub">每個存檔有自己的角色、星星和衣服，可以給不同的人玩。</p>'+R.slots.map((g,i)=>`<div class="card hd"><b>存檔 ${i+1}${i==R.cur?"（使用中）":""}</b><br>${g&&g.char?av(g.char,g.wear[g.char],80)+"<br>"+CH[g.char].n+"　★ "+(Object.values(g.best).reduce((a,b)=>a+b,0)-g.spent):"空的存檔"}<br><button class="go" data-u="${i}">${i==R.cur?"繼續玩":"使用這個存檔"}</button> ${g&&g.char?`<button class="go" data-x="${i}" style="background:var(--bad)">清除重來</button>`:""}</div>`).join("");
-app.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{R.cur=+b.dataset.u;G=R.slots[R.cur]||(R.slots[R.cur]=newG());save();tab(1)});
-app.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{if(!b.dataset.ok){b.dataset.ok=1;b.textContent="再按一次確定清除";return}const i=+b.dataset.x;R.slots[i]=null;if(i==R.cur)G=R.slots[i]=newG();save();slotsUI()})}
-const stars=n=>`<span class="st">${"★".repeat(n)}${"☆".repeat(3-n)}</span>`;
-function setSub(){const m=G.sub=="math";document.getElementById("subj").innerHTML=`<button class="${m?"":"on"}" data-s="idiom">成語</button><button class="${m?"on":""}" data-s="math">數學</button>`;t2.textContent=m?"錯題本":"認識成語";document.querySelectorAll("#subj button").forEach(b=>b.onclick=()=>{G.sub=b.dataset.s;save();tab(1)})}
-function tab(n){[t1,t2,t3].forEach((b,i)=>b.className=i+1==n?"on":"");setSub();if(!G.char){pickChar();return}const m=G.sub=="math";n==1?(m?mapMath():map()):n==2?(bar(),m?wrongBook():home()):closet()}
-t1.onclick=()=>tab(1);t2.onclick=()=>tab(2);t3.onclick=()=>tab(3);
-function pickChar(){bar();app.innerHTML='<p class="sub">選一位角色，一起闖關</p><div class="grid">'+Object.keys(CH).map(k=>`<button data-c="${k}" class="pick">${av(k,{},90)}<br><b>${CH[k].n}</b></button>`).join("")+'</div>';
-app.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{G.char=b.dataset.c;save();tab(1)})}
-const LV=()=>{const a=[];for(let i=0;i<IDIOMS.length;i+=2)a.push([i,Math.min(i+2,IDIOMS.length)]);return a};
-function map(){bar();const L=LV(),st=stars;app.innerHTML='<p class="sub">通過關卡拿星星，星星可以去換衣服！<br>每次玩的題目都不一樣喔～</p><div class="grid">'+L.map((r,i)=>{const b=G.best[i]||0,open=i==0||(G.best[i-1]||0)>=1;return `<button data-l="${i}" ${open?"":"disabled"}><span class="em">${open?"第"+(i+1)+"關":"🔒"}</span><b style="font-size:1.05rem">${IDIOMS.slice(r[0],r[1]).map(d=>esc(d.w)).join("、")}</b><br>${st(b)}</button>`}).join("")+`<button data-l="c" ${(G.best[0]||0)>=1?"":"disabled"}><span class="em">挑戰</span><b>隨機挑戰</b><br>${st(G.best.c||0)}</button></div>`;
-app.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>play(b.dataset.l=="c"?"c":+b.dataset.l))}
-const oth=(w,n)=>sh(IDIOMS.filter(d=>d.w!=w)).slice(0,n);
-const leak=(t,w)=>[0,1,2].some(i=>t.includes(w.slice(i,i+2)));
-const mcq=(t,d,f,why)=>{const o=sh([d,...oth(d.w,2)]);return{k:"mc",t,o:o.map(f),a:o.indexOf(d),why}};
-const QT={
-ex:d=>{const e=sh(d.ex.filter(x=>x.includes(d.w)))[0];return e&&mcq("選出最適合的成語：<br>"+esc(e.replace(d.w,"＿＿＿＿")),d,x=>x.w,"答案是「"+d.w+"」："+d.mean)},
-w2m:d=>mcq("「"+esc(d.w)+"」的意思是？",d,x=>x.mean,d.mean),
-m2w:d=>mcq("哪個成語的意思是：<br>"+esc(d.mean),d,x=>x.w,"答案是「"+d.w+"」。"),
-sg:d=>{const t=d.sg.join("").split(d.w).join("＿＿＿＿");return leak(t,d.w)?null:mcq("這個三國故事，最適合哪個成語？<br>"+esc(t),d,x=>x.w,"答案是「"+d.w+"」："+d.mean)},
-org:d=>{if(!d.o)return null;const t=d.o.t[0].split(d.w).join("＿＿＿＿");return leak(t,d.w)?null:mcq("這是哪個成語的由來？<br>"+esc(t),d,x=>x.w,"答案是「"+d.w+"」。")},
-use:d=>mcq("哪一個是「"+esc(d.w)+"」的用法？",d,x=>x.use,d.use)};
-function pick(d,n){const seen=new Set(),r=[];for(const t of sh(["ex","ex","w2m","m2w","sg","org","use"])){const q=QT[t](d);if(q&&!seen.has(q.t)){seen.add(q.t);r.push(q)}if(r.length>=n)break}return r}
-function mixGen(pool,must){const a=sh(must)[0],b=sh(pool.filter(x=>x!=a))[0];if(!a||!b)return null;const ea=sh(a.ex.filter(x=>x.includes(a.w)))[0],eb=sh(b.ex.filter(x=>x.includes(b.w)))[0];if(!ea||!eb)return null;
-return{k:"bl",t:ea.replace(a.w,"【1】")+eb.replace(b.w,"【2】"),a:[a.w,b.w],bank:sh([a,b,...oth("",99).filter(d=>d!=a&&d!=b).slice(0,2)]).map(x=>x.w)}}
-function mixQ(pool,own){const hand=BLANKS.filter(q=>q.a.every(x=>pool.some(d=>d.w==x))&&q.a.some(x=>own.some(d=>d.w==x)));if(hand.length&&Math.random()<.5){const q=sh(hand)[0];return{k:"bl",t:q.t,a:q.a}}return mixGen(pool,own)}
-function buildQs(l){const L=LV(),qs=[];
-if(l=="c"){let n=L.findIndex((_,i)=>i>0&&(G.best[i-1]||0)<1);if(n<0)n=L.length;const pool=IDIOMS.slice(0,L[n-1][1]);
-for(let k=0;k<8;k++){qs.push(...pick(sh(pool)[0],1))}for(let k=0;k<2;k++){const m=mixQ(pool,pool);if(m)qs.push(m)}return sh(qs)}
-const [a,b]=L[l],own=IDIOMS.slice(a,b),prev=IDIOMS.slice(0,a);
-own.forEach(d=>qs.push(...pick(d,4)));if(prev.length)qs.push(...pick(sh(prev)[0],1));
-const m=mixQ(IDIOMS.slice(0,b),own);if(m)qs.push(m);return sh(qs)}
-const rn=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
-const Q=(t,a,why)=>({k:"num",t:`<div class="eq">${t}</div>□ 裡要填多少？`,a,why});
-const NM=["小美","小明","小華","小安","弟弟","妹妹"];
-function mAdd(){const big=Math.random()<.5,a=big?rn(1000,4999):rn(100,499),b=big?rn(1000,4999):rn(100,499),c=a+b,f=rn(0,2);
-return f==0?Q(`□ + ${b} = ${c}`,a,`${c} − ${b} = ${a}`):f==1?Q(`${a} + □ = ${c}`,b,`${c} − ${a} = ${b}`):Q(`${c} = ${a} + □`,b,`${c} − ${a} = ${b}`)}
-function mSub(){const big=Math.random()<.5,a=big?rn(2000,9999):rn(200,999),b=rn(big?1000:100,a-(big?500:50)),c=a-b,f=rn(0,2);
-return f==0?Q(`□ − ${b} = ${c}`,a,`${c} + ${b} = ${a}`):f==1?Q(`${a} − □ = ${c}`,b,`${a} − ${c} = ${b}`):Q(`${c} = ${a} − □`,b,`${a} − ${c} = ${b}`)}
-function mMul(){const t=rn(0,2),a=t==0?rn(2,9):t==1?rn(11,49):rn(101,299),b=rn(2,9),c=a*b,f=rn(0,2);
-return f==0?Q(`${a} × □ = ${c}`,b,`${c} ÷ ${a} = ${b}`):f==1?Q(`□ × ${b} = ${c}`,a,`${c} ÷ ${b} = ${a}`):Q(`${c} = □ × ${b}`,a,`${c} ÷ ${b} = ${a}`)}
-function mDiv(){const b=rn(2,9),q=rn(2,9),a=b*q,f=rn(0,2);
-return f==0?Q(`□ ÷ ${b} = ${q}`,a,`${q} × ${b} = ${a}`):f==1?Q(`${a} ÷ □ = ${q}`,b,`${a} ÷ ${q} = ${b}`):Q(`${a} ÷ ${b} = □`,q,`想：${b} 乘幾是 ${a}？ ${b} × ${q} = ${a}`)}
-function mCmp(){for(let n=0;n<200;n++){const pos=rn(0,3),ds=[rn(1,9),rn(0,9),rn(0,9),rn(0,9)],N=rn(1000,9999),lt=Math.random()<.5,val=d=>{const x=[...ds];x[pos]=d;return +x.join("")};
-const cand=[];for(let d=pos==0?1:0;d<=9;d++)if(lt?val(d)<N:val(d)>N)cand.push(d);if(!cand.length||cand.length==10-(pos==0?1:0))continue;
-const ans=lt?Math.max(...cand):Math.min(...cand),show=ds.map((x,i)=>i==pos?"□":x).join("");
-return{k:"num",t:`<div class="eq">${show} ${lt?"&lt;":"&gt;"} ${N}</div>□ 裡${lt?"最大":"最小"}可以填幾？`,a:ans,why:`填 ${ans} 是 ${val(ans)}，${lt?"比":"大於"} ${N} ${lt?"小":""}；再${lt?"大":"小"}一個數字就不成立了。`.replace("大於 "+N+" ","比 "+N+" 大")}}return mAdd()}
-function mWord(){const n=NM[rn(0,5)],t=rn(0,4);
-if(t==0){const a=rn(12,90),c=a+rn(15,80);return Q(`${n}有□張貼紙，媽媽又給了 ${a} 張，現在共有 ${c} 張。`,c-a,`${c} − ${a} = ${c-a}`)}
-if(t==1){const c=rn(80,300),d=rn(10,c-20);return Q(`果園裡有 ${c} 顆蘋果，賣出□顆後，還剩 ${d} 顆。`,c-d,`${c} − ${d} = ${c-d}`)}
-if(t==2){const a=rn(3,9),b=rn(3,9);return Q(`每盒有 ${a} 支鉛筆，${n}買了□盒，一共有 ${a*b} 支。`,b,`${a*b} ÷ ${a} = ${b}`)}
-if(t==3){const b=rn(2,9),q=rn(2,9);return Q(`把 ${b*q} 顆糖平分給 ${b} 個人，每人分到□顆。`,q,`${b*q} ÷ ${b} = ${q}`)}
-const b=rn(2,9),q=rn(3,9);return Q(`${n}把□顆糖平分給 ${b} 個人，每人分到 ${q} 顆。`,b*q,`${q} × ${b} = ${b*q}`)}
-function vHtml(q,inp){const cell=(row,c)=>{const ch=row=="a"?q.A[c]:row=="b"?q.B[c]:q.S[c];const bl=q.bl.findIndex(x=>x[0]==row&&x[1]==c);if(bl>=0)return inp?`<input class="dg" data-b="${bl}" inputmode="numeric" maxlength="1" autocomplete="off">`:`<span class="bx">□</span>`;return `<span>${ch==" "?"":ch}</span>`};
-const r=row=>[0,1,2,3].map(c=>`<span class="c">${cell(row,c)}</span>`).join("");
-return `<div class="vt"><div class="r"><span class="c"></span>${r("a")}</div><div class="r"><span class="c">${q.op}</span>${r("b")}</div><div class="r ln"><span class="c"></span>${r("s")}</div></div>`}
-function mVert(op){for(let n=0;n<400;n++){let a,b,s;
-if(op=="+"){a=rn(1000,8999);b=Math.random()<.5?rn(100,999):rn(1000,Math.min(8999,9999-a));if(b<100||a+b>9999)continue;s=a+b}
-else{a=rn(2000,9999);b=Math.random()<.5?rn(100,999):rn(1000,a-1000);if(b>a-1000)continue;s=a-b}
-const A=String(a),B=String(b).padStart(4," "),S=String(s);if(A.length!=4||S.length!=4)continue;
-const k=rn(3,4),bl=sh([0,1,2,3]).slice(0,k).map(c=>{const rows=["a","s"];if(B[c]!=" ")rows.push("b");const r=sh(rows)[0];return[r,c,+(r=="a"?A[c]:r=="b"?B[c]:S[c])]});
-let cnt=0;for(let m=0;m<10**k&&cnt<2;m++){const d=String(m).padStart(k,"0"),X={a:[...A],b:[...B],s:[...S]};bl.forEach((x,i)=>{X[x[0]][x[1]]=d[i]});const bs=X.b.join("").trim();if(X.a[0]=="0"||X.s[0]=="0"||bs[0]=="0")continue;const va=+X.a.join(""),vb=+bs,vs=+X.s.join("");if(op=="+"?va+vb==vs:va-vb==vs)cnt++}
-if(cnt!=1)continue;
-const q={k:"vert",op:op=="+"?"+":"−",A,B,S,bl};q.t=vHtml(q,false);q.a=`${a} ${q.op} ${b} = ${s}`;q.why="由右邊（個位）開始，一格一格想；加法要想進位，減法要想借位。";return q}return mAdd()}
-const ML=[{id:"vadd",n:"直式留空　加法",g:()=>mVert("+")},{id:"vsub",n:"直式留空　減法",g:()=>mVert("-")},{id:"add",n:"橫式留空　加法",g:mAdd},{id:"sub",n:"橫式留空　減法",g:mSub},{id:"mul",n:"乘法留空",g:mMul},{id:"div",n:"除法留空",g:mDiv},{id:"cmp",n:"比大小 □",g:mCmp},{id:"word",n:"文字題留空",g:mWord}];
-function buildM(key){const f=key=="mc"?null:ML.find(m=>"m:"+m.id==key).g,len=key=="mc"?10:8,qs=[],seen=new Set();for(let k=0;qs.length<len&&k<300;k++){const q=(f||sh(ML)[0].g)();if(!seen.has(q.t)){seen.add(q.t);qs.push(q)}}return qs}
-function mapMath(){bar();app.innerHTML='<p class="sub">三年級數學　算式留空練習<br>各關互相獨立，想練哪一關都可以</p><div class="grid">'+ML.map((m,i)=>{const b=G.best["m:"+m.id]||0;return `<button data-l="m:${m.id}"><span class="em">第${i+1}關</span><b style="font-size:1.05rem">${m.n}</b><br>${stars(b)}</button>`}).join("")+`<button data-l="mc"><span class="em">挑戰</span><b>數學綜合</b><br>${stars(G.best.mc||0)}</button></div>`;
-app.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>play(b.dataset.l))}
-function wrongBook(){const w=G.wrong||[];app.innerHTML=w.length?`<p class="sub">答錯的數學題會收集在這裡，答對就會移出去。</p>${w.map(x=>`<div class="card"><div class="eq">${x.t}</div><div class="zy">答案：${x.a}　${esc(x.why)}</div></div>`).join("")}<div class="hd"><button class="go" id="wp">練習這些錯題</button></div>`:'<p class="sub">目前沒有錯題，太棒了！</p>';
-const b=document.getElementById("wp");if(b)b.onclick=()=>play("w",sh(w.map(x=>Object.assign({},x))).slice(0,10))}
-function play(l,pre){const isM=String(l)[0]=="m",qs=pre||(isM?buildM(l):buildQs(l)),ttl=l=="w"?"錯題本練習":l=="mc"?"數學綜合挑戰":isM?"數學　"+(ML.find(m=>"m:"+m.id==l)||{}).n:l=="c"?"隨機挑戰":"第"+(l+1)+"關";let i=0,ok=0;
-function done(good,ans,why){if(app.querySelector(".nx"))return;if(good)ok++;const q0=qs[i];if(q0.k=="num"||q0.k=="vert"){G.wrong=(G.wrong||[]).filter(w=>w.t!=q0.t);if(!good)G.wrong.push(Object.assign({},q0));G.wrong=G.wrong.slice(-30);save()}
-app.querySelectorAll(".opt,select,.chk,input").forEach(b=>b.disabled=true);
-app.querySelector(".fb").innerHTML=(good?'<span class="ok">✔ 答對了！</span> ':'<span class="bad">再想想看</span> ')+esc(ans)+" "+esc(why||"")+'<br><button class="go nx">'+(i+1>=qs.length?"看結果":"下一題")+'</button>';
-app.querySelector(".nx").onclick=()=>{i++;show()}}
-function show(){bar();if(i>=qs.length)return end();const q=qs[i],hd=`<p class="sub">${ttl}　${i+1} / ${qs.length}</p>`;
-if(q.k=="mc"){app.innerHTML=hd+`<div class="card q"><p>${q.t}</p>${q.o.map((o,j)=>`<button class="opt" data-j="${j}">${esc(o)}</button>`).join("")}<div class="fb"></div></div>`;
-app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{const g=+b.dataset.j==q.a;done(g,g?"":"正確答案："+q.o[q.a]+"。",q.why)})}
-else if(q.k=="vert"){app.innerHTML=hd+`<div class="card q"><div>在 □ 中填入適當的數字：</div><div class="hd">${vHtml(q,true)}</div><button class="go chk">檢查答案</button><div class="fb"></div></div>`;
-const ds=[...app.querySelectorAll(".dg")];ds.forEach((d,j)=>{d.oninput=()=>{d.value=d.value.replace(/\D/g,"").slice(-1);if(d.value&&ds[j+1])ds[j+1].focus()};d.onkeydown=e=>{if(e.key=="Backspace"&&!d.value&&ds[j-1])ds[j-1].focus()}});if(ds[0])ds[0].focus();
-app.querySelector(".chk").onclick=()=>{if(ds.some(d=>d.value==="")){app.querySelector(".fb").innerHTML='<span class="bad">每個格子都要填喔。</span>';return}let g=true;const CN=["千位","百位","十位","個位"],RN={a:"上面的數",b:"下面的數",s:"答案"},wl=[];ds.forEach(d=>{const [r,c,x]=q.bl[+d.dataset.b];d.disabled=true;if(+d.value===x)d.classList.add("ok2");else{g=false;d.classList.add("wr");wl.push(`${RN[r]}的${CN[c]}：你填 ${d.value}，應該是 ${x}`)}});done(g,g?"":"紅框是填錯的格子 —— "+wl.join("；")+"。完整算式是 "+q.a+"。",q.why)}}
-else if(q.k=="num"){app.innerHTML=hd+`<div class="card q"><div>${q.t}</div><input id="ans" type="number" inputmode="numeric" placeholder="答案"><button class="go chk">檢查答案</button><div class="fb"></div></div>`;
-const f=()=>{const v=document.getElementById("ans").value;if(v==="")return;const g=+v==q.a;done(g,g?"":"正確答案："+q.a+"。",q.why)};app.querySelector(".chk").onclick=f;document.getElementById("ans").onkeydown=e=>{if(e.key=="Enter")f()}}
-else{const op='<option value="">選成語</option>'+(q.bank||IDIOMS.map(d=>d.w)).map(w=>`<option>${esc(w)}</option>`).join("");
-app.innerHTML=hd+`<div class="card q"><p>`+esc(q.t).replace(/【(\d)】/g,`<select>${op}</select>`)+`</p><button class="go chk">檢查答案</button><div class="fb"></div></div>`;
-app.querySelector(".chk").onclick=()=>{const v=[...app.querySelectorAll("select")].map(x=>x.value);if(v.some(x=>!x)){app.querySelector(".fb").innerHTML='<span class="bad">每個空格都要選喔。</span>';return}
-const g=v.every((x,k)=>x===q.a[k]);done(g,g?"":"正確答案："+q.a.join("、")+"。","")}}}
-function end(){const r=ok/qs.length,s=r>=.9?3:r>=.7?2:r>=.4?1:0,old=G.best[l]||0,gain=l=="w"?0:Math.max(0,s-old);if(l!="w"&&s>old){G.best[l]=s;save()}bar();
-app.innerHTML=`<div class="card score"><div style="font-size:2rem">${l=="w"?"":stars(s)}</div><p>答對 ${ok} / ${qs.length} 題</p><p>${l=="w"?"答對的題目已經移出錯題本（錯題本練習不計星星）。":gain?`獲得 <b>${gain}</b> 顆新星星，可以到「換裝」挑選配件。`:s?"這關的星星已經拿過了，挑戰更高的星星吧。":isM?"再試一次，慢慢算就會了。":"先到「認識成語」再讀一讀，然後再挑戰一次。"}</p><button class="go" id="again">再玩一次</button> <button class="go" id="back">回到列表</button></div>`;
-document.getElementById("again").onclick=()=>play(l,l=="w"?pre:undefined);document.getElementById("back").onclick=()=>tab(l=="w"?2:1)}
-show()}
-function closet(){bar();const c=G.char,W=G.wear[c]||(G.wear[c]={}),mine=IT.filter(x=>x.ch==c),all=IT.filter(x=>!x.ch);
-const cell=x=>{const own=G.own.includes(x.id),on=W[x.s]==x.id;return `<button data-i="${x.id}"><span class="zy">${SL[x.s]}</span><br><b style="font-size:1rem">${x.e||""} ${x.n}</b><br>${own?(on?"✔ 已穿上":"穿上"):"★ "+x.c+" 購買"}</button>`};
-app.innerHTML=`<div class="card hd">${av(c,W,150)}<h2>${CH[c].n}</h2>${CH[c].note?`<div class="zy">${CH[c].note}</div>`:""}<div class="stars">★ ${wallet()}</div><button class="go" id="chg">換角色</button></div><h3>${CH[c].n}的專屬裝備</h3><div class="grid">${mine.map(cell).join("")}</div><h3 style="margin-top:14px">大家都能用</h3><div class="grid">${all.map(cell).join("")}</div><p class="sub" id="msg"></p>`;
-document.getElementById("chg").onclick=pickChar;
-app.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{const x=IT.find(y=>y.id==b.dataset.i);if(!G.own.includes(x.id)){if(wallet()<x.c){document.getElementById("msg").textContent="星星還不夠，先去闖關吧！";return}G.spent+=x.c;G.own.push(x.id);W[x.s]=x.id}else W[x.s]=W[x.s]==x.id?null:x.id;save();closet()})}
-tab(1);
+
+async function loadFromCloud() {
+  try {
+    showSync('從雲端載入...');
+    const url = API_URL + '?action=getAll';
+    const res = await fetch(url);
+    const r = await res.json();
+    if (r.ok) {
+      const raw = r.members || members;
+      // 去重複
+      const seen = {};
+      members = [];
+      [...raw].reverse().forEach(m => {
+        if (m && m.id && !seen[m.id]) { seen[m.id] = true; members.push(normalizeVariable(m)); }
+      });
+      members.reverse();
+      if (r.settings) {
+        // 先讀取本機自訂科目（sub_ 開頭），再覆蓋成雲端設定，最後補回自訂科目
+        // 避免雲端同步失敗時，自訂科目被舊的雲端設定覆蓋消失
+        const localSettings = JSON.parse(localStorage.getItem('choumei_settings') || 'null');
+        settings = r.settings;
+        if (!settings.feeStructure) settings.feeStructure = {};
+        ['fixedA', 'fixedB'].forEach(cat => {
+          if (!settings.feeStructure[cat]) settings.feeStructure[cat] = { items: {} };
+          if (!settings.feeStructure[cat].items) settings.feeStructure[cat].items = {};
+          const localItems = localSettings?.feeStructure?.[cat]?.items || {};
+          Object.entries(localItems).forEach(([k, v]) => {
+            if (k.startsWith('sub_')) settings.feeStructure[cat].items[k] = v;
+          });
+        });
+      }
+      // 合併雲端歷史快照：以月份為鍵，雲端有的以雲端為準，本機獨有的（還沒備份上去）保留
+      if (Array.isArray(r.history)) {
+        const localHistory = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+        const byMonth = {};
+        localHistory.forEach(h => { if (h && h.month) byMonth[h.month] = h; });
+        r.history.forEach(h => { if (h && h.month) byMonth[h.month] = h; });
+        const merged = Object.values(byMonth).sort((a, b) => {
+          const ma = (a.month||'').match(/(\d+)年(\d+)月/), mb = (b.month||'').match(/(\d+)年(\d+)月/);
+          if (!ma || !mb) return 0;
+          return (parseInt(mb[1])*12+parseInt(mb[2])) - (parseInt(ma[1])*12+parseInt(ma[2])); // 新的在前
+        });
+        localStorage.setItem('choumei_history', JSON.stringify(merged));
+      }
+      saveLocal();
+    }
+    hideSync();
+  } catch(e) {
+    hideSync();
+    console.log('離線模式:', e.message);
+  }
+}
+
+// 把單一月份的歷史快照備份到雲端（結轉時自動呼叫，或由「補齊歷史紀錄備份」按鈕批次呼叫）
+async function saveHistoryToCloud(snapshot) {
+  if (!API_URL || !snapshot || !snapshot.month) return { ok: false };
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'saveHistorySnapshot', snapshot })
+    });
+    return await res.json();
+  } catch (e) {
+    console.warn('歷史快照雲端備份失敗:', e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+async function pushToCloud(action, data) {
+  if (!API_URL) { saveLocal(); return; }
+  showSync('同步至雲端...');
+
+  // 如果是 saveMembers，改成逐筆儲存避免 URL 過長
+  if (action === 'saveMembers' && data.members && data.members.length > 0) {
+    try {
+      for (let i = 0; i < data.members.length; i++) {
+        const m = data.members[i];
+        showSync(`同步中 ${i+1}/${data.members.length}...`);
+        const payload = JSON.stringify({ member: m });
+        const url = API_URL + '?action=saveMember&payload=' + encodeURIComponent(payload);
+        const res = await fetch(url);
+        const r = await res.json();
+        if (!r.ok) throw new Error(r.error + ' (' + m.name + ')');
+      }
+      saveLocal();
+      hideSync();
+      return { ok: true };
+    } catch(e) {
+      hideSync();
+      saveLocal();
+      showSyncError();
+      return;
+    }
+  }
+
+  // 其他 action 用原本方式
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const payload = JSON.stringify(data);
+      const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload);
+      const res = await fetch(url);
+      const r = await res.json();
+      if (!r.ok) throw new Error(r.error);
+      saveLocal();
+      hideSync();
+      return r;
+    } catch(e) {
+      console.warn(`同步嘗試 ${attempt}/3 失敗:`, e.message);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt));
+    }
+  }
+  hideSync();
+  saveLocal();
+  showSyncError();
+}
+
+function showSyncError() {
+  const el = document.getElementById('sync-error-banner');
+  if (el) { el.style.display = 'flex'; return; }
+  const banner = document.createElement('div');
+  banner.id = 'sync-error-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#dc2626;color:white;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700';
+  banner.innerHTML = `
+    <span>⚠️ 雲端同步失敗，資料暫存在本機。請確認網路連線後點「重新同步」</span>
+    <div style="display:flex;gap:10px">
+      <button onclick="retrySync()" style="background:white;color:#dc2626;border:none;padding:6px 16px;border-radius:8px;font-weight:900;cursor:pointer">重新同步</button>
+      <button onclick="document.getElementById('sync-error-banner').style.display='none'" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:6px 12px;border-radius:8px;cursor:pointer">✕</button>
+    </div>`;
+  document.body.appendChild(banner);
+}
+
+async function retrySync() {
+  document.getElementById('sync-error-banner').style.display = 'none';
+  showSync('重新同步中...');
+  try {
+    // 逐筆儲存社友
+    for (let i = 0; i < members.length; i++) {
+      showSync(`重新同步 ${i+1}/${members.length}...`);
+      const url = API_URL + '?action=saveMember&payload=' + encodeURIComponent(JSON.stringify({member: members[i]}));
+      const res = await fetch(url);
+      const r = await res.json();
+      if (!r.ok) throw new Error(r.error);
+    }
+    // 儲存設定
+    const url2 = API_URL + '?action=saveSettings&payload=' + encodeURIComponent(JSON.stringify({settings}));
+    const res2 = await fetch(url2);
+    const r2 = await res2.json();
+    if (r2.ok) { hideSync(); alert('✅ 同步成功！'); return; }
+    throw new Error('設定同步失敗');
+  } catch(e) {
+    hideSync();
+    showSyncError();
+  }
+}
+
+function saveLocal() {
+  // 存入前先去重複，以 id 為唯一鍵，保留最後一筆
+  const seen = {};
+  const deduped = [];
+  [...members].reverse().forEach(m => {
+    if (m && m.id && !seen[m.id]) { seen[m.id] = true; deduped.push(m); }
+  });
+  members = deduped.reverse();
+  localStorage.setItem('choumei_members', JSON.stringify(members));
+  localStorage.setItem('choumei_settings', JSON.stringify(settings));
+}
+
+// ══════════════════════════════════════════
+// 核心計算
+// ══════════════════════════════════════════
+// 科目分組 key：報表彙總用。用來把「同一個科目」的不同寫法合併成一欄，例如：
+//   '0517 常年會費'      → '常年會費'（日期 + 空白 + 科目，去掉日期）
+//   '常年會費-理事'       → '常年會費'（科目 + '-職稱' 後綴，去掉後綴）
+//   '7/1-常年會費'        → '常年會費'（日期直接用 '-' 接科目，去掉日期，保留科目）
+//   '7/1-常年會費-理事'   → '常年會費'（日期 + 科目 + 職稱後綴，都去掉，只留科目）
+//   '0526餐費-Artgen'     → '0526餐費'（代付款慣用寫法：日期黏在說明文字前面，視為科目的一部分，只去掉後面的人名後綴）
+// 注意：這只影響「報表」的彙總分類，個別帳單（buildBillHTML）仍會逐筆列出完整說明文字，不受影響。
+function subjectGroupKey(desc) {
+  if (!desc) return '未分類';
+  let s = desc.trim();
+  const isDateToken = t => /^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(t) || /^\d{3,4}$/.test(t);
+
+  // 情況一：開頭是「日期 + 空白」，去掉日期前綴
+  const spaceMatch = s.match(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{3,4})\s+(.+)$/);
+  if (spaceMatch) s = spaceMatch[2].trim();
+
+  // 情況二：處理 '-'，可能是「日期-科目」或「科目-職稱後綴」
+  const dashIdx = s.indexOf('-');
+  if (dashIdx > 0) {
+    const left = s.substring(0, dashIdx).trim();
+    const right = s.substring(dashIdx + 1).trim();
+    if (isDateToken(left) && right) {
+      // 左邊是純日期 → 日期只是前綴，真正科目名稱在右邊
+      s = right;
+      const idx2 = s.indexOf('-');
+      if (idx2 > 0) s = s.substring(0, idx2).trim(); // 再去掉右邊可能還有的「-職稱」後綴
+    } else {
+      // 左邊才是科目名稱，右邊是職稱／人名等後綴，去掉
+      s = left;
+    }
+  }
+
+  return s.replace(/\s+/g, '') || '未分類';
+}
+// 代付款群組沿用同一套分組邏輯（保留舊函式名稱相容既有呼叫）
+function advGroupKey(desc) { return subjectGroupKey(desc); }
+
+// 捐款專用分組 key：跟 subjectGroupKey 不同，「只」去掉開頭的日期前綴，不會拆解 '-' 後面的文字。
+// 因為經常費/服務經費的 '-' 後面通常是可以合併的職稱後綴（理事/主委），但捐款的 '-' 後面常常才是重點
+// （例如「指定捐款-熊本」，熊本是關鍵對象，不該被砍掉、更不該跟未來的「指定捐款-花蓮」誤合併）。
+function donationGroupKey(desc) {
+  if (!desc) return '未分類';
+  let s = desc.trim();
+  const spaceMatch = s.match(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{3,4})\s+(.+)$/);
+  if (spaceMatch) s = spaceMatch[2].trim();
+  return s.replace(/\s+/g, '') || '未分類';
+}
+
+function sortByNickname(a, b) {
+  const na = (a.nickname || a.name || '').trim().toUpperCase();
+  const nb = (b.nickname || b.name || '').trim().toUpperCase();
+  if (na < nb) return -1;
+  if (na > nb) return 1;
+  return 0;
+}
+
+function calcFees(m) {
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  // variable 有時被存成 [] 空陣列，統一修正為物件
+  const vr = (m?.variable && !Array.isArray(m.variable)) ? m.variable : {};
+  // A: 經常費合計
+  const sumA = v(m?.fixedA?.monthly)
+    + (vr.fixedA_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // B: 服務經費合計（含固定分攤、服務費、固定捐款、一般捐款、指定捐款）
+  const sumB = v(m?.fixedB?.monthly_split)
+    + (vr.service_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_fixed_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_general_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_designated_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // C: 代付款合計
+  const sumC = (vr.advance_pay_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // D: 本期社費合計 = A+B+C
+  const sumD = sumA + sumB + sumC;
+  // E: 前期未付款
+  const sumE = v(m?.accounting?.previous_due);
+  // F: 已收匯款
+  const sumF = (vr.receipt_list || [])
+    .filter(i => i.type !== 'receipt_card')
+    .reduce((a,i) => a + v(i.amount), 0);
+  // G: 信用卡扣款（receipt_list 中 type=receipt_card + credit_card_list）
+  const sumG = (vr.receipt_list || [])
+    .filter(i => i.type === 'receipt_card')
+    .reduce((a,i) => a + v(i.amount), 0)
+    + (vr.credit_card_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + v(m?.accounting?.credit_card);
+  // H: 本期未付款 = D+E-F-G
+  const H = sumD + sumE - sumF - sumG;
+  return { sumA, sumB, sumC, sumD, sumE, sumF, sumG, finalH: H };
+}
+
+// ══════════════════════════════════════════
+// 渲染
+// ══════════════════════════════════════════
+function render() {
+  document.getElementById('month-display').textContent = settings.currentMonth;
+  renderMemberSelect();
+  refreshQuickInputTargetDisplay();
+  renderMembersTable();
+  renderMembersGrid();
+  renderBillsGrid();
+  renderSubjects();
+  updateItemOptions();
+  // 設定頁
+  document.getElementById('cfg-contact-name').value = settings.financialContact?.name || '';
+  document.getElementById('cfg-contact-phone').value = settings.financialContact?.phone || '';
+  document.getElementById('cfg-month').value = settings.currentMonth || '';
+  document.getElementById('cfg-deadline').value = settings.paymentDeadline || calcDefaultDeadline(settings.currentMonth) || '';
+  document.getElementById('cfg-email-subject').value = settings.emailSubjectOverride || '';
+  document.getElementById('cfg-default-monthly').value = settings.defaultMonthly || 0;
+  document.getElementById('cfg-default-split').value = settings.defaultSplit || 0;
+}
+
+// 部分選擇/全體同步模式下，社友增減後同步更新顯示的人數
+function refreshQuickInputTargetDisplay() {
+  const wrap = document.getElementById('qi-member-wrap');
+  if (!wrap) return;
+  if (quickInputMode === 'partial') {
+    // 過濾掉已被刪除的社友，避免人數失準
+    partialSelectedIds = partialSelectedIds.filter(id => members.some(m => m.id === id));
+    if (!wrap.querySelector('select')) {
+      wrap.innerHTML = `<button type="button" onclick="openQuickInputPartialSelect()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（${partialSelectedIds.length} 位）</button>`;
+    }
+  } else if (quickInputMode === 'all') {
+    if (!wrap.querySelector('select')) {
+      const activeCount = members.filter(m => !m.withdrawn).length;
+      wrap.innerHTML = `<div class="inp" style="background:#f5f2ec;color:#888;cursor:default">全體社友（${activeCount} 位，不含已退社）</div>`;
+    }
+  }
+}
+
+// 選擇社友時優先顯示英文暱稱（方便用英文打字跳轉），沒有暱稱才 fallback 用中文姓名
+function displayName(m) {
+  return (m && (m.nickname || '').trim()) || (m && m.name) || '';
+}
+
+function renderMemberSelect() {
+  const sel = document.getElementById('qi-member');
+  if (!sel) return; // 部分選擇/全體同步模式下，qi-member 下拉已被替換為其他元素
+  const sorted = [...members].filter(m => !m.withdrawn).sort((a,b) => sortByNickname(a, b));
+  sel.innerHTML = '<option value="">-- 選擇社友 --</option>' +
+    sorted.map(m => `<option value="${m.id}">${displayName(m)}${m.nickname && m.name ? ' (' + m.name + ')' : ''}</option>`).join('');
+}
+
+// 搜尋比對：姓名、暱稱都算，中英文皆可，不分大小寫
+function matchesSearch(m, keyword) {
+  if (!keyword) return true;
+  const kw = keyword.trim().toLowerCase();
+  if (!kw) return true;
+  return (m.name || '').toLowerCase().includes(kw) || (m.nickname || '').toLowerCase().includes(kw);
+}
+
+function renderMembersTable() {
+  const searchEl = document.getElementById('member-search');
+  const unpaidOnlyEl = document.getElementById('unpaid-only-toggle');
+  const keyword = searchEl ? searchEl.value : '';
+  const unpaidOnly = unpaidOnlyEl ? unpaidOnlyEl.checked : false;
+
+  const active = [...members].filter(m => !m.withdrawn);
+  const withdrawnCount = members.length - active.length;
+  let sorted = active.filter(m => matchesSearch(m, keyword)).sort((a,b) => sortByNickname(a, b));
+
+  // 未付款統計以「搜尋後、未套用未付款篩選前」的範圍計算，畫面上的提示才會跟目前搜尋的人一致
+  const unpaidList = sorted.filter(m => calcFees(m).finalH > 0);
+  const unpaidSummaryEl = document.getElementById('unpaid-summary');
+  if (unpaidSummaryEl) {
+    unpaidSummaryEl.textContent = unpaidList.length > 0
+      ? `⚠️ ${unpaidList.length} 位未付款，共欠 $${unpaidList.reduce((s,m)=>s+calcFees(m).finalH,0).toLocaleString()}`
+      : '';
+  }
+  if (unpaidOnly) sorted = unpaidList;
+
+  document.getElementById('member-count').textContent = sorted.length + ' 位社友' + (withdrawnCount > 0 ? `（另有 ${withdrawnCount} 位已退社，未顯示）` : '');
+  const fs = settings.feeStructure;
+  document.getElementById('members-table-body').innerHTML = sorted.map(m => {
+    const f = calcFees(m);
+    const due = f.finalH;
+    const badge = due > 0
+      ? `<span class="badge-due">$${due.toLocaleString()}</span>`
+      : `<span class="badge-ok">$${due.toLocaleString()}</span>`;
+    return `<tr>
+      <td><div style="font-weight:700">${m.name}</div><div style="font-size:11px;color:#bbb">${m.nickname || ''}</div></td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">$${f.sumA.toLocaleString()}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">$${f.sumB.toLocaleString()}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#7c3aed">$${f.sumC.toLocaleString()}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#888">$${f.sumE.toLocaleString()}</td>
+      <td style="text-align:center">${badge}</td>
+      <td style="text-align:right">
+        <button onclick="openBill('${m.id}')" class="btn-primary" style="font-size:11px;padding:6px 16px">查看帳單</button>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;padding:40px;color:#bbb">${unpaidOnly ? '目前沒有未付款的社友' : '尚無社友資料'}</td></tr>`;
+}
+
+function renderMembersGrid() {
+  const searchEl = document.getElementById('member-grid-search');
+  const keyword = searchEl ? searchEl.value : '';
+  document.getElementById('members-grid').innerHTML = [...members]
+    .filter(m => matchesSearch(m, keyword))
+    .sort((a,b) => sortByNickname(a, b))
+    .map(m => `
+    <div class="card" style="padding:20px;position:relative${m.withdrawn ? ';opacity:0.6' : ''}">
+      <div style="font-size:22px;font-weight:900;color:var(--navy)">${m.name} ${m.withdrawn ? '<span style="background:#f3f4f6;color:#374151;border:1px solid #9ca3af;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:900">已退社</span>' : ''} ${m.onLeave ? '<span style="background:#fef3cd;color:#b45309;border:1px solid #f59e0b;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:900">請假</span>' : ''}</div>
+      <div style="font-size:11px;color:#bbb;margin-bottom:16px">${m.nickname || ''} · ${m.id}</div>
+      <div style="font-size:11px;margin-bottom:12px;color:${m.email?'#888':'#dc2626'}">✉️ ${m.email || '尚未填寫 Email'}</div>
+      <div style="background:#f5f2ec;padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:#888">前期未付款</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--navy)">${Number(m.accounting?.previous_due||0).toLocaleString()}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="openMemberModal('${m.id}')" class="btn-primary" style="flex:1;font-size:12px;padding:8px">編輯</button>
+        <button onclick="deleteMember('${m.id}')" class="btn-danger">刪除</button>
+      </div>
+    </div>`).join('') || '<div style="text-align:center;padding:40px;color:#bbb;grid-column:1/-1">找不到符合的社友</div>';
+}
+
+function renderBillsGrid() {
+  document.getElementById('bills-grid').innerHTML = [...members]
+    .sort((a,b) => sortByNickname(a, b))
+    .map(m => {
+      const f = calcFees(m);
+      const shareUrl = API_URL
+        ? `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}&api=${encodeURIComponent(API_URL)}`
+        : `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}`;
+      return `<div class="card" style="padding:20px">
+        <div style="font-size:18px;font-weight:900;color:var(--navy);margin-bottom:4px">${m.name}</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">${settings.currentMonth}</div>
+        <div style="background:${f.finalH>0?'#fef2f2':'#f0fdf4'};padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;margin-bottom:16px">
+          <span style="font-size:12px;color:#888">本期未付款</span>
+          <span style="font-family:'DM Mono',monospace;font-weight:900;font-size:18px;color:${f.finalH>0?'#dc2626':'#16a34a'}">${f.finalH.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="openBill('${m.id}')" class="btn-primary" style="flex:1;font-size:12px;padding:8px">預覽帳單</button>
+          <button onclick="copyText('${shareUrl}')" style="background:#f5f2ec;border:none;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">🔗 分享</button>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function renderSubjects() {
+  const fs = settings.feeStructure;
+  const all = [
+    ...Object.entries(fs.fixedA?.items||{}).map(([k,l]) => ({k,l,cat:'fixedA',label:'A'})),
+    ...Object.entries(fs.fixedB?.items||{}).map(([k,l]) => ({k,l,cat:'fixedB',label:'B'}))
+  ];
+  document.getElementById('subjects-list').innerHTML = all.map(s =>
+    `<div style="background:#f5f2ec;padding:6px 14px;border-radius:99px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px">
+      <span style="background:var(--navy);color:white;padding:1px 6px;border-radius:4px;font-size:10px">${s.label}</span>
+      ${s.l}
+      <button onclick="removeSubject('${s.cat}','${s.k}')" style="background:none;border:none;color:#bbb;cursor:pointer;font-size:14px">×</button>
+    </div>`
+  ).join('');
+}
+
+function updateItemOptions() {
+  const cat = document.getElementById('qi-category').value;
+  const wrap = document.getElementById('qi-item-wrap');
+  if (cat === 'creditcard') {
+    // 自動帶入選定社友的應付款金額（僅單一社友模式適用；部分/全體模式沒有這個下拉選單）
+    wrap.innerHTML = '<input class="inp" id="qi-item" value="信用卡扣款" readonly style="background:#f0f9ff">';
+    const mEl = document.getElementById('qi-member');
+    const mId = mEl ? mEl.value : '';
+    if (mId) {
+      const m = members.find(x => x.id === mId);
+      if (m) {
+        const f = calcFees(m);
+        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
+      }
+    }
+  } else if (cat === 'advance_pay') {
+    wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
+  } else if (cat === 'donation') {
+    wrap.innerHTML = `<div style="display:flex;gap:6px">
+      <select class="inp" id="qi-donation-type" style="flex:0 0 108px">
+        <option value="general">一般捐款</option>
+        <option value="fixed">固定捐款</option>
+        <option value="designated">指定捐款</option>
+      </select>
+      <input class="inp" type="text" id="qi-item" placeholder="捐款項目說明" style="flex:1">
+    </div>`;
+  } else if (cat === 'receipt') {
+    wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
+  } else if (cat === 'fixedB') {
+    const items = settings.feeStructure.fixedB?.items || {};
+    wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
+  } else {
+    const items = settings.feeStructure[cat]?.items || {};
+    wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// 通用社友多選彈窗（帳務錄入的部分選擇、寄信收件人選擇 共用邏輯）
+// ══════════════════════════════════════════
+let memberMultiSelectTemp = [];      // 彈窗內暫存的勾選狀態
+let memberMultiSelectOnConfirm = null; // 按下確定後的 callback(ids)
+let memberMultiSelectFilter = null;    // 選填：篩選候選名單，例如只列出未繳款者
+let memberMultiSelectTagFn = null;     // 選填：在名字旁顯示額外標記，例如「已寄送」
+
+function openMemberMultiSelect({ title, initialIds = [], onConfirm, filterFn = null, tagFn = null } = {}) {
+  document.getElementById('member-multiselect-title').textContent = title || '選擇社友';
+  memberMultiSelectTemp = [...initialIds];
+  memberMultiSelectOnConfirm = onConfirm || null;
+  memberMultiSelectFilter = filterFn;
+  memberMultiSelectTagFn = tagFn;
+  renderMemberMultiSelectList();
+  document.getElementById('member-multiselect-overlay').classList.add('show');
+}
+
+function closeMemberMultiSelect() {
+  document.getElementById('member-multiselect-overlay').classList.remove('show');
+}
+
+function renderMemberMultiSelectList() {
+  let list = [...members].sort((a,b) => sortByNickname(a, b));
+  if (typeof memberMultiSelectFilter === 'function') list = list.filter(memberMultiSelectFilter);
+  document.getElementById('member-multiselect-list').innerHTML = list.map(m => `
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${m.id}" ${memberMultiSelectTemp.includes(m.id)?'checked':''} onchange="onMemberMultiSelectCheckboxChange('${m.id}', this.checked)" style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
+      <span style="font-size:13px;font-weight:700">${displayName(m)}</span>
+      <span style="font-size:11px;color:#bbb">${m.nickname ? m.name : ''}</span>
+      ${typeof memberMultiSelectTagFn === 'function' ? (memberMultiSelectTagFn(m) || '') : ''}
+    </label>
+  `).join('') || '<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無符合條件的社友</div>';
+  updateMemberMultiSelectCount();
+}
+
+function onMemberMultiSelectCheckboxChange(id, checked) {
+  if (checked) { if (!memberMultiSelectTemp.includes(id)) memberMultiSelectTemp.push(id); }
+  else { memberMultiSelectTemp = memberMultiSelectTemp.filter(x => x !== id); }
+  updateMemberMultiSelectCount();
+}
+
+function toggleMemberMultiSelectAll(all) {
+  let list = [...members];
+  if (typeof memberMultiSelectFilter === 'function') list = list.filter(memberMultiSelectFilter);
+  memberMultiSelectTemp = all ? list.map(m => m.id) : [];
+  renderMemberMultiSelectList();
+}
+
+function updateMemberMultiSelectCount() {
+  const el = document.getElementById('member-multiselect-count');
+  if (el) el.textContent = memberMultiSelectTemp.length;
+}
+
+function confirmMemberMultiSelect() {
+  if (typeof memberMultiSelectOnConfirm === 'function') memberMultiSelectOnConfirm([...memberMultiSelectTemp]);
+  closeMemberMultiSelect();
+}
+
+// ══════════════════════════════════════════
+// 帳務錄入
+// ══════════════════════════════════════════
+let quickInputMode = 'single'; // 'single' | 'partial' | 'all'
+let partialSelectedIds = [];    // 帳務錄入「部分選擇」已確認的社友清單
+
+function onMemberChange() {
+  // 如果目前類別是信用卡，自動帶入應付款金額
+  const cat = document.getElementById('qi-category').value;
+  if (cat === 'creditcard') {
+    const mId = document.getElementById('qi-member').value;
+    if (mId) {
+      const m = members.find(x => x.id === mId);
+      if (m) {
+        const f = calcFees(m);
+        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
+      }
+    }
+  }
+}
+
+function onTargetModeChange() {
+  quickInputMode = document.getElementById('qi-target-mode').value;
+  const wrap = document.getElementById('qi-member-wrap');
+  const label = document.getElementById('qi-member-label');
+  if (quickInputMode === 'single') {
+    label.textContent = '指定社友';
+    wrap.innerHTML = '<select class="inp" id="qi-member" onchange="onMemberChange()"><option value="">-- 選擇社友 --</option></select>';
+    renderMemberSelect();
+  } else if (quickInputMode === 'partial') {
+    label.textContent = '部分選擇';
+    partialSelectedIds = [];
+    wrap.innerHTML = '<button type="button" onclick="openQuickInputPartialSelect()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（0 位）</button>';
+  } else {
+    label.textContent = '套用對象';
+    wrap.innerHTML = `<div class="inp" style="background:#f5f2ec;color:#888;cursor:default">全體社友（${members.length} 位）</div>`;
+  }
+  // 切換模式時，若目前類別是信用卡，單一模式以外無法自動帶入金額，清空避免誤帶舊值
+  if (quickInputMode !== 'single' && document.getElementById('qi-category').value === 'creditcard') {
+    document.getElementById('qi-amount').value = '';
+  }
+}
+
+// 帳務錄入的「部分選擇」按鈕 → 開啟通用社友多選彈窗
+function openQuickInputPartialSelect() {
+  openMemberMultiSelect({
+    title: '選擇社友（部分套用）',
+    initialIds: partialSelectedIds,
+    filterFn: m => !m.withdrawn,
+    onConfirm: (ids) => {
+      partialSelectedIds = ids;
+      const wrap = document.getElementById('qi-member-wrap');
+      if (wrap) wrap.innerHTML = `<button type="button" onclick="openQuickInputPartialSelect()" class="inp" style="text-align:left;cursor:pointer;background:#fff7e6">選擇社友（${partialSelectedIds.length} 位）</button>`;
+    }
+  });
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadAttachmentApi(payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+// 讀取某個 file input 目前選取的檔案，逐一上傳到 Drive，回傳 [{id,url,name}, ...]
+async function uploadFilesFromInput(inputEl, hintEl) {
+  const files = inputEl && inputEl.files ? Array.from(inputEl.files) : [];
+  if (files.length === 0) return [];
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，才能上傳附件。'); throw new Error('no api url'); }
+  if (files.length > 5) { alert('附件最多 5 張，請重新選擇。'); throw new Error('too many files'); }
+  const oversized = files.find(f => f.size > 8 * 1024 * 1024);
+  if (oversized) { alert(`「${oversized.name}」超過 8MB，請壓縮後再上傳。`); throw new Error('file too large'); }
+
+  const uploaded = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (hintEl) hintEl.textContent = `上傳附件中 ${i+1}/${files.length}...`;
+    const base64 = await fileToBase64(f);
+    const r = await uploadAttachmentApi({ action: 'uploadAttachment', filename: f.name, mimeType: f.type || 'application/octet-stream', base64 });
+    if (!r.ok) throw new Error(`附件「${f.name}」上傳失敗：${r.error || '未知錯誤'}`);
+    uploaded.push({ id: r.fileId, url: r.url, name: r.name || f.name });
+  }
+  if (hintEl) hintEl.textContent = '';
+  return uploaded;
+}
+
+async function submitQuickInput() {
+  const cat = document.getElementById('qi-category').value;
+  let item = document.getElementById('qi-item').value;
+  const dateVal = (document.getElementById('qi-date')?.value || '').trim();
+  const amount = Number(document.getElementById('qi-amount').value);
+  if (isNaN(amount)) return alert('請輸入正確金額');
+
+  let targetIds = [];
+  if (quickInputMode === 'single') {
+    const memberId = document.getElementById('qi-member').value;
+    if (!memberId) return alert('請選擇社友');
+    targetIds = [memberId];
+  } else if (quickInputMode === 'partial') {
+    if (partialSelectedIds.length === 0) return alert('請先點「選擇社友」勾選要套用的社友');
+    targetIds = [...partialSelectedIds];
+  } else {
+    targetIds = members.filter(m => !m.withdrawn).map(m => m.id);
+  }
+
+  let attachments = [];
+  try {
+    attachments = await uploadFilesFromInput(document.getElementById('qi-attachments'), document.getElementById('qi-attachments-hint'));
+  } catch (e) {
+    document.getElementById('qi-attachments-hint').textContent = '';
+    return; // 上傳失敗或中止，不繼續建立明細，避免明細跟附件對不上
+  }
+  const hasAttachments = attachments.length > 0;
+
+  targetIds.forEach(mId => {
+    const m = members.find(x => x.id === mId);
+    if (!m) return;
+    if (!m.variable || Array.isArray(m.variable)) m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[], donation_designated_list:[] };
+    // 防禦性補齊：舊資料的 m.variable 可能是在還沒有捐款欄位時建立的，缺這些陣列
+    if (!m.variable.donation_fixed_list) m.variable.donation_fixed_list = [];
+    if (!m.variable.donation_general_list) m.variable.donation_general_list = [];
+    if (!m.variable.donation_designated_list) m.variable.donation_designated_list = [];
+    if (!m.accounting) m.accounting = {};
+
+    const label = settings.feeStructure[cat]?.items?.[item] || item || '項目';
+    // 日期附加在說明前面，例如「0517 例會捐款」
+    const descWithDate = dateVal ? `${dateVal} ${label}` : label;
+    const entry = { id: 'T' + Date.now() + Math.random().toString(36).substr(2,4), desc: descWithDate, amount, date: dateVal || undefined };
+    if (hasAttachments) entry.attachments = attachments;
+
+    // 「月費」「固定分攤費」原本是寫入固定欄位（不是明細清單），沒辦法掛附件；
+    // 如果這筆有附件，改成寫進對應的明細清單，這樣附件才留得住，報表彙總邏輯仍會正確合併
+    if (cat === 'fixedA' && item === 'monthly' && !hasAttachments) { m.fixedA = m.fixedA||{}; m.fixedA.monthly = amount; }
+    else if (cat === 'fixedB' && item === 'monthly_split' && !hasAttachments) { m.fixedB = m.fixedB||{}; m.fixedB.monthly_split = amount; }
+    else if (cat === 'fixedA') { m.variable.fixedA_list.push(entry); }
+    else if (cat === 'advance_pay') { entry.desc = descWithDate; m.variable.advance_pay_list.push(entry); }
+    else if (cat === 'donation') {
+      entry.desc = descWithDate;
+      const donationType = document.getElementById('qi-donation-type')?.value || 'general';
+      if (donationType === 'fixed') m.variable.donation_fixed_list.push(entry);
+      else if (donationType === 'designated') m.variable.donation_designated_list.push(entry);
+      else m.variable.donation_general_list.push(entry);
+    }
+    else if (cat === 'creditcard') {
+      entry.desc = '信用卡扣款';
+      entry.type = 'receipt_card';
+      m.variable.receipt_list.push(entry);
+    }
+    else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
+    else if (cat === 'fixedB') { m.variable.service_list.push(entry); }
+  });
+
+  localStorage.setItem('choumei_members', JSON.stringify(members));
+  // 顯示「有未同步資料」提示
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
+  render();
+  document.getElementById('qi-amount').value = '';
+  document.getElementById('qi-date').value = '';
+  document.getElementById('qi-attachments').value = '';
+}
+
+async function syncToCloud() {
+  const btn = document.getElementById('sync-btn');
+  btn.textContent = '⏳ 同步中...';
+  btn.disabled = true;
+  try {
+    await pushToCloud('saveMembers', { members });
+    document.getElementById('pending-sync-label').style.display = 'none';
+    btn.style.display = 'none';
+    btn.textContent = '☁️ 同步至雲端';
+    btn.disabled = false;
+  } catch(e) {
+    btn.textContent = '☁️ 同步至雲端';
+    btn.disabled = false;
+    alert('同步失敗，請稍後再試');
+  }
+}
+
+
+// ══════════════════════════════════════════
+// 刪除明細項目
+// ══════════════════════════════════════════
+async function deleteEntry(mId, listKey, entryId) {
+  if (!confirm('確定刪除此筆明細？')) return;
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+  if (listKey === 'fixedA_monthly') { m.fixedA = m.fixedA || {}; m.fixedA.monthly = 0; }
+  else if (listKey === 'fixedB_monthly_split') { m.fixedB = m.fixedB || {}; m.fixedB.monthly_split = 0; }
+  else { 
+    if (!m.variable[listKey]) m.variable[listKey] = [];
+    m.variable[listKey] = m.variable[listKey].filter(i => i.id !== entryId); 
+  }
+  localStorage.setItem('choumei_members', JSON.stringify(members));
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
+  render();
+  if (currentBillMemberId === mId) {
+    document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
+  }
+}
+// ══════════════════════════════════════════
+// 編輯明細項目
+// ══════════════════════════════════════════
+let editEntryAttachmentsTemp = []; // 修改明細彈窗開啟期間，暫存目前的附件清單（可移除）
+
+function renderEditAttachmentsList() {
+  const wrap = document.getElementById('edit-entry-attachments-list');
+  if (!wrap) return;
+  wrap.innerHTML = editEntryAttachmentsTemp.map((a, idx) => `
+    <span style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:99px;padding:4px 10px;font-size:11px;display:inline-flex;align-items:center;gap:6px">
+      <a href="${a.url}" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:none;font-weight:700">📎 ${a.name || '附件' + (idx+1)}</a>
+      <button type="button" onclick="removeEditAttachment(${idx})" style="background:none;border:none;color:#93c5fd;cursor:pointer;font-size:13px;line-height:1">×</button>
+    </span>`).join('') || '<span style="font-size:11px;color:#bbb">目前沒有附件</span>';
+}
+
+function removeEditAttachment(idx) {
+  editEntryAttachmentsTemp.splice(idx, 1);
+  renderEditAttachmentsList();
+}
+
+function editEntry(mId, listKey, entryId) {
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+  let entry = null;
+  const isFixedField = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
+  if (listKey === 'fixedA_monthly') {
+    entry = { desc: '月費', amount: m.fixedA?.monthly || 0 };
+  } else if (listKey === 'fixedB_monthly_split') {
+    entry = { desc: '固定分攤費', amount: m.fixedB?.monthly_split || 0 };
+  } else {
+    entry = (m.variable[listKey] || []).find(i => i.id === entryId);
+  }
+  if (!entry) return;
+  document.getElementById('edit-entry-mid').value = mId;
+  document.getElementById('edit-entry-listkey').value = listKey;
+  document.getElementById('edit-entry-id').value = entryId;
+  document.getElementById('edit-entry-desc').value = entry.desc || '';
+  document.getElementById('edit-entry-amount').value = entry.amount || 0;
+  // 固定欄位說明不允許修改，也不能改分類（月費/固定分攤費是寫在專屬欄位，不是明細清單）
+  document.getElementById('edit-entry-desc').readOnly = isFixedField;
+  const categoryWrap = document.getElementById('edit-entry-category-wrap');
+  const categorySelect = document.getElementById('edit-entry-category');
+  if (isFixedField) {
+    categoryWrap.style.display = 'none';
+  } else {
+    categoryWrap.style.display = '';
+    // 如果目前的分類不在標準選項裡（例如舊資料的 donation_list），先不選任何值，讓使用者自己挑一個正確分類存檔
+    categorySelect.value = [...categorySelect.options].some(o => o.value === listKey) ? listKey : '';
+  }
+
+  const attachWrap = document.getElementById('edit-entry-attachments-wrap');
+  editEntryAttachmentsTemp = [...(entry.attachments || [])];
+  document.getElementById('edit-entry-attachments-input').value = '';
+  document.getElementById('edit-entry-attachments-hint').textContent = '';
+  if (isFixedField) {
+    attachWrap.style.display = 'none';
+  } else {
+    attachWrap.style.display = '';
+    renderEditAttachmentsList();
+  }
+
+  document.getElementById('entry-edit-overlay').classList.add('show');
+}
+
+function closeEntryEditModal() {
+  document.getElementById('entry-edit-overlay').classList.remove('show');
+}
+
+async function saveEntryEdit() {
+  const mId = document.getElementById('edit-entry-mid').value;
+  const listKey = document.getElementById('edit-entry-listkey').value;
+  const entryId = document.getElementById('edit-entry-id').value;
+  const desc = document.getElementById('edit-entry-desc').value.trim();
+  const amount = Number(document.getElementById('edit-entry-amount').value);
+  if (!desc) return alert('請輸入項目說明');
+  if (isNaN(amount)) return alert('請輸入正確金額');
+  const isFixedField = (listKey === 'fixedA_monthly' || listKey === 'fixedB_monthly_split');
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+
+  let finalAttachments = [...editEntryAttachmentsTemp];
+  if (!isFixedField) {
+    const input = document.getElementById('edit-entry-attachments-input');
+    try {
+      const newlyUploaded = await uploadFilesFromInput(input, document.getElementById('edit-entry-attachments-hint'));
+      if (editEntryAttachmentsTemp.length + newlyUploaded.length > 5) { alert('附件最多 5 張，請減少數量。'); return; }
+      finalAttachments = [...finalAttachments, ...newlyUploaded];
+    } catch (e) {
+      document.getElementById('edit-entry-attachments-hint').textContent = '';
+      return;
+    }
+  }
+
+  if (isFixedField) {
+    if (listKey === 'fixedA_monthly') {
+      m.fixedA = m.fixedA || {};
+      m.fixedA.monthly = amount;
+    } else {
+      m.fixedB = m.fixedB || {};
+      m.fixedB.monthly_split = amount;
+    }
+  } else {
+    const newListKey = document.getElementById('edit-entry-category').value || listKey;
+    const oldList = m.variable[listKey];
+    if (!oldList) return;
+    const idx = oldList.findIndex(i => i.id === entryId);
+    if (idx === -1) return;
+    const updated = { ...oldList[idx], desc, amount };
+    if (finalAttachments.length > 0) updated.attachments = finalAttachments;
+    else delete updated.attachments;
+    if (newListKey !== listKey) {
+      // 分類有變更：從原本的清單移除，放進新分類的清單（例如從服務經費搬到一般捐款）
+      oldList.splice(idx, 1);
+      if (!m.variable[newListKey]) m.variable[newListKey] = [];
+      m.variable[newListKey].push(updated);
+    } else {
+      oldList[idx] = updated;
+    }
+  }
+  saveLocal();
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
+  closeEntryEditModal();
+  render();
+  if (currentBillMemberId === mId) {
+    const mUpdated = members.find(x => x.id === mId);
+    document.getElementById('bill-preview-container').innerHTML = buildBillHTML(mUpdated);
+  }
+}
+
+// ══════════════════════════════════════════
+// 帳單
+// ══════════════════════════════════════════
+function buildBillHTML(m) {
+  const f = calcFees(m);
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  const fs = settings.feeStructure;
+  const del = (mId, key, id) => `<button onclick="deleteEntry('${mId}','${key}','${id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
+  const editBtn = (mId, key, id) => `<button onclick="editEntry('${mId}','${key}','${id}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:11px;cursor:pointer;font-weight:700">修改</button>`;
+  const attachmentLinks = (attachments) => (attachments||[]).map((a,idx) =>
+    `<a href="${a.url}" target="_blank" rel="noopener" style="font-size:11px;color:#7c3aed;text-decoration:none;font-weight:700;white-space:nowrap">📎${attachments.length>1?(idx+1):''}</a>`).join(' ');
+  const billRow = (label, amount, color, mId, key, id, attachments) =>
+    `<div class="bill-row" style="color:${color||'inherit'}"><span>${label}</span><div style="display:flex;align-items:center;gap:6px">${attachmentLinks(attachments)}<span class="mono">$${v(amount).toLocaleString()}</span>${mId?editBtn(mId,key,id):''}${mId?del(mId,key,id):''}</div></div>`;
+  const billSub = (label, amount, bg='#eef4ff', color='var(--navy-mid)') =>
+    `<div class="bill-sub" style="background:${bg};color:${color}"><span>${label}</span><span class="mono">$${v(amount).toLocaleString()}</span></div>`;
+
+  // 經常費 A
+  // 修正：月費（固定欄位）與其他經常費項目分開渲染，每一筆「其他經常費」明細都用自己的
+  // list key + id 個別渲染，才能正確對應到刪除／修改按鈕（跟服務經費 C 的寫法一致）
+  let rowsA = '';
+  if (v(m.fixedA?.monthly) > 0) {
+    const monthlyLabel = fs.fixedA?.items?.monthly || '月費';
+    rowsA += billRow(`[經常費] ${monthlyLabel}`, m.fixedA.monthly, '', m.id, 'fixedA_monthly', '');
+  }
+  (m.variable?.fixedA_list||[]).forEach(i => {
+    rowsA += billRow(`[經常費] ${i.desc}`, i.amount, '', m.id, 'fixedA_list', i.id, i.attachments);
+  });
+
+  // 代付款 B
+  let rowsB = '';
+  (m.variable?.advance_pay_list||[]).forEach(i => {
+    rowsB += billRow(`[代付款] ${i.desc}`, i.amount, '', m.id, 'advance_pay_list', i.id, i.attachments);
+  });
+
+  // 服務費 C（含固定分攤、服務費、捐款）
+  let rowsC = '';
+  if (v(m.fixedB?.monthly_split) > 0) rowsC += billRow('[服務經費] 固定分攤費', m.fixedB.monthly_split, '', m.id, 'fixedB_monthly_split', '');
+  (m.variable?.service_list||[]).forEach(i => { rowsC += billRow(`[服務經費] ${i.desc}`, i.amount, '', m.id, 'service_list', i.id, i.attachments); });
+  (m.variable?.donation_fixed_list||[]).forEach(i => { rowsC += billRow(`[固定捐款] ${i.desc}`, i.amount, '#6d28d9', m.id, 'donation_fixed_list', i.id, i.attachments); });
+  (m.variable?.donation_general_list||[]).forEach(i => { rowsC += billRow(`[一般捐款] ${i.desc}`, i.amount, '#9333ea', m.id, 'donation_general_list', i.id, i.attachments); });
+  (m.variable?.donation_designated_list||[]).forEach(i => { rowsC += billRow(`[指定捐款] ${i.desc}`, i.amount, '#be185d', m.id, 'donation_designated_list', i.id, i.attachments); });
+  (m.variable?.donation_list||[]).forEach(i => { rowsC += billRow(`[捐款] ${i.desc}`, i.amount, '#9333ea', m.id, 'donation_list', i.id, i.attachments); });
+
+  // 收款 F/G
+  let rowsReceipt = '';
+  if (v(m.accounting?.previous_due) !== 0) rowsReceipt += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
+  (m.variable?.receipt_list||[]).forEach(i => {
+    const isCard = i.type === 'receipt_card';
+    rowsReceipt += `<div class="bill-row" style="color:${isCard?'#7c3aed':'#16a34a'}"><span>[${isCard?'信用卡收款 (G)':'匯款收款 (F)'}]</span><div style="display:flex;align-items:center;gap:6px"><span class="mono">-$${v(i.amount).toLocaleString()}</span>${editBtn(m.id,'receipt_list',i.id)}${del(m.id,'receipt_list',i.id)}</div></div>`;
+  });
+
+  const deadlineText = settings.paymentDeadline || '__月__日';
+
+  return `<div class="bill-wrap" id="bill-render-${m.id}">
+    <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid var(--navy)">
+      <div style="color:var(--navy);font-size:20px;font-weight:900;letter-spacing:0.1em">${settings.currentMonth} 會費對帳單</div>
+      <div style="font-size:12px;color:#888;margin-top:4px">社團法人臺北市洲美扶輪社</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#f5f2ec;padding:16px 20px;border-radius:14px;margin-bottom:20px">
+      <div>
+        <div style="font-size:24px;font-weight:900">${m.name} ${m.onLeave ? '<span style="background:#fef3cd;color:#b45309;border:1px solid #f59e0b;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:900">請假</span>' : ''}</div>
+        <div style="font-size:12px;color:#aaa">${m.nickname||''}</div>
+      </div>
+      <div style="background:var(--navy);color:white;padding:4px 14px;border-radius:99px;font-size:11px;font-weight:700">${m.id}</div>
+    </div>
+    <div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:12px">
+      <div class="bill-head"><span>項目說明</span><span>金額 (NTD)</span></div>
+      ${rowsA}
+      ${billSub('經常費合計 (A)', f.sumA)}
+      ${rowsB}
+      ${billSub('代付款合計 (C)', f.sumC)}
+      ${rowsC}
+      ${billSub('服務費合計 (B)', f.sumB)}
+      ${billSub('本期社費 (D = A+B+C)', f.sumD, '#002147', '#C9A84C')}
+      ${rowsReceipt}
+    </div>
+    <div class="bill-total">
+      <div style="font-size:13px;font-weight:700;white-space:nowrap">本期未付款 (H = D+E−F−G)</div>
+      <div class="mono" style="font-size:36px;font-weight:900">$${f.finalH.toLocaleString()}</div>
+    </div>
+    <div style="margin-top:16px;padding-top:16px;border-top:1.5px solid #eee;font-size:11px;color:#333;line-height:1.9">
+      <p style="margin-bottom:6px">親愛的洲美扶輪社社友您好：</p>
+      <p style="margin-bottom:6px">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D=A+B+C) 為 <strong style="color:var(--navy);font-size:13px">NT $${f.sumD.toLocaleString()}</strong>，本期未付款 (H) 為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'};font-size:13px">NT $${f.finalH.toLocaleString()}</strong>，煩請您核對會費內容，確定無誤後請簽名回傳。若有錯誤請於<strong>三天內</strong>告知。謝謝！</p>
+      <p style="margin-bottom:6px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineText}</strong> 前繳清，以避免會籍被終止，謝謝！</p>
+      <p style="margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於三天內告知）：＿＿＿＿＿＿＿＿＿＿＿＿</p>
+      <p style="margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿＿＿＿</p>
+      <div style="border:1px solid #ddd;border-radius:8px;padding:10px 12px;background:#fafafa;margin-bottom:10px">
+        <p style="font-weight:700;margin-bottom:6px;color:var(--navy)">※ 繳費方式</p>
+        <p style="margin-bottom:4px">1.【信用卡】國泰世華信用卡（每月15日扣款、未扣款成功者通知後統一25日扣款，若仍未成功則本期與下期一起繳納）</p>
+        <p style="margin-bottom:6px">2.【匯　款】匯款完畢或ATM轉帳成功後，請來電 0972-701003、簡訊或於Line告知卡號後五碼，以利核銷，謝謝！</p>
+        <table style="width:100%;font-size:11px;border-collapse:collapse">
+          <tr><td style="padding:2px 8px 2px 0">戶名：社團法人臺北市洲美扶輪社</td><td>銀行：國泰世華銀行 – 仁愛分行</td></tr>
+          <tr><td style="padding:2px 8px 2px 0">帳號：201-03-500245-1</td><td>總行代碼：013</td></tr>
+        </table>
+      </div>
+      <p style="color:#555;margin-bottom:8px">以上款項若有錯誤（亦或信用卡帳單扣款金額與上項金額不符），請立即告知社辦，副知財務，將於一週內處理。</p>
+      <p style="color:var(--navy);font-weight:700">財務聯絡：${settings.financialContact?.name} ${settings.financialContact?.phone}</p>
+    </div>
+  </div>`;
+}
+
+function openBill(mId) {
+  const m = members.find(x => x.id === mId);
+  if (!m) return;
+  currentBillMemberId = mId;
+  document.getElementById('bill-preview-container').innerHTML = buildBillHTML(m);
+  openBillOverlay();
+}
+
+function openBillOverlay() {
+  document.getElementById('bill-overlay').classList.add('show');
+  // 開啟後稍微延遲計算自動縮放（等 DOM 渲染完）
+  setTimeout(() => setBillScale('fit'), 80);
+}
+
+function closeBillOverlay() {
+  document.getElementById('bill-overlay').classList.remove('show');
+}
+
+async function downloadBillImage() {
+  const mId = currentBillMemberId;
+  const node = document.getElementById('bill-render-' + mId);
+  const m = members.find(x => x.id === mId);
+  const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
+  const link = document.createElement('a');
+  link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
+  link.href = dataUrl; link.click();
+}
+
+// 月份轉成英數字格式，例如 "115年07月" → "2026-07"（民國年+1911=西元年），供檔名使用避免中文亂碼
+function toAsciiMonth(monthStr) {
+  const match = (monthStr || '').match(/(\d+)年(\d+)月/);
+  if (!match) return 'bills';
+  const year = parseInt(match[1]) + 1911;
+  const month = String(match[2]).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+// 把字串轉成只剩英數字/底線/連字號，中文等其他字元一律移除，供檔名使用避免壓縮後亂碼
+function asciiSafeName(str) {
+  if (!str) return '';
+  return String(str).replace(/[^A-Za-z0-9_-]/g, '').trim();
+}
+
+async function exportAllBills() {
+  showSync('產生全體帳單...');
+  const zip = new JSZip();
+  const sorted = [...members].sort((a,b) => sortByNickname(a,b));
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
+    // 建臨時 DOM
+    const tmp = document.createElement('div');
+    tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:680px';
+    tmp.innerHTML = buildBillHTML(m);
+    document.body.appendChild(tmp);
+    try {
+      const dataUrl = await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
+      const base64 = dataUrl.split(',')[1];
+      const seq = String(i + 1).padStart(2, '0');
+      const safeName = asciiSafeName(m.nickname) || asciiSafeName(m.id) || `Member${seq}`;
+      zip.file(`${seq}_${safeName}.png`, base64, { base64: true });
+    } catch(e) {}
+    document.body.removeChild(tmp);
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.download = `ChouMei_Bills_${toAsciiMonth(settings.currentMonth)}.zip`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  hideSync();
+}
+
+function copyShareLink() {
+  const m = members.find(x => x.id === currentBillMemberId);
+  const base = location.href.replace('index.html','').replace(/\?.*$/,'');
+  let url;
+  if (API_URL) {
+    // 短網址：只帶 id + api，view.html 自己去抓資料
+    url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
+  } else {
+    // 無 API 時退回 data-embedded（較長，但離線可用）
+    const minSettings = { currentMonth: settings.currentMonth, financialContact: settings.financialContact, feeStructure: settings.feeStructure, paymentDeadline: settings.paymentDeadline };
+    url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&data=' + encodeURIComponent(JSON.stringify({ m, settings: minSettings }));
+  }
+  navigator.clipboard.writeText(url).then(() => alert('✅ 分享連結已複製！\n對方用手機或電腦打開即可查看帳單。'));
+}
+
+function copySummaryLink() {
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，財務總表需要連線雲端資料才能使用。'); return; }
+  const base = location.href.replace('index.html','').replace(/\?.*$/,'');
+  const url = base + 'summary.html?api=' + encodeURIComponent(API_URL);
+  navigator.clipboard.writeText(url).then(() => alert('✅ 財務總表連結已複製！\n這是唯讀連結，對方打開後可以看到全體社友的帳務彙總，但無法修改任何資料。\n\n⚠️ 請確認 summary.html 這個檔案已經和 index.html 放在同一個資料夾／同一個網址下，連結才能正常開啟。'));
+}
+
+// ══════════════════════════════════════════
+// 寄送帳單 Email
+// ══════════════════════════════════════════
+function buildBillEmailContent(m) {
+  const f = calcFees(m);
+  const base = location.href.replace('index.html','').replace(/\?.*$/,'');
+  const link = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
+  const deadlineText = settings.paymentDeadline || '__月__日';
+  const dueColor = f.finalH > 0 ? '#dc2626' : '#16a34a';
+  const subjectBase = (settings.emailSubjectOverride && settings.emailSubjectOverride.trim())
+    ? settings.emailSubjectOverride.trim()
+    : `${settings.currentMonth} 洲美扶輪社會費對帳單`;
+  const subject = `${subjectBase} - ${m.name}`;
+
+  const plainBody =
+`${m.name} 您好，
+
+您 ${settings.currentMonth} 本期社費合計 (D) 為 NT $${f.sumD.toLocaleString()}，
+本期未付款 (H) 為 NT $${f.finalH.toLocaleString()}。
+${f.sumE ? `前期未付款 (E)：NT $${f.sumE.toLocaleString()}\n` : ''}
+應收款請於 ${deadlineText} 前繳清，以避免會籍被終止，謝謝！
+
+完整帳單明細請開啟：${link}
+
+財務聯絡：${settings.financialContact?.name || ''} ${settings.financialContact?.phone || ''}`;
+
+  const htmlBody = `
+  <div style="font-family:'Noto Sans TC',Arial,sans-serif;max-width:480px;margin:0 auto;background:#faf7f2;padding:24px 16px">
+    <div style="background:#002147;border-radius:16px 16px 0 0;padding:20px 24px;color:#fff">
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:700;margin-bottom:6px">${settings.currentMonth} 會費對帳單</div>
+      <div style="font-size:24px;font-weight:900">${m.name}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px">${m.nickname ? m.nickname + ' · ' : ''}${m.id}</div>
+    </div>
+    <div style="background:#fff;padding:20px 24px;border-radius:0 0 16px 16px">
+      <p style="font-size:13px;color:#333;margin:0 0 10px">${m.name} 您好：</p>
+      <p style="font-size:13px;color:#333;margin:0 0 14px;line-height:1.8">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D) 為 <strong style="color:#002147">NT $${f.sumD.toLocaleString()}</strong>${f.sumE ? `，前期未付款 (E) 為 NT $${f.sumE.toLocaleString()}` : ''}。</p>
+      <div style="background:${f.finalH>0?'#fef2f2':'#f0fdf4'};border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:12px;color:#888">本期未付款 (H)</span>
+        <span style="font-family:monospace;font-weight:900;font-size:22px;color:${dueColor}">$${f.finalH.toLocaleString()}</span>
+      </div>
+      <p style="font-size:12px;color:#dc2626;font-weight:700;margin:0 0 18px">⚠️ 請於 ${deadlineText} 前繳清，以避免會籍被終止，謝謝！</p>
+      <a href="${link}" style="display:block;text-align:center;background:#002147;color:#C9A84C;text-decoration:none;font-weight:900;font-size:14px;padding:14px;border-radius:12px;margin-bottom:18px">查看完整帳單明細 →</a>
+      <p style="font-size:11px;color:#888;margin:0 0 4px">若對帳單內容有疑問，請於三天內告知社辦，將盡快為您處理。</p>
+      <p style="font-size:12px;color:#002147;font-weight:700;margin:10px 0 0">財務聯絡：${settings.financialContact?.name || ''} ${settings.financialContact?.phone || ''}</p>
+    </div>
+  </div>`;
+
+  return { subject, plainBody, htmlBody };
+}
+
+async function sendMemberEmailApi(payload) {
+  // 用 text/plain 避免觸發瀏覽器的 CORS 預檢請求（Apps Script 不支援 OPTIONS）
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+function openSendBillsModal() {
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，寄送 Email 需要連線雲端資料才能使用。'); return; }
+  const withEmail = members.filter(m => (m.email || '').trim() && !m.withdrawn);
+  if (withEmail.length === 0) { alert('目前沒有任何（未退社的）社友填寫 Email，請先到「社友主檔」補上 Email 資料。'); return; }
+  const alreadySentCount = withEmail.filter(emailSentThisMonth).length;
+  openMemberMultiSelect({
+    title: `寄送帳單 Email（共 ${withEmail.length} 位有填 Email${alreadySentCount>0?`，${alreadySentCount} 位本月已寄過`:''}）`,
+    initialIds: withEmail.filter(m => !emailSentThisMonth(m)).map(m => m.id),
+    filterFn: m => (m.email || '').trim() && !m.withdrawn,
+    tagFn: m => emailSentThisMonth(m) ? `<span style="margin-left:auto;font-size:10px;color:#16a34a;font-weight:900;background:#f0fdf4;border:1px solid #bbf7d0;padding:1px 8px;border-radius:99px">✅ 已寄</span>` : '',
+    onConfirm: (ids) => {
+      if (ids.length === 0) return;
+      if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出。`)) return;
+      sendBillsToMembers(ids);
+    }
+  });
+}
+
+// 記錄某社友在目前月份已成功寄送帳單 Email，存在社友資料裡，會跟著雲端同步，不會因換裝置消失
+function markEmailSent(m) {
+  if (!m.emailLog) m.emailLog = {};
+  m.emailLog[settings.currentMonth] = new Date().toISOString();
+  saveLocal();
+  document.getElementById('pending-sync-label').style.display = 'inline';
+  document.getElementById('sync-btn').style.display = 'inline-block';
+}
+
+function emailSentThisMonth(m) {
+  return !!(m.emailLog && m.emailLog[settings.currentMonth]);
+}
+
+async function sendBillsToMembers(ids) {
+  const targets = members.filter(m => ids.includes(m.id));
+  let successCount = 0;
+  const failed = [];
+
+  showSync(`寄送中 0/${targets.length}...`);
+  for (let i = 0; i < targets.length; i++) {
+    const m = targets[i];
+    showSync(`寄送中 ${i+1}/${targets.length}...（${m.name}）`);
+    try {
+      const { subject, plainBody, htmlBody } = buildBillEmailContent(m);
+      const r = await sendMemberEmailApi({
+        action: 'sendMemberEmail',
+        to: m.email.trim(),
+        subject, plainBody, htmlBody
+      });
+      if (r.ok) { successCount++; markEmailSent(m); }
+      else failed.push(`${m.name}（${r.error || '未知錯誤'}）`);
+    } catch (e) {
+      failed.push(`${m.name}（${e.message}）`);
+    }
+  }
+  hideSync();
+  render();
+
+  let msg = `✅ 寄送完成！成功 ${successCount} / ${targets.length} 封`;
+  if (failed.length > 0) msg += `\n\n❌ 寄送失敗：\n${failed.join('\n')}`;
+  alert(msg);
+}
+
+// 寄送單一帳單（從帳單預覽點「📧 寄送帳單」開啟）：
+// 收件人預設帶入該社友的 Email，但可以改成任何信箱（例如改成自己的信箱測試）；
+// 附件是這次寄送當下才讀取、轉成郵件附件寄出，寄完不會保留檔案、也不會記錄在帳務明細裡
+function openSendSingleModal() {
+  if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，才能寄送 Email。'); return; }
+  const m = members.find(x => x.id === currentBillMemberId);
+  if (!m) return;
+  document.getElementById('send-single-target-name').textContent = `寄送對象：${m.name}${m.nickname ? '（' + m.nickname + '）' : ''}`;
+  const sentNote = document.getElementById('send-single-sent-note');
+  if (sentNote) {
+    if (emailSentThisMonth(m)) {
+      const dt = new Date(m.emailLog[settings.currentMonth]);
+      sentNote.textContent = `✅ 本月已於 ${dt.toLocaleDateString('zh-TW')} ${dt.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})} 寄送過`;
+      sentNote.style.display = '';
+    } else {
+      sentNote.style.display = 'none';
+    }
+  }
+  document.getElementById('send-single-email').value = m.email || '';
+  document.getElementById('send-single-attachments').value = '';
+  document.getElementById('send-single-hint').textContent = '';
+  document.getElementById('send-single-overlay').classList.add('show');
+}
+
+function closeSendSingleModal() {
+  document.getElementById('send-single-overlay').classList.remove('show');
+}
+
+async function sendSingleBillEmail() {
+  const m = members.find(x => x.id === currentBillMemberId);
+  if (!m) return;
+  const toEmail = document.getElementById('send-single-email').value.trim();
+  if (!toEmail) return alert('請輸入收件人 Email');
+  if (!toEmail.includes('@')) return alert('Email 格式看起來不太對，請確認後再試一次。');
+
+  const fileInput = document.getElementById('send-single-attachments');
+  const files = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
+  if (files.length > 3) return alert('附件最多 3 張，請重新選擇。');
+  const oversized = files.find(f => f.size > 8 * 1024 * 1024);
+  if (oversized) return alert(`「${oversized.name}」超過 8MB，請壓縮後再上傳。`);
+
+  const hint = document.getElementById('send-single-hint');
+  try {
+    const attachments = [];
+    for (let i = 0; i < files.length; i++) {
+      hint.textContent = `準備附件中 ${i+1}/${files.length}...`;
+      const base64 = await fileToBase64(files[i]);
+      attachments.push({ filename: files[i].name, mimeType: files[i].type || 'application/octet-stream', base64 });
+    }
+    hint.textContent = '寄送中...';
+    const { subject, plainBody, htmlBody } = buildBillEmailContent(m);
+    const r = await sendMemberEmailApi({ action: 'sendMemberEmail', to: toEmail, subject, plainBody, htmlBody, attachments });
+    hint.textContent = '';
+    if (r.ok) {
+      markEmailSent(m);
+      alert(`✅ 已寄送到 ${toEmail}`);
+      closeSendSingleModal();
+    } else {
+      alert('❌ 寄送失敗：' + (r.error || '未知錯誤'));
+    }
+  } catch (e) {
+    hint.textContent = '';
+    alert('❌ 寄送失敗：' + e.message);
+  }
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => alert('✅ 連結已複製'));
+}
+
+// ══════════════════════════════════════════
+// 社友管理
+// ══════════════════════════════════════════
+function openMemberModal(mId) {
+  document.getElementById('member-modal-title').textContent = mId ? '編輯社友' : '新增社友';
+  const m = mId ? members.find(x => x.id === mId) : null;
+  const newId = 'M-' + Date.now();
+  document.getElementById('edit-member-id').value = mId || newId;
+  document.getElementById('edit-custom-id').value = m?.id || '';
+  document.getElementById('edit-name').value = m?.name || '';
+  document.getElementById('edit-on-leave').checked = m?.onLeave || false;
+  document.getElementById('edit-withdrawn').checked = m?.withdrawn || false;
+  document.getElementById('edit-nickname').value = m?.nickname || '';
+  document.getElementById('edit-email').value = m?.email || '';
+  document.getElementById('edit-prev-due').value = m?.accounting?.previous_due || 0;
+  document.getElementById('member-overlay').classList.add('show');
+}
+
+function closeMemberModal() {
+  document.getElementById('member-overlay').classList.remove('show');
+}
+
+async function saveMemberModal() {
+  const originalId = document.getElementById('edit-member-id').value;
+  const customId = document.getElementById('edit-custom-id').value.trim();
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) return alert('請輸入姓名');
+  if (!customId) return alert('請輸入社友編號');
+  const existing = members.find(x => x.id === originalId);
+  const id = customId || originalId;
+  // 檢查編號是否已被其他社友使用
+  const conflict = members.find(x => x.id === customId && x.id !== originalId);
+  if (conflict) return alert('此編號已被「' + conflict.name + '」使用，請換一個！');
+  const m = existing || {
+    id, name: '', nickname: '', email: '',
+    fixedA: {}, fixedB: { monthly_split: 0 },
+    variable: { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] },
+    accounting: { previous_due: 0 }
+  };
+  m.name = name;
+  m.nickname = document.getElementById('edit-nickname').value.trim();
+  m.email = document.getElementById('edit-email').value.trim();
+  m.accounting = { ...(m.accounting||{}), previous_due: Number(document.getElementById('edit-prev-due').value) };
+  m.onLeave = document.getElementById('edit-on-leave').checked;
+  m.withdrawn = document.getElementById('edit-withdrawn').checked;
+  // 請假時自動調整月費為 1300；已退社則不再套用任何固定月費（已退社狀態優先）
+  if (m.withdrawn) {
+    m.fixedA = { ...(m.fixedA || {}), monthly: 0 };
+  } else if (m.onLeave) {
+    m.fixedA = { ...(m.fixedA || {}), monthly: 1300 };
+  }
+  if (existing && id !== originalId) {
+    // 編號有變更：刪舊的，存新的
+    members = members.filter(x => x.id !== originalId);
+    await pushToCloud('deleteMember', { id: originalId });
+    members.push(m);
+    await pushToCloud('saveMember', { member: m });
+  } else if (existing) {
+    // 編號沒變，直接更新（原地替換）
+    const idx = members.findIndex(x => x.id === originalId);
+    if (idx !== -1) members[idx] = m;
+    else members.push(m);
+    await pushToCloud('saveMember', { member: m });
+  } else {
+    // 新增社友（確保不重複）
+    members = members.filter(x => x.id !== id);
+    members.push(m);
+    await pushToCloud('saveMember', { member: m });
+  }
+  closeMemberModal();
+  render();
+}
+
+async function deleteMember(mId) {
+  const m = members.find(x => x.id === mId);
+  if (!confirm(`確定刪除 ${m?.name}？`)) return;
+  members = members.filter(x => x.id !== mId);
+  await pushToCloud('deleteMember', { id: mId });
+  render();
+}
+
+// ══════════════════════════════════════════
+// 設定
+// ══════════════════════════════════════════
+function saveApiUrl() {
+  API_URL = document.getElementById('api-url-input').value.trim();
+  localStorage.setItem('choumei_api_url', API_URL);
+  document.getElementById('api-banner').classList.toggle('hidden', !!API_URL);
+  if (API_URL) loadFromCloud().then(render);
+  alert('API 網址已儲存！');
+}
+
+async function testApi() {
+  const url = document.getElementById('api-url-input').value.trim();
+  if (!url) return alert('請先輸入 API 網址');
+  document.getElementById('api-status').textContent = '測試中...';
+  try {
+    const r = await fetch(url + '?action=getAll');
+    const d = await r.json();
+    document.getElementById('api-status').textContent = d.ok ? '✅ 連線成功！' : '❌ 回應異常：' + d.error;
+  } catch(e) {
+    document.getElementById('api-status').textContent = '❌ 連線失敗：' + e.message;
+  }
+}
+
+async function saveSettings() {
+  settings.financialContact = {
+    name: document.getElementById('cfg-contact-name').value,
+    phone: document.getElementById('cfg-contact-phone').value
+  };
+  settings.currentMonth = document.getElementById('cfg-month').value;
+  settings.paymentDeadline = document.getElementById('cfg-deadline').value;
+  settings.emailSubjectOverride = document.getElementById('cfg-email-subject').value.trim();
+  settings.defaultMonthly = Number(document.getElementById('cfg-default-monthly').value) || 0;
+  settings.defaultSplit = Number(document.getElementById('cfg-default-split').value) || 0;
+  await pushToCloud('saveSettings', { settings });
+  render();
+  alert('✅ 設定已儲存');
+}
+
+async function saveDefaultFees() {
+  settings.defaultMonthly = Number(document.getElementById('cfg-default-monthly').value) || 0;
+  settings.defaultSplit = Number(document.getElementById('cfg-default-split').value) || 0;
+  await pushToCloud('saveSettings', { settings });
+  const msg = document.getElementById('default-fee-saved');
+  msg.style.display = 'inline';
+  setTimeout(() => { msg.style.display = 'none'; }, 3000);
+}
+
+function addSubject() {
+  const cat = document.getElementById('new-sub-cat').value;
+  const label = document.getElementById('new-sub-label').value.trim();
+  if (!label) return;
+  if (!settings.feeStructure[cat]) settings.feeStructure[cat] = {};
+  if (!settings.feeStructure[cat].items) settings.feeStructure[cat].items = {};
+  settings.feeStructure[cat].items['sub_' + Date.now()] = label;
+  document.getElementById('new-sub-label').value = '';
+  saveLocal();
+  pushToCloud('saveSettings', { settings });
+  renderSubjects();
+  updateItemOptions();
+}
+
+function removeSubject(cat, key) {
+  delete settings.feeStructure[cat].items[key];
+  saveLocal();
+  pushToCloud('saveSettings', { settings });
+  renderSubjects();
+  updateItemOptions();
+}
+
+// ══════════════════════════════════════════
+// 結轉
+// ══════════════════════════════════════════
+function triggerCarryOver() {
+  document.getElementById('carry-overlay').classList.add('show');
+}
+function closeCarryOverlay() {
+  document.getElementById('carry-overlay').classList.remove('show');
+}
+
+async function executeCarryOver() {
+  showSync('執行結轉...');
+
+  // ① 先存本月快照（在清空 variable 之前，確保代付款等資料完整）
+  const nums0 = (settings.currentMonth || '').match(/\d+/g);
+  const snapshotMonth = settings.currentMonth;
+  const snapshot = { month: snapshotMonth, members: JSON.parse(JSON.stringify(members)), savedAt: new Date().toISOString() };
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  history.unshift(snapshot);
+  if (history.length > 24) history.pop();
+  localStorage.setItem('choumei_history', JSON.stringify(history));
+  // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
+  await saveHistoryToCloud(snapshot);
+
+  // ② 結轉：清空 variable、套下月預設費用
+  members.forEach(m => {
+    const { finalH } = calcFees(m);
+    m.accounting = { previous_due: finalH, already_paid: 0, credit_card: 0 };
+    m.variable = { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[], donation_fixed_list:[], donation_general_list:[], donation_designated_list:[] };
+    if (m.withdrawn) {
+      // 已退社：不再套用任何新的固定費用，只保留原本結轉下來的餘額（前面已設定 previous_due）
+      m.fixedA = {};
+      m.fixedB = { monthly_split: 0 };
+    } else if (m.onLeave) {
+      // 請假社友自動套半價
+      const base = settings.defaultMonthly || 0;
+      m.fixedA = { monthly: Math.round(base / 2) };
+      m.fixedB = { monthly_split: settings.defaultSplit || 0 };
+    } else {
+      // 一般社友套預設月費
+      m.fixedA = settings.defaultMonthly ? { monthly: settings.defaultMonthly } : {};
+      m.fixedB = { monthly_split: settings.defaultSplit || 0 };
+    }
+  });
+
+  // ③ 推進月份
+  if (nums0?.length >= 2) {
+    let y = parseInt(nums0[0]), mo = parseInt(nums0[1]) + 1;
+    if (mo > 12) { mo = 1; y++; }
+    settings.currentMonth = `${y}年${String(mo).padStart(2,'0')}月`;
+  }
+
+  // ④ 自動計算新月份的繳費期限（本期月份+1個月的月底）
+  settings.paymentDeadline = calcDefaultDeadline(settings.currentMonth);
+
+  await pushToCloud('saveMembers', { members });
+  await pushToCloud('saveSettings', { settings });
+  closeCarryOverlay();
+  render();
+  hideSync();
+  alert('✅ 月份結轉完成！');
+  if (confirm('要不要順手下載一份備份 JSON 存到電腦？（結轉是大動作，多一份備份比較保險）')) exportData();
+}
+
+// ══════════════════════════════════════════
+// 備份
+// ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// 繳費期限自動計算：本期月份（民國年）+1個月的月底
+// 例如 currentMonth = "115年07月" → 回傳 "8月31日"
+// ══════════════════════════════════════════
+function calcDefaultDeadline(monthStr) {
+  const match = (monthStr || '').match(/(\d+)年(\d+)月/);
+  if (!match) return '';
+  let y = parseInt(match[1]);
+  let m = parseInt(match[2]) + 1;
+  if (m > 12) { m = 1; y += 1; }
+  const gregorianYear = y + 1911;
+  const lastDay = new Date(gregorianYear, m, 0).getDate(); // 該月最後一天
+  return `${m}月${lastDay}日`;
+}
+
+function autoFillDeadline() {
+  const monthVal = (document.getElementById('cfg-month').value || settings.currentMonth || '').trim();
+  const auto = calcDefaultDeadline(monthVal);
+  if (!auto) { alert('請先確認「對帳月份」格式正確（例：115年07月）'); return; }
+  document.getElementById('cfg-deadline').value = auto;
+}
+
+// ══════════════════════════════════════════
+// 年度結轉
+// ══════════════════════════════════════════
+function getRotaryYear(month) {
+  // 扶輪社年度：7月開始，例如 114年07月 屬於 114-115 年度
+  const match = (month || '').match(/(\d+)年(\d+)月/);
+  if (!match) return '';
+  const y = parseInt(match[1]);
+  const m = parseInt(match[2]);
+  return m >= 7 ? `${y}-${y+1}` : `${y-1}-${y}`;
+}
+
+function getNextRotaryYear(currentYear) {
+  // currentYear 格式: "114-115"
+  const parts = currentYear.split('-');
+  if (parts.length !== 2) return '';
+  const y1 = parseInt(parts[0]) + 1;
+  const y2 = parseInt(parts[1]) + 1;
+  return `${y1}-${y2}`;
+}
+
+function triggerYearlyCarryOver() {
+  const currentYear = getRotaryYear(settings.currentMonth);
+  const nextYear = getNextRotaryYear(currentYear);
+  document.getElementById('yearly-period-label').textContent = 
+    `目前年度：${currentYear} → 新年度：${nextYear}（${parseInt(nextYear)+1911}年7月起）`;
+  
+  // 列出所有社友供勾選（已退社的預設不勾選，新年度自然移除）
+  const list = document.getElementById('yearly-members-list');
+  list.innerHTML = members.sort((a,b) => sortByNickname(a, b)).map(m => `
+    <label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#f5f2ec'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${m.id}" ${m.withdrawn ? '' : 'checked'} style="width:16px;height:16px;accent-color:var(--navy-mid);cursor:pointer">
+      <div>
+        <div style="font-size:14px;font-weight:700">${displayName(m)} ${m.withdrawn ? '<span style="background:#f3f4f6;color:#374151;border:1px solid #9ca3af;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:900">已退社</span>' : ''}</div>
+        <div style="font-size:11px;color:#bbb">${m.nickname ? m.name : ''} · ${m.id}</div>
+      </div>
+      <div style="margin-left:auto;font-size:12px;color:#888">
+        未付款：<span style="font-weight:700;color:${calcFees(m).finalH>0?'#dc2626':'#16a34a'}">$${calcFees(m).finalH.toLocaleString()}</span>
+      </div>
+    </label>
+  `).join('');
+
+  document.getElementById('yearly-carry-overlay').classList.add('show');
+}
+
+function closeYearlyCarryOverlay() {
+  document.getElementById('yearly-carry-overlay').classList.remove('show');
+}
+
+async function executeYearlyCarryOver() {
+  // 取得留任社友 ID
+  const checked = [...document.querySelectorAll('#yearly-members-list input[type=checkbox]:checked')].map(el => el.value);
+  const removed = members.filter(m => !checked.includes(m.id)).map(m => m.name);
+  
+  if (removed.length > 0) {
+    if (!confirm(`確定移除以下社友？
+${removed.join('、')}
+
+此操作無法復原！`)) return;
+  }
+
+  showSync('執行年度結轉...');
+
+  // 儲存歷史快照
+  const yearEndSnapshot = {
+    month: settings.currentMonth,
+    members: JSON.parse(JSON.stringify(members)),
+    savedAt: new Date().toISOString(),
+    isYearEnd: true
+  };
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  history.unshift(yearEndSnapshot);
+  if (history.length > 24) history.pop();
+  localStorage.setItem('choumei_history', JSON.stringify(history));
+  // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
+  await saveHistoryToCloud(yearEndSnapshot);
+
+  // 只保留留任社友，重置所有費用
+  members = members.filter(m => checked.includes(m.id)).map(m => ({
+    ...m,
+    fixedA: settings.defaultMonthly ? { monthly: settings.defaultMonthly } : {},
+    fixedB: { monthly_split: settings.defaultSplit || 0 },
+    variable: { fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[], credit_card_list:[] },
+    accounting: { previous_due: 0, already_paid: 0, credit_card: 0 }  // 年度重置，不帶前期
+  }));
+
+  // 月份推進到新年度7月
+  const match = (settings.currentMonth || '').match(/(\d+)年(\d+)月/);
+  if (match) {
+    const y = parseInt(match[1]);
+    settings.currentMonth = `${y+1}年07月`;
+  }
+
+  // 自動計算新月份的繳費期限（本期月份+1個月的月底）
+  settings.paymentDeadline = calcDefaultDeadline(settings.currentMonth);
+
+  await pushToCloud('saveMembers', { members });
+  await pushToCloud('saveSettings', { settings });
+  closeYearlyCarryOverlay();
+  render();
+  hideSync();
+  const removedMsg = removed.length > 0 ? '\n已移除：' + removed.join('、') : '';
+  alert('✅ 年度結轉完成！\n新年度從 ' + settings.currentMonth + ' 開始' + removedMsg);
+  if (confirm('要不要順手下載一份備份 JSON 存到電腦？（年度結轉是大動作，多一份備份比較保險）')) exportData();
+}
+
+// ══════════════════════════════════════════
+// 報表匯出
+// ══════════════════════════════════════════
+function openReportModal() {
+  const panel = document.getElementById('report-panel');
+  const isHidden = panel.style.display === 'none' || panel.style.display === '';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    updateReportOptions();
+  }
+}
+
+function closeReportPanel() {
+  document.getElementById('report-panel').style.display = 'none';
+}
+
+function updateReportOptions() {
+  const type = document.getElementById('report-type').value;
+  const needMonth = type === 'monthly' || type === 'advance' || type === 'donation';
+  document.getElementById('report-month-wrap').style.display = needMonth ? 'block' : 'none';
+  document.getElementById('report-year-wrap').style.display = type === 'yearly' ? 'block' : 'none';
+
+  // 從備份歷史或現有月份產生選項
+  const monthSel = document.getElementById('report-month');
+  const yearSel = document.getElementById('report-year');
+
+  // 月份選項：現在的月份 + 歷史記錄
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const months = [...new Set([settings.currentMonth, ...history.map(h => h.month)])].filter(Boolean);
+  monthSel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+  
+  // 年度選項：改用扶輪年度分組（7月～隔年6月），而不是用民國曆年數字硬切
+  const rotaryYears = [...new Set(months.map(m => getRotaryYear(m)).filter(Boolean))]
+    .sort((a,b) => parseInt(b.split('-')[0]) - parseInt(a.split('-')[0])); // 新年度排前面
+  yearSel.innerHTML = rotaryYears.length > 0
+    ? rotaryYears.map(y => {
+        const [y1, y2] = y.split('-');
+        return `<option value="${y}">${y1}年07月 - ${y2}年06月</option>`;
+      }).join('')
+    : `<option value="">尚無資料</option>`;
+
+  generateReportPreview();
+}
+
+function getReportData() {
+  const type = document.getElementById('report-type').value;
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+
+  if (type === 'monthly' || type === 'advance' || type === 'donation') {
+    const month = document.getElementById('report-month').value;
+    // 選的是目前月份 → 用 members（最新資料）；歷史月份 → 用快照
+    const isCurrent = month === settings.currentMonth;
+    const snap = !isCurrent ? history.find(h => h.month === month) : null;
+    const data = snap ? snap.members : members;
+    return { type, month, members: data };
+  } else {
+    // 年度報表：改用扶輪年度（7月～隔年6月）分組。
+    // history 只有「已經結轉過」的月份快照，這裡把目前這個月（還沒結轉）的即時資料也一併補進來，
+    // 這樣年度報表才看得到最新、還沒結轉的當月資料
+    const rotaryYear = document.getElementById('report-year').value;
+    const hasCurrentInHistory = history.some(h => h.month === settings.currentMonth);
+    const allSnaps = hasCurrentInHistory ? history : [{ month: settings.currentMonth, members }, ...history];
+    const yearMonths = allSnaps.filter(h => h.month && getRotaryYear(h.month) === rotaryYear);
+    return { type: 'yearly', year: rotaryYear, history: yearMonths };
+  }
+}
+
+// 金額顯示：0 顯示「-」佔位，正數顯示 $金額，負數（例如前期多收、餘額為負）要正確顯示 -$金額，
+// 不能被誤判成空值而藏起來看不到（原本用 val>0 判斷，負數會被吃掉）
+// ══════════════════════════════════════════
+// 月結報表共用邏輯（畫面預覽與 CSV 匯出共用，避免兩邊各寫一份而算出不同結果）
+// 分工：
+//   collectMonthlyColumns() 只負責「有哪些欄位」
+//   buildMemberRowData()    只負責「這個人每一欄多少錢」，合計一律取自 calcFees()，不自行加總
+// ══════════════════════════════════════════
+function collectMonthlyColumns(mList) {
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+
+  const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
+  const fixedAItemGroupKeys = new Set(fixedAItems.map(([,l])=>subjectGroupKey(l)));
+  const fixedAExtraSet = new Set();
+  mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => {
+    const gk = subjectGroupKey(i.desc);
+    if(i.desc && !fixedAItemGroupKeys.has(gk)) fixedAExtraSet.add(gk);
+  }));
+
+  const serviceSet = new Set();
+  mList.forEach(m => {
+    if (v(m.fixedB?.monthly_split) > 0) serviceSet.add('__split__');
+    (m.variable?.service_list||[]).forEach(i => serviceSet.add(subjectGroupKey(i.desc)));
+  });
+
+  const advanceSet = new Set();
+  mList.forEach(m => (m.variable?.advance_pay_list||[]).forEach(i => advanceSet.add(advGroupKey(i.desc))));
+
+  const donFixedSet = new Set();
+  mList.forEach(m => (m.variable?.donation_fixed_list||[]).forEach(i => donFixedSet.add(donationGroupKey(i.desc))));
+
+  const donGeneralSet = new Set();
+  mList.forEach(m => {
+    (m.variable?.donation_general_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
+    (m.variable?.donation_list||[]).forEach(i => donGeneralSet.add(donationGroupKey(i.desc)));
+  });
+
+  const donDesignatedSet = new Set();
+  mList.forEach(m => (m.variable?.donation_designated_list||[]).forEach(i => donDesignatedSet.add(donationGroupKey(i.desc))));
+
+  return {
+    fixedAItems,
+    fixedAExtras: [...fixedAExtraSet],
+    serviceItems: [...serviceSet],
+    advanceItems: [...advanceSet],
+    donFixedItems: [...donFixedSet],
+    donGeneralItems: [...donGeneralSet],
+    donDesignatedItems: [...donDesignatedSet]
+  };
+}
+
+function buildMemberRowData(m, cols) {
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  const f = calcFees(m); // 合計一律以 calcFees 為準，與個人帳單、財務總表同一個來源
+
+  const faV = cols.fixedAItems.map(([k, label]) => {
+    const labelKey = subjectGroupKey(label);
+    let a = v(m.fixedA?.[k]);
+    a += (m.variable?.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===labelKey).reduce((s,i)=>s+v(i.amount),0);
+    return a;
+  });
+  const feV = cols.fixedAExtras.map(d => (m.variable?.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
+  const adV = cols.advanceItems.map(d => (m.variable?.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
+  const svV = cols.serviceItems.map(d => d==='__split__' ? v(m.fixedB?.monthly_split) : (m.variable?.service_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
+  const dfV = cols.donFixedItems.map(d => (m.variable?.donation_fixed_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
+  const dgV = cols.donGeneralItems.map(d => [...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
+  const ddV = cols.donDesignatedItems.map(d => (m.variable?.donation_designated_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
+
+  const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((s,i)=>s+v(i.amount),0);
+  const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((s,i)=>s+v(i.amount),0);
+
+  return {
+    faV, feV, adV, svV, dfV, dgV, ddV,
+    sDF: dfV.reduce((s,a)=>s+a,0),
+    sDG: dgV.reduce((s,a)=>s+a,0),
+    sDD: ddV.reduce((s,a)=>s+a,0),
+    sA: f.sumA,          // 經常費合計
+    sB: f.sumC,          // 代付款合計
+    sC: f.sumB,          // 服務費合計（已含各類捐款）
+    sD: f.sumD,          // 本期社費
+    prevDue: f.sumE,
+    transfer, card,
+    H: f.finalH
+  };
+}
+
+function createMonthlyTotals() {
+  return {
+    fixedA:{}, fixedAE:{}, sumA:0,
+    adv:{}, sumB:0,
+    svc:{}, sumC:0,
+    donF:{}, donFT:0,
+    donG:{}, donGT:0,
+    donD:{}, donDT:0,
+    sumD:0, prevDue:0, transfer:0, card:0, finalH:0
+  };
+}
+
+function accumulateMonthlyTotals(totals, cols, row) {
+  cols.fixedAItems.forEach(([k], idx) => { totals.fixedA[k] = (totals.fixedA[k]||0) + row.faV[idx]; });
+  cols.fixedAExtras.forEach((d, idx) => { totals.fixedAE[d] = (totals.fixedAE[d]||0) + row.feV[idx]; });
+  cols.advanceItems.forEach((d, idx) => { totals.adv[d] = (totals.adv[d]||0) + row.adV[idx]; });
+  cols.serviceItems.forEach((d, idx) => { totals.svc[d] = (totals.svc[d]||0) + row.svV[idx]; });
+  cols.donFixedItems.forEach((d, idx) => { totals.donF[d] = (totals.donF[d]||0) + row.dfV[idx]; });
+  cols.donGeneralItems.forEach((d, idx) => { totals.donG[d] = (totals.donG[d]||0) + row.dgV[idx]; });
+  cols.donDesignatedItems.forEach((d, idx) => { totals.donD[d] = (totals.donD[d]||0) + row.ddV[idx]; });
+  totals.sumA += row.sA; totals.sumB += row.sB; totals.sumC += row.sC;
+  totals.donFT += row.sDF; totals.donGT += row.sDG; totals.donDT += row.sDD;
+  totals.sumD += row.sD; totals.prevDue += row.prevDue;
+  totals.transfer += row.transfer; totals.card += row.card; totals.finalH += row.H;
+}
+
+function fmtAmt(val) {
+  const v = isNaN(Number(val)) ? 0 : Number(val);
+  return v === 0 ? '-' : (v < 0 ? '-$' + Math.abs(v).toLocaleString() : '$' + v.toLocaleString());
+}
+
+function generateReportPreview() {
+  try {
+  const data = getReportData();
+  const preview = document.getElementById('report-preview');
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+
+  // variable 有時被存成 [] 空陣列而非物件，統一修正
+  const mList = (data.members || members).map(m => ({
+    ...m,
+    variable: (m.variable && !Array.isArray(m.variable)) ? m.variable : {
+      fixedA_list: [], service_list: [], advance_pay_list: [],
+      receipt_list: [], credit_card_list: [],
+      donation_fixed_list: [], donation_general_list: [], donation_designated_list: []
+    }
+  }));
+
+  // ── 月結報表 ──────────────────────────────────────────────
+  if (data.type === 'monthly') {
+    // 動態收集欄位（與 CSV 匯出共用同一套邏輯）
+    const cols = collectMonthlyColumns(mList);
+    const { fixedAItems, fixedAExtras, serviceItems, advanceItems, donFixedItems, donGeneralItems, donDesignatedItems } = cols;
+
+    const th = s => `<th style="padding:6px 8px;text-align:right;font-size:10px;color:#888;white-space:nowrap;background:#f5f2ec">${s}</th>`;
+    const thL = s => `<th style="padding:6px 8px;text-align:left;font-size:10px;color:#888;white-space:nowrap;background:#f5f2ec">${s}</th>`;
+    const thG = (s,n,bg,c) => `<th colspan="${n}" style="padding:5px 8px;text-align:center;font-size:10px;font-weight:900;background:${bg};color:${c};border-bottom:2px solid #ddd">${s}</th>`;
+
+    const colA = fixedAItems.length + fixedAExtras.length + 1;
+    const colB = advanceItems.length + 1;
+    const colC = serviceItems.length + 1;
+    const colDF = donFixedItems.length > 0 ? donFixedItems.length + 1 : 0;
+    const colDG = donGeneralItems.length > 0 ? donGeneralItems.length + 1 : 0;
+    const colDD = donDesignatedItems.length > 0 ? donDesignatedItems.length + 1 : 0;
+
+    const groupRow = `<tr>
+      ${thG('姓名',2,'#fff','#002147')}
+      ${thG('經常費(A)',colA,'#eff6ff','#1e40af')}
+      ${thG('代付款(C)',colB,'#fdf4ff','#7c3aed')}
+      ${thG('服務費(B)',colC,'#f0fdf4','#166534')}
+      ${colDF ? thG('固定捐款',colDF,'#4c1d95','#e9d5ff') : ''}
+      ${colDG ? thG('一般捐款',colDG,'#6d28d9','#f5f3ff') : ''}
+      ${colDD ? thG('指定捐款',colDD,'#9d174d','#fce7f3') : ''}
+      ${thG('社費D',1,'#002147','#C9A84C')}
+      ${thG('前期E',1,'#fefce8','#92400e')}
+      ${thG('匯款F',1,'#f0fdf4','#166534')}
+      ${thG('信用卡G',1,'#fdf4ff','#7c3aed')}
+      ${thG('未付款H',1,'#fef2f2','#991b1b')}
+    </tr>`;
+    const subRow = `<tr>
+      ${thL('姓名')}${thL('暱稱')}
+      ${fixedAItems.map(([,l])=>th(l)).join('')}${fixedAExtras.map(d=>th(d)).join('')}${th('A合計')}
+      ${advanceItems.map(d=>th(d)).join('')}${th('C合計')}
+      ${serviceItems.map(d=>d==='__split__'?th('固定分攤'):th(d)).join('')}${th('B合計')}
+      ${donFixedItems.map(d=>th(d)).join('')}${colDF?th('固定小計'):''}
+      ${donGeneralItems.map(d=>th(d)).join('')}${colDG?th('一般小計'):''}
+      ${donDesignatedItems.map(d=>th(d)).join('')}${colDD?th('指定小計'):''}
+      ${th('D')}${th('E')}${th('F')}${th('G')}${th('H')}
+    </tr>`;
+
+    const tdC = (val,color='inherit',bold=false) => {
+      const s = `padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;color:${color};${bold?'font-weight:900':''}`;
+      return `<td style="${s}">${fmtAmt(val)}</td>`;
+    };
+
+    const totals = createMonthlyTotals();
+
+    const sorted = [...mList].sort((a,b) => sortByNickname(a,b));
+    const rows = sorted.map(m => {
+      const row = buildMemberRowData(m, cols);
+      accumulateMonthlyTotals(totals, cols, row);
+      const { faV, feV, adV, svV, dfV, dgV, ddV, sA, sB, sC, sDF, sDG, sDD, sD, prevDue, transfer, card, H } = row;
+
+      return `<tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #f0ece4;font-weight:700;white-space:nowrap">${m.name}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f0ece4;color:#aaa;font-size:11px">${m.nickname||''}</td>
+        ${faV.map(a=>tdC(a)).join('')}${feV.map(a=>tdC(a)).join('')}${tdC(sA,'#1e40af',true)}
+        ${adV.map(a=>tdC(a,'#7c3aed')).join('')}${tdC(sB,'#7c3aed',true)}
+        ${svV.map(a=>tdC(a,'#166534')).join('')}${tdC(sC,'#166534',true)}
+        ${dfV.map(a=>tdC(a,'#6d28d9')).join('')}${colDF?tdC(sDF,'#4c1d95',true):''}
+        ${dgV.map(a=>tdC(a,'#9333ea')).join('')}${colDG?tdC(sDG,'#7c3aed',true):''}
+        ${ddV.map(a=>tdC(a,'#be185d')).join('')}${colDD?tdC(sDD,'#9d174d',true):''}
+        ${tdC(sD,'#C9A84C',true)}
+        ${tdC(prevDue,'#92400e')}
+        ${tdC(transfer,'#166534')}
+        ${tdC(card,'#7c3aed')}
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;font-weight:900;color:${H>0?'#dc2626':'#16a34a'}">${fmtAmt(H)}</td>
+      </tr>`;
+    }).join('');
+
+    const ftd = (val,c='#C9A84C') => `<td style="padding:7px 8px;text-align:right;font-family:monospace;font-weight:900;color:${c}">${fmtAmt(val)}</td>`;
+    const footRow = `<tr style="background:#002147;color:white">
+      <td colspan="2" style="padding:8px 12px;font-weight:900">合計</td>
+      ${fixedAItems.map(([k])=>ftd(totals.fixedA[k]||0,'#93c5fd')).join('')}
+      ${fixedAExtras.map(d=>ftd(totals.fixedAE[d]||0,'#93c5fd')).join('')}
+      ${ftd(totals.sumA,'#93c5fd')}
+      ${advanceItems.map(d=>ftd(totals.adv[d]||0,'#e9d5ff')).join('')}
+      ${ftd(totals.sumB,'#e9d5ff')}
+      ${serviceItems.map(d=>ftd(totals.svc[d]||0,'#bbf7d0')).join('')}
+      ${ftd(totals.sumC,'#bbf7d0')}
+      ${donFixedItems.map(d=>ftd(totals.donF[d]||0,'#c4b5fd')).join('')}
+      ${colDF?ftd(totals.donFT,'#e9d5ff'):''}
+      ${donGeneralItems.map(d=>ftd(totals.donG[d]||0,'#ddd6fe')).join('')}
+      ${colDG?ftd(totals.donGT,'#ede9fe'):''}
+      ${donDesignatedItems.map(d=>ftd(totals.donD[d]||0,'#f9a8d4')).join('')}
+      ${colDD?ftd(totals.donDT,'#fce7f3'):''}
+      ${ftd(totals.sumD)}
+      ${ftd(totals.prevDue,'#fde68a')}
+      ${ftd(totals.transfer,'#6ee7b7')}
+      ${ftd(totals.card,'#c4b5fd')}
+      ${ftd(totals.finalH)}
+    </tr>`;
+
+    preview.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.month} 月結報表</div>
+      <div style="overflow-x:auto">
+      <table style="border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead>${groupRow}${subRow}</thead>
+        <tbody>${rows}</tbody>
+        <tfoot>${footRow}</tfoot>
+      </table></div>`;
+
+  // ── 代付款明細報表 ─────────────────────────────────────────
+  } else if (data.type === 'advance') {
+    const groups = {};
+    mList.forEach(m => {
+      (m.variable?.advance_pay_list || []).forEach(i => {
+        const key = advGroupKey(i.desc);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
+      });
+    });
+    if (Object.keys(groups).length === 0) {
+      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無代付款記錄</div>`;
+      return;
+    }
+    const sortList = list => [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
+    let grandTotal = 0;
+    let cards = '';
+    Object.entries(groups).forEach(([item, list]) => {
+      const subtotal = list.reduce((a,x)=>a+x.amount,0);
+      grandTotal += subtotal;
+      const memberRows = sortList(list).map((x,idx) => `
+        <tr>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#999">${x.desc !== item ? x.desc : ''}</td>
+          <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
+        </tr>`).join('');
+      cards += `
+        <div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:16px">
+          <div style="background:#002147;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div><div style="color:#C9A84C;font-size:14px;font-weight:900">${item}</div>
+            <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px">共 ${list.length} 人</div></div>
+            <div style="color:#C9A84C;font-family:monospace;font-size:20px;font-weight:900">$${subtotal.toLocaleString()}</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:#f5f2ec">
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
+              <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">細項</th>
+              <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
+            </tr></thead>
+            <tbody>${memberRows}</tbody>
+            <tfoot><tr style="background:#eef4ff">
+              <td colspan="4" style="padding:6px 12px;font-size:12px;font-weight:900;color:#002147">${item} 小計</td>
+              <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#002147">$${subtotal.toLocaleString()}</td>
+            </tr></tfoot>
+          </table>
+        </div>`;
+    });
+    preview.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#888">${data.month} 代付款明細報表（共 ${Object.keys(groups).length} 項）</div>
+        <div style="background:#002147;color:#C9A84C;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
+      </div>${cards}`;
+
+  // ── 捐款報表 ──────────────────────────────────────────────
+  } else if (data.type === 'donation') {
+    const fixedGroups = {}, generalGroups = {}, designatedGroups = {};
+    mList.forEach(m => {
+      (m.variable?.donation_fixed_list || []).forEach(i => {
+        const key = i.desc ? donationGroupKey(i.desc) : '固定捐款';
+        if (!fixedGroups[key]) fixedGroups[key] = [];
+        fixedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
+      });
+      [...(m.variable?.donation_general_list || []), ...(m.variable?.donation_list || [])].forEach(i => {
+        const key = i.desc ? donationGroupKey(i.desc) : '一般捐款';
+        if (!generalGroups[key]) generalGroups[key] = [];
+        generalGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
+      });
+      (m.variable?.donation_designated_list || []).forEach(i => {
+        const key = i.desc ? donationGroupKey(i.desc) : '指定捐款';
+        if (!designatedGroups[key]) designatedGroups[key] = [];
+        designatedGroups[key].push({ name: m.name, nickname: m.nickname || '', amount: Number(i.amount || 0), desc: i.desc });
+      });
+    });
+    if (Object.keys(fixedGroups).length === 0 && Object.keys(generalGroups).length === 0 && Object.keys(designatedGroups).length === 0) {
+      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">本月尚無捐款記錄</div>`;
+      return;
+    }
+    const sortList = list => [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
+    const buildCards = (groups, headerBg, headerColor) => {
+      let cards = '', sTotal = 0;
+      Object.entries(groups).forEach(([item, list]) => {
+        const sub = list.reduce((a,x)=>a+x.amount,0); sTotal+=sub;
+        const memberRows = sortList(list).map((x,idx) => `
+          <tr>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;color:#888">${idx+1}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px;font-weight:700">${x.name}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#aaa">${x.nickname}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:#999">${x.desc !== item ? (x.desc||'') : ''}</td>
+            <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700">$${x.amount.toLocaleString()}</td>
+          </tr>`).join('');
+        cards += `
+          <div style="border:1.5px solid #e8d5ff;border-radius:12px;overflow:hidden;margin-bottom:12px">
+            <div style="background:${headerBg};padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
+              <div><div style="color:${headerColor};font-size:13px;font-weight:900">${item}</div>
+              <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px">共 ${list.length} 人</div></div>
+              <div style="color:${headerColor};font-family:monospace;font-size:18px;font-weight:900">$${sub.toLocaleString()}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f9f4ff">
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb;width:30px">#</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">姓名</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">暱稱</th>
+                <th style="padding:5px 12px;text-align:left;font-size:10px;color:#bbb">細項</th>
+                <th style="padding:5px 12px;text-align:right;font-size:10px;color:#bbb">金額</th>
+              </tr></thead>
+              <tbody>${memberRows}</tbody>
+              <tfoot><tr style="background:#f3e8ff">
+                <td colspan="4" style="padding:6px 12px;font-size:12px;font-weight:900;color:#6d28d9">${item} 小計</td>
+                <td style="padding:6px 12px;text-align:right;font-family:monospace;font-size:13px;font-weight:900;color:#6d28d9">$${sub.toLocaleString()}</td>
+              </tr></tfoot>
+            </table>
+          </div>`;
+      });
+      return { cards, sTotal };
+    };
+    const { cards: fCards, sTotal: fTotal } = buildCards(fixedGroups, '#4c1d95', '#e9d5ff');
+    const { cards: gCards, sTotal: gTotal } = buildCards(generalGroups, '#6d28d9', '#f5f3ff');
+    const { cards: dCards, sTotal: dTotal } = buildCards(designatedGroups, '#9d174d', '#fce7f3');
+    const grandTotal = fTotal + gTotal + dTotal;
+    preview.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:#888">${data.month} 捐款明細報表</div>
+        <div style="background:#581c87;color:#e9d5ff;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">總計 $${grandTotal.toLocaleString()}</div>
+      </div>
+      ${Object.keys(fixedGroups).length>0?`<div style="display:flex;justify-content:space-between;align-items:center;background:#4c1d95;color:#e9d5ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px"><span style="font-weight:900;font-size:13px">固定捐款</span><span style="font-family:monospace;font-weight:900">$${fTotal.toLocaleString()}</span></div>${fCards}`:''}
+      ${Object.keys(generalGroups).length>0?`<div style="display:flex;justify-content:space-between;align-items:center;background:#6d28d9;color:#f5f3ff;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px;margin-top:8px"><span style="font-weight:900;font-size:13px">一般捐款</span><span style="font-family:monospace;font-weight:900">$${gTotal.toLocaleString()}</span></div>${gCards}`:''}
+      ${Object.keys(designatedGroups).length>0?`<div style="display:flex;justify-content:space-between;align-items:center;background:#9d174d;color:#fce7f3;padding:8px 14px;border-radius:10px 10px 0 0;margin-bottom:4px;margin-top:8px"><span style="font-weight:900;font-size:13px">指定捐款</span><span style="font-family:monospace;font-weight:900">$${dTotal.toLocaleString()}</span></div>${dCards}`:''}`;
+
+  // ── 年度報表 ──────────────────────────────────────────────
+  } else {
+    if (!data.history || data.history.length === 0) {
+      preview.innerHTML = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無 ${data.year} 年度的歷史資料</div>`;
+      return;
+    }
+    const sortedSnaps = [...data.history].sort((a,b) => {
+      const ma=(a.month||'').match(/(\d+)年(\d+)月/), mb=(b.month||'').match(/(\d+)年(\d+)月/);
+      if(!ma||!mb) return 0;
+      return (parseInt(ma[1])*12+parseInt(ma[2]))-(parseInt(mb[1])*12+parseInt(mb[2]));
+    });
+    const months = sortedSnaps.map(s=>s.month);
+    const allIds = {};
+    sortedSnaps.forEach(snap=>(snap.members||[]).forEach(m=>{if(m.id) allIds[m.id]={name:m.name,nickname:m.nickname||''};}));
+    const sortedMembers = Object.entries(allIds).sort((a,b)=>{
+      const na=(a[1].nickname||a[1].name).toUpperCase(), nb=(b[1].nickname||b[1].name).toUpperCase();
+      return na<nb?-1:na>nb?1:0;
+    });
+    const monthTotals = {};
+    sortedSnaps.forEach(snap=>{
+      const t={sumA:0,sumB:0,sumC:0,sumD:0};
+      (snap.members||[]).map(m=>({...m,variable:(m.variable&&!Array.isArray(m.variable))?m.variable:{fixedA_list:[],service_list:[],advance_pay_list:[],receipt_list:[],credit_card_list:[],donation_fixed_list:[],donation_general_list:[],donation_designated_list:[]}})).forEach(m=>{const f=calcFees(m);t.sumA+=f.sumA;t.sumB+=f.sumB;t.sumC+=f.sumC;t.sumD+=f.sumD;});
+      monthTotals[snap.month]=t;
+    });
+    const mhd = months.map(mo=>`<th colspan="4" style="padding:5px 8px;text-align:center;font-size:10px;color:#002147;border-left:2px solid #ddd">${mo}</th>`).join('');
+    const msh = months.map(()=>`<th style="padding:4px 6px;text-align:right;font-size:9px;color:#888;border-left:2px solid #ddd">A</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#888">B</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#888">C</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#002147;font-weight:900">D</th>`).join('');
+    const mRows = sortedMembers.map(([mId,info])=>{
+      let tA=0,tB=0,tC=0,tD=0;
+      const cells = months.map(mo=>{
+        const snap=sortedSnaps.find(s=>s.month===mo);
+        const m=(snap?.members||[]).find(x=>x.id===mId);
+        if(!m) return `<td style="padding:5px 6px;text-align:right;color:#ddd;border-left:2px solid #eee">-</td><td>-</td><td>-</td><td>-</td>`;
+        const f=calcFees(m); tA+=f.sumA;tB+=f.sumB;tC+=f.sumC;tD+=f.sumD;
+        return `<td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;border-left:2px solid #eee">${fmtAmt(f.sumA)}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px">${fmtAmt(f.sumB)}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${fmtAmt(f.sumC)}</td><td style="padding:5px 6px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;color:#002147">${fmtAmt(f.sumD)}</td>`;
+      }).join('');
+      return `<tr><td style="padding:5px 10px;font-weight:700;white-space:nowrap">${info.name}</td><td style="padding:5px 8px;color:#bbb;font-size:11px">${info.nickname}</td>${cells}<td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;border-left:3px solid #002147">${fmtAmt(tA)}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px">${fmtAmt(tB)}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;color:#7c3aed">${fmtAmt(tC)}</td><td style="padding:5px 8px;text-align:right;font-family:monospace;font-size:11px;font-weight:900;background:#eef4ff;color:#002147">${fmtAmt(tD)}</td></tr>`;
+    }).join('');
+    const tCells = months.map(mo=>{const t=monthTotals[mo]||{sumA:0,sumB:0,sumC:0,sumD:0};return `<td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:2px solid rgba(255,255,255,0.2)">$${t.sumA.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${t.sumB.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${t.sumC.toLocaleString()}</td><td style="padding:6px 6px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${t.sumD.toLocaleString()}</td>`;}).join('');
+    const gA=Object.values(monthTotals).reduce((s,t)=>s+t.sumA,0);
+    const gB=Object.values(monthTotals).reduce((s,t)=>s+t.sumB,0);
+    const gC=Object.values(monthTotals).reduce((s,t)=>s+t.sumC,0);
+    const gD=Object.values(monthTotals).reduce((s,t)=>s+t.sumD,0);
+    const [ry1, ry2] = String(data.year).split('-');
+    const yearLabel = (ry1 && ry2) ? `${ry1}年07月 - ${ry2}年06月` : data.year;
+    preview.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">${data.year} 年度報表（${yearLabel}，A=經常費 B=服務費 C=代付款 D=合計）</div>
+      <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px;white-space:nowrap">
+        <thead>
+          <tr style="background:#f5f2ec"><th rowspan="2" style="padding:6px 10px;text-align:left;font-size:10px;color:#888">姓名</th><th rowspan="2" style="padding:6px 8px;text-align:left;font-size:10px;color:#888">暱稱</th>${mhd}<th colspan="4" style="padding:5px 8px;text-align:center;font-size:10px;color:white;background:#002147;border-left:3px solid #C9A84C">年度合計</th></tr>
+          <tr style="background:#f5f2ec">${msh}<th style="padding:4px 6px;text-align:right;font-size:9px;color:#888;border-left:3px solid #002147">A</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#888">B</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#7c3aed">C</th><th style="padding:4px 6px;text-align:right;font-size:9px;color:#002147;font-weight:900;background:#eef4ff">D</th></tr>
+        </thead>
+        <tbody>${mRows}</tbody>
+        <tfoot><tr style="background:#002147;color:white"><td colspan="2" style="padding:7px 10px;font-weight:900">月份合計</td>${tCells}<td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a;border-left:3px solid #C9A84C">$${gA.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#fde68a">$${gB.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#c4b5fd">$${gC.toLocaleString()}</td><td style="padding:7px 6px;text-align:right;font-family:monospace;font-weight:900;color:#C9A84C">$${gD.toLocaleString()}</td></tr></tfoot>
+      </table></div>`;
+  }
+  } catch(err) { console.error('generateReportPreview ERROR:', err); document.getElementById('report-preview').innerHTML = '<div style="color:red;padding:20px;font-size:13px">❌ 報表錯誤：' + err.message + '</div>'; }
+}
+
+function exportReport(format) {
+  const data = getReportData();
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+
+  // variable 正規化（同 generateReportPreview）
+  const normVar = m => (m.variable && !Array.isArray(m.variable)) ? m.variable : {
+    fixedA_list:[], service_list:[], advance_pay_list:[], receipt_list:[],
+    credit_card_list:[], donation_fixed_list:[], donation_general_list:[], donation_designated_list:[]
+  };
+
+  let csv = '';
+
+  // ── 代付款明細 CSV ────────────────────────────────────────
+  if (data.type === 'advance') {
+    const mList = (data.members || members).map(m => ({...m, variable: normVar(m)}));
+
+    // 收集所有代付款群組（以 '-' 前綴合併）
+    const itemSet = new Set();
+    mList.forEach(m => (m.variable.advance_pay_list||[]).forEach(i => { if(i.desc) itemSet.add(advGroupKey(i.desc)); }));
+    const items = [...itemSet];
+
+    if (items.length === 0) { alert('本月尚無代付款記錄'); return; }
+
+    const sortedList = [...mList].sort((a,b) => sortByNickname(a,b));
+    csv = ['姓名','暱稱', ...items, '代付款合計'].join(',') + '\n';
+
+    const itemTotals = Object.fromEntries(items.map(d=>[d,0]));
+    let grandTotal = 0;
+
+    sortedList.forEach(m => {
+      const vals = items.map(d => {
+        const a = (m.variable.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+Number(i.amount||0),0);
+        itemTotals[d] += a;
+        return a;
+      });
+      const rowTotal = vals.reduce((s,a)=>s+a, 0);
+      if (rowTotal === 0) return;
+      grandTotal += rowTotal;
+      csv += [`"${m.name}"`, `"${m.nickname||''}"`, ...vals, rowTotal].join(',') + '\n';
+    });
+
+    csv += ['"小計"','""', ...items.map(d=>itemTotals[d]), grandTotal].join(',') + '\n';
+
+    downloadCSV(csv, `洲美代付款明細_${data.month}.csv`);
+    return;
+
+  // ── 捐款明細 CSV ─────────────────────────────────────────
+  } else if (data.type === 'donation') {
+    const mList = (data.members || members).map(m => ({...m, variable: normVar(m)}));
+    const fixedGroups = {}, generalGroups = {}, designatedGroups = {};
+    mList.forEach(m => {
+      (m.variable.donation_fixed_list||[]).forEach(i => {
+        const k = i.desc?donationGroupKey(i.desc):'固定捐款'; if(!fixedGroups[k]) fixedGroups[k]=[];
+        fixedGroups[k].push({name:m.name,nickname:m.nickname||'',amount:Number(i.amount||0)});
+      });
+      [...(m.variable.donation_general_list||[]),...(m.variable.donation_list||[])].forEach(i => {
+        const k = i.desc?donationGroupKey(i.desc):'一般捐款'; if(!generalGroups[k]) generalGroups[k]=[];
+        generalGroups[k].push({name:m.name,nickname:m.nickname||'',amount:Number(i.amount||0)});
+      });
+      (m.variable.donation_designated_list||[]).forEach(i => {
+        const k = i.desc?donationGroupKey(i.desc):'指定捐款'; if(!designatedGroups[k]) designatedGroups[k]=[];
+        designatedGroups[k].push({name:m.name,nickname:m.nickname||'',amount:Number(i.amount||0)});
+      });
+    });
+    csv = '類型,捐款項目,#,社友姓名,暱稱,金額\n';
+    let grandTotal = 0;
+    const writeGroup = (groups, typeName) => {
+      let sTotal = 0;
+      Object.entries(groups).forEach(([item, list]) => {
+        const sorted = [...list].sort((a,b)=>(a.nickname||a.name).toUpperCase()<(b.nickname||b.name).toUpperCase()?-1:1);
+        const sub = sorted.reduce((a,x)=>a+x.amount,0); sTotal+=sub;
+        sorted.forEach((x,idx) => { csv += `"${typeName}","${item}",${idx+1},"${x.name}","${x.nickname}",${x.amount}\n`; });
+        csv += `"${typeName} 小計","${item}","","","",${sub}\n`;
+      });
+      if (sTotal>0) { csv += `"${typeName} 合計","","","","",${sTotal}\n`; grandTotal+=sTotal; }
+    };
+    writeGroup(fixedGroups,'固定捐款'); writeGroup(generalGroups,'一般捐款'); writeGroup(designatedGroups,'指定捐款');
+    csv += `"捐款總計","","","","",${grandTotal}\n`;
+    downloadCSV(csv, `洲美捐款明細_${data.month}.csv`);
+    return;
+
+  // ── 月結報表 CSV ─────────────────────────────────────────
+  } else if (data.type === 'monthly') {
+    const mList = (data.members || members).map(m => ({...m, variable: normVar(m)})).sort((a,b)=>sortByNickname(a,b));
+    // 與畫面預覽共用同一套欄位收集邏輯
+    const cols = collectMonthlyColumns(mList);
+    const { fixedAItems, fixedAExtras, serviceItems, advanceItems, donFixedItems, donGeneralItems, donDesignatedItems } = cols;
+
+    const aH = [...fixedAItems.map(([,l])=>l), ...fixedAExtras, '經常費合計(A)'];
+    const bH = [...advanceItems, '代付款合計(C)'];
+    const cH = [...serviceItems.map(d=>d==='__split__'?'固定分攤':d), '服務費合計(B)'];
+    const dfH = donFixedItems.length>0 ? [...donFixedItems,'固定捐款小計'] : [];
+    const dgH = donGeneralItems.length>0 ? [...donGeneralItems,'一般捐款小計'] : [];
+    const ddH = donDesignatedItems.length>0 ? [...donDesignatedItems,'指定捐款小計'] : [];
+    csv = ['姓名','暱稱','社友編號',...aH,...bH,...cH,...dfH,...dgH,...ddH,'本期社費(D)','前期(E)','匯款(F)','信用卡(G)','未付款(H)'].join(',') + '\n';
+
+    const totals = createMonthlyTotals();
+    mList.forEach(m => {
+      const row = buildMemberRowData(m, cols);
+      accumulateMonthlyTotals(totals, cols, row);
+      const { faV, feV, adV, svV, dfV, dgV, ddV, sA, sB, sC, sDF, sDG, sDD, sD, prevDue, transfer, card, H } = row;
+      const dfRow = donFixedItems.length>0 ? [...dfV, sDF] : [];
+      const dgRow = donGeneralItems.length>0 ? [...dgV, sDG] : [];
+      const ddRow = donDesignatedItems.length>0 ? [...ddV, sDD] : [];
+      csv += [`"${m.name}"`,`"${m.nickname||''}"`,`"${m.id}"`,
+        ...faV,...feV,sA,...adV,sB,...svV,sC,...dfRow,...dgRow,...ddRow,sD,prevDue,transfer,card,H].join(',') + '\n';
+    });
+    const dfFoot = donFixedItems.length>0 ? [...donFixedItems.map(d=>totals.donF[d]||0), totals.donFT] : [];
+    const dgFoot = donGeneralItems.length>0 ? [...donGeneralItems.map(d=>totals.donG[d]||0), totals.donGT] : [];
+    const ddFoot = donDesignatedItems.length>0 ? [...donDesignatedItems.map(d=>totals.donD[d]||0), totals.donDT] : [];
+    csv += ['"合計"','""','""',
+      ...fixedAItems.map(([k])=>totals.fixedA[k]||0),...fixedAExtras.map(d=>totals.fixedAE[d]||0),totals.sumA,
+      ...advanceItems.map(d=>totals.adv[d]||0),totals.sumB,
+      ...serviceItems.map(d=>totals.svc[d]||0),totals.sumC,
+      ...dfFoot,...dgFoot,...ddFoot,totals.sumD,totals.prevDue,totals.transfer,totals.card,totals.finalH].join(',') + '\n';
+    downloadCSV(csv, `洲美月結報表_${data.month}.csv`);
+    return;
+
+  // ── 年度報表 CSV ─────────────────────────────────────────
+  } else {
+    const history = data.history || [];
+    if (history.length === 0) { alert('尚無年度歷史資料'); return; }
+
+    const sortedSnaps = [...history].sort((a,b) => {
+      const ma=(a.month||'').match(/(\d+)年(\d+)月/), mb=(b.month||'').match(/(\d+)年(\d+)月/);
+      if(!ma||!mb) return 0;
+      return (parseInt(ma[1])*12+parseInt(ma[2]))-(parseInt(mb[1])*12+parseInt(mb[2]));
+    });
+    const yearMonths = sortedSnaps.map(s=>s.month);
+    const allIds = {};
+    sortedSnaps.forEach(snap=>(snap.members||[]).forEach(m=>{if(m.id) allIds[m.id]={name:m.name,nickname:m.nickname||''};}));
+    const sortedMemberEntries = Object.entries(allIds).sort((a,b)=>{
+      const na=(a[1].nickname||a[1].name).toUpperCase(), nb=(b[1].nickname||b[1].name).toUpperCase();
+      return na<nb?-1:na>nb?1:0;
+    });
+
+    // 每人 × 每月：經常費(A)、服務費(B，含所有服務費+捐款加總，不逐筆列)、代付款(C，含所有代付項目加總，不逐筆列)、合計(D)
+    const monthHeaders = [];
+    yearMonths.forEach(mo => { monthHeaders.push(`${mo} 經常費(A)`, `${mo} 服務費(B)`, `${mo} 代付款(C)`, `${mo} 合計(D)`); });
+    csv = ['姓名','暱稱','社友編號', ...monthHeaders, '年度經常費(A)合計','年度服務費(B)合計','年度代付款(C)合計','年度總合計(D)'].join(',') + '\n';
+
+    const grandTotals = { A:0, B:0, C:0, D:0 };
+    sortedMemberEntries.forEach(([mId, info]) => {
+      let tA=0, tB=0, tC=0, tD=0;
+      const cells = [];
+      yearMonths.forEach(mo => {
+        const snap = sortedSnaps.find(s=>s.month===mo);
+        const m = (snap?.members||[]).find(x=>x.id===mId);
+        if (!m) { cells.push('', '', '', ''); return; }
+        const f = calcFees(normVar(m));
+        tA += f.sumA; tB += f.sumB; tC += f.sumC; tD += f.sumD;
+        cells.push(f.sumA, f.sumB, f.sumC, f.sumD);
+      });
+      grandTotals.A += tA; grandTotals.B += tB; grandTotals.C += tC; grandTotals.D += tD;
+      csv += [`"${info.name}"`, `"${info.nickname||''}"`, `"${mId}"`, ...cells, tA, tB, tC, tD].join(',') + '\n';
+    });
+
+    // 每月全社合計列，方便對照
+    const monthTotalCells = [];
+    yearMonths.forEach(mo => {
+      const snap = sortedSnaps.find(s=>s.month===mo);
+      const t = (snap?.members||[]).reduce((acc,m)=>{
+        const f=calcFees(normVar(m));
+        return {A:acc.A+f.sumA,B:acc.B+f.sumB,C:acc.C+f.sumC,D:acc.D+f.sumD};
+      },{A:0,B:0,C:0,D:0});
+      monthTotalCells.push(t.A, t.B, t.C, t.D);
+    });
+    csv += ['"合計"','""','""', ...monthTotalCells, grandTotals.A, grandTotals.B, grandTotals.C, grandTotals.D].join(',') + '\n';
+
+    downloadCSV(csv, `洲美年度報表_${data.year}.csv`);
+    return;
+  }
+}
+
+function downloadCSV(csv, filename) {
+  // 加 BOM 讓 Excel 正確顯示中文
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+// 一次性把本機既有的歷史快照全部補寫到雲端（啟用雲端備份前累積的紀錄）
+async function backfillHistoryToCloud() {
+  if (!API_URL) { alert('請先到上方設定並儲存 API 網址。'); return; }
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const valid = history.filter(h => h && h.month);
+  if (valid.length === 0) { alert('本機目前沒有歷史紀錄可以備份。'); return; }
+  if (!confirm(`準備把本機的 ${valid.length} 筆月份歷史紀錄備份到雲端，確定嗎？\n\n（同月份若雲端已有，會以本機這份覆蓋更新）`)) return;
+
+  const statusEl = document.getElementById('history-backfill-status');
+  let success = 0;
+  const failed = [];
+  for (let i = 0; i < valid.length; i++) {
+    statusEl.textContent = `備份中 ${i+1}/${valid.length}...`;
+    statusEl.style.color = '#888';
+    const r = await saveHistoryToCloud(valid[i]);
+    if (r && r.ok) success++;
+    else failed.push(valid[i].month);
+  }
+  statusEl.style.color = failed.length ? '#dc2626' : '#16a34a';
+  statusEl.textContent = failed.length
+    ? `完成 ${success}/${valid.length}，失敗：${failed.join('、')}`
+    : `✅ 已備份 ${success} 筆歷史紀錄到雲端`;
+  setTimeout(() => { statusEl.textContent = ''; }, 8000);
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify({ members, settings }, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.download = `洲美備份_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.json`;
+  link.href = URL.createObjectURL(blob); link.click();
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file || !confirm('確定還原？本機資料將被覆蓋！')) return;
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    try {
+      const data = JSON.parse(evt.target.result);
+      members = data.members || members;
+      settings = data.settings || settings;
+      await pushToCloud('saveMembers', { members });
+      await pushToCloud('saveSettings', { settings });
+      render();
+      alert('✅ 還原成功！');
+    } catch(e) { alert('匯入失敗：' + e.message); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════
+// UI 輔助
+// ══════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  event.currentTarget.classList.add('active');
+  if (tab === 'bills') renderBillsGrid();
+}
+
+function showSync(msg) {
+  const t = document.getElementById('sync-toast');
+  document.getElementById('sync-msg').textContent = msg;
+  t.classList.add('show');
+}
+function hideSync() {
+  setTimeout(() => document.getElementById('sync-toast').classList.remove('show'), 1000);
+}
 </script>
 </body>
 </html>
