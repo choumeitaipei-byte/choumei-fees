@@ -224,13 +224,16 @@
             <th style="text-align:center">經常費(A)</th>
             <th style="text-align:center">服務費(B)</th>
             <th style="text-align:center">代付款(C)</th>
+            <th style="text-align:center">本期社費(D)</th>
             <th style="text-align:center">前期(E)</th>
+            <th style="text-align:center">本期已付款(F)</th>
+            <th style="text-align:center">本期信用卡(G)</th>
             <th style="text-align:center">未付款(H)</th>
             <th style="text-align:right">操作</th>
           </tr>
         </thead>
         <tbody id="members-table-body">
-          <tr><td colspan="6" style="text-align:center;padding:40px;color:#bbb">載入中...</td></tr>
+          <tr><td colspan="10" style="text-align:center;padding:40px;color:#bbb">載入中...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1067,24 +1070,29 @@ function renderMembersTable() {
 
   document.getElementById('member-count').textContent = sorted.length + ' 位社友' + (withdrawnCount > 0 ? `（另有 ${withdrawnCount} 位已退社，未顯示）` : '');
   const fs = settings.feeStructure;
+  // 金額顯示：0 顯示 $0，負數（例如前期多收）顯示 -$700，不會變成 $-700
+  const money = n => (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString();
   document.getElementById('members-table-body').innerHTML = sorted.map(m => {
     const f = calcFees(m);
     const due = f.finalH;
     const badge = due > 0
-      ? `<span class="badge-due">$${due.toLocaleString()}</span>`
-      : `<span class="badge-ok">$${due.toLocaleString()}</span>`;
+      ? `<span class="badge-due">${money(due)}</span>`
+      : `<span class="badge-ok">${money(due)}</span>`;
     return `<tr>
       <td><div style="font-weight:700">${m.name}</div><div style="font-size:11px;color:#bbb">${m.nickname || ''}</div></td>
-      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">$${f.sumA.toLocaleString()}</td>
-      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">$${f.sumB.toLocaleString()}</td>
-      <td style="text-align:center;font-family:'DM Mono',monospace;color:#7c3aed">$${f.sumC.toLocaleString()}</td>
-      <td style="text-align:center;font-family:'DM Mono',monospace;color:#888">$${f.sumE.toLocaleString()}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">${money(f.sumA)}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#555">${money(f.sumB)}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#7c3aed">${money(f.sumC)}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;font-weight:700;color:var(--navy)">${money(f.sumD)}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#888">${money(f.sumE)}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#16a34a">${money(f.sumF)}</td>
+      <td style="text-align:center;font-family:'DM Mono',monospace;color:#7c3aed">${money(f.sumG)}</td>
       <td style="text-align:center">${badge}</td>
       <td style="text-align:right">
         <button onclick="openBill('${m.id}')" class="btn-primary" style="font-size:11px;padding:6px 16px">查看帳單</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7" style="text-align:center;padding:40px;color:#bbb">${unpaidOnly ? '目前沒有未付款的社友' : '尚無社友資料'}</td></tr>`;
+  }).join('') || `<tr><td colspan="10" style="text-align:center;padding:40px;color:#bbb">${unpaidOnly ? '目前沒有未付款的社友' : '尚無社友資料'}</td></tr>`;
 }
 
 function renderMembersGrid() {
@@ -1851,10 +1859,26 @@ function openSendBillsModal() {
     tagFn: m => emailSentThisMonth(m) ? `<span style="margin-left:auto;font-size:10px;color:#16a34a;font-weight:900;background:#f0fdf4;border:1px solid #bbf7d0;padding:1px 8px;border-radius:99px">✅ 已寄</span>` : '',
     onConfirm: (ids) => {
       if (ids.length === 0) return;
-      if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出。`)) return;
+      if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出；帳單明細上有附件的社友，附件會自動夾帶在信件最下面。`)) return;
       sendBillsToMembers(ids);
     }
   });
+}
+
+// 收集某社友帳單上所有明細的附件（IOU單、收據等），同一個檔案出現在多筆明細時只算一份
+function collectMemberAttachments(m) {
+  const seen = {};
+  const list = [];
+  const vr = (m.variable && !Array.isArray(m.variable)) ? m.variable : {};
+  Object.keys(vr).forEach(key => {
+    if (!Array.isArray(vr[key])) return;
+    vr[key].forEach(entry => {
+      (entry.attachments || []).forEach(a => {
+        if (a && a.id && !seen[a.id]) { seen[a.id] = true; list.push({ id: a.id, url: a.url, name: a.name }); }
+      });
+    });
+  });
+  return list;
 }
 
 // 記錄某社友在目前月份已成功寄送帳單 Email，存在社友資料裡，會跟著雲端同步，不會因換裝置消失
@@ -1884,7 +1908,8 @@ async function sendBillsToMembers(ids) {
       const r = await sendMemberEmailApi({
         action: 'sendMemberEmail',
         to: m.email.trim(),
-        subject, plainBody, htmlBody
+        subject, plainBody, htmlBody,
+        driveAttachments: collectMemberAttachments(m)
       });
       if (r.ok) { successCount++; markEmailSent(m); }
       else failed.push(`${m.name}（${r.error || '未知錯誤'}）`);
@@ -1920,7 +1945,10 @@ function openSendSingleModal() {
   }
   document.getElementById('send-single-email').value = m.email || '';
   document.getElementById('send-single-attachments').value = '';
-  document.getElementById('send-single-hint').textContent = '';
+  const autoCount = collectMemberAttachments(m).length;
+  document.getElementById('send-single-hint').textContent = autoCount > 0
+    ? `這位社友帳單明細上的 ${autoCount} 份附件會自動夾帶在信件最下面，不用另外選。`
+    : '';
   document.getElementById('send-single-overlay').classList.add('show');
 }
 
@@ -1951,7 +1979,7 @@ async function sendSingleBillEmail() {
     }
     hint.textContent = '寄送中...';
     const { subject, plainBody, htmlBody } = buildBillEmailContent(m);
-    const r = await sendMemberEmailApi({ action: 'sendMemberEmail', to: toEmail, subject, plainBody, htmlBody, attachments });
+    const r = await sendMemberEmailApi({ action: 'sendMemberEmail', to: toEmail, subject, plainBody, htmlBody, attachments, driveAttachments: collectMemberAttachments(m) });
     hint.textContent = '';
     if (r.ok) {
       markEmailSent(m);
