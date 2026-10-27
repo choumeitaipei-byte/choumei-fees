@@ -79,65 +79,86 @@
 <script>
 function getV(x) { return isNaN(Number(x)) ? 0 : Number(x); }
 
+// ⚠️ 這個 calcFees 必須跟 index.html 的 calcFees 完全一致，修改時兩邊一起改
 function calcFees(m) {
-  const v = getV;
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  // variable 有時被存成 [] 空陣列，統一修正為物件
   const vr = (m?.variable && !Array.isArray(m.variable)) ? m.variable : {};
-  // A: 經常費
-  const sumA = v(m?.fixedA?.monthly) + (vr.fixedA_list||[]).reduce((a,i)=>a+v(i.amount),0);
-  // B: 代付款
-  const sumC = (vr.advance_pay_list||[]).reduce((a,i)=>a+v(i.amount),0);
-  // C: 服務費（含捐款）
+  // A: 經常費合計
+  const sumA = v(m?.fixedA?.monthly)
+    + (vr.fixedA_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // B: 服務經費合計（含固定分攤、服務費、固定捐款、一般捐款、指定捐款）
   const sumB = v(m?.fixedB?.monthly_split)
-    + (vr.service_list||[]).reduce((a,i)=>a+v(i.amount),0)
-    + (vr.donation_fixed_list||[]).reduce((a,i)=>a+v(i.amount),0)
-    + (vr.donation_general_list||[]).reduce((a,i)=>a+v(i.amount),0)
-    + (vr.donation_list||[]).reduce((a,i)=>a+v(i.amount),0);
-  // D
-  const sumD = sumA + sumC + sumB;
-  // E
+    + (vr.service_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_fixed_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_general_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_designated_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // C: 代付款合計
+  const sumC = (vr.advance_pay_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // D: 本期社費合計 = A+B+C
+  const sumD = sumA + sumB + sumC;
+  // E: 前期未付款
   const sumE = v(m?.accounting?.previous_due);
-  // F: 匯款
-  const sumF = (vr.receipt_list||[]).filter(i=>i.type!=='receipt_card').reduce((a,i)=>a+v(i.amount),0);
-  // G: 信用卡
-  const sumG = (vr.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+v(i.amount),0)
-    + (vr.credit_card_list||[]).reduce((a,i)=>a+v(i.amount),0)
+  // F: 已收匯款
+  const sumF = (vr.receipt_list || [])
+    .filter(i => i.type !== 'receipt_card')
+    .reduce((a,i) => a + v(i.amount), 0);
+  // G: 信用卡扣款（receipt_list 中 type=receipt_card + credit_card_list）
+  const sumG = (vr.receipt_list || [])
+    .filter(i => i.type === 'receipt_card')
+    .reduce((a,i) => a + v(i.amount), 0)
+    + (vr.credit_card_list || []).reduce((a,i) => a + v(i.amount), 0)
     + v(m?.accounting?.credit_card);
+  // H: 本期未付款 = D+E-F-G
   const H = sumD + sumE - sumF - sumG;
   return { sumA, sumB, sumC, sumD, sumE, sumF, sumG, finalH: H };
+}
+
+// 「核對無誤／核對有誤」一鍵回覆連結（mailto）
+// ⚠️ 跟 index.html 的 buildConfirmMailto 是同一套文字，修改時兩邊要一起改
+const DEFAULT_REPLY_TO = 'choumeitaipei@gmail.com';
+function buildConfirmMailto(m, settings, isOk) {
+  const f = calcFees(m);
+  const replyTo = ((settings.replyToEmail || '').trim().includes('@')) ? settings.replyToEmail.trim() : DEFAULT_REPLY_TO;
+  const status = isOk ? '核對無誤' : '核對有誤';
+  const subject = `${settings.currentMonth} 會費對帳 ${status} - ${m.name}`;
+  const body = isOk
+    ? `${m.name}（${m.id}）\n${settings.currentMonth} 會費對帳單核對無誤。\n本期未付款 (H)：NT $${f.finalH.toLocaleString()}\n`
+    : `${m.name}（${m.id}）\n${settings.currentMonth} 會費對帳單核對有誤。\n本期未付款 (H)：NT $${f.finalH.toLocaleString()}\n\n有誤的地方：\n`;
+  return `mailto:${replyTo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 function renderBill(m, settings) {
   const f = calcFees(m);
   const v = getV;
-  const fs = settings.feeStructure;
+  const fs = settings.feeStructure || {};
   const vr = (m.variable && !Array.isArray(m.variable)) ? m.variable : {};
   const sub = (label, amount, bg='#eef4ff', color='#003366') =>
-    `<div class="subtotal"><span class="subtotal-label" style="color:${color}">${label}</span><span class="subtotal-amount mono" style="color:${color}">$${v(amount).toLocaleString()}</span></div>`;
+    `<div class="subtotal" style="background:${bg}"><span class="subtotal-label" style="color:${color}">${label}</span><span class="subtotal-amount mono" style="color:${color}">$${v(amount).toLocaleString()}</span></div>`;
+  // 明細列：跟 index.html 的 buildBillHTML 同樣的分類、標籤與順序；有附件時顯示 📎 連結
+  const attachmentLinks = (attachments) => (attachments||[]).map((a,idx) =>
+    `<a href="${a.url}" target="_blank" rel="noopener" style="font-size:12px;color:#7c3aed;text-decoration:none;font-weight:700;white-space:nowrap;margin-right:6px">📎${attachments.length>1?(idx+1):''}</a>`).join('');
+  const row = (label, amount, color, attachments) =>
+    `<div class="bill-row"><span class="bill-row-label"${color?` style="color:${color}"`:''}>${label}</span><span style="display:flex;align-items:center">${attachmentLinks(attachments)}<span class="bill-row-amount mono"${color?` style="color:${color}"`:''}>$${v(amount).toLocaleString()}</span></span></div>`;
 
-  // 經常費 A
+  // 經常費 A：月費（固定欄位）與每一筆經常費明細分開列出，各列加總 = A
   let rowsA = '';
-  const fixedALabels = Object.values(fs.fixedA?.items||{}).map(l=>l.trim());
-  Object.entries(fs.fixedA?.items||{}).forEach(([k,label]) => {
-    const amt = v(m.fixedA?.[k]) || (vr.fixedA_list||[]).filter(i=>i.desc?.trim()===label.trim()).reduce((s,i)=>s+v(i.amount),0);
-    if (amt > 0) rowsA += `<div class="bill-row"><span class="bill-row-label">[經常費] ${label}</span><span class="bill-row-amount mono">$${amt.toLocaleString()}</span></div>`;
-  });
-  (vr.fixedA_list||[]).filter(i=>!fixedALabels.includes(i.desc?.trim())).forEach(i => {
-    rowsA += `<div class="bill-row"><span class="bill-row-label">[經常費] ${i.desc}</span><span class="bill-row-amount mono">$${v(i.amount).toLocaleString()}</span></div>`;
-  });
+  if (v(m.fixedA?.monthly) > 0) rowsA += row(`[經常費] ${fs.fixedA?.items?.monthly || '月費'}`, m.fixedA.monthly);
+  (vr.fixedA_list||[]).forEach(i => { rowsA += row(`[經常費] ${i.desc}`, i.amount, '', i.attachments); });
 
-  // 代付款 B
+  // 代付款 C
   let rowsB = '';
-  (vr.advance_pay_list||[]).forEach(i => {
-    rowsB += `<div class="bill-row"><span class="bill-row-label">[代付款] ${i.desc}</span><span class="bill-row-amount mono">$${v(i.amount).toLocaleString()}</span></div>`;
-  });
+  (vr.advance_pay_list||[]).forEach(i => { rowsB += row(`[代付款] ${i.desc}`, i.amount, '', i.attachments); });
 
-  // 服務費 C（含捐款）
+  // 服務費 B（含固定分攤、服務經費、各類捐款）
   let rowsC = '';
-  if (v(m.fixedB?.monthly_split) > 0) rowsC += `<div class="bill-row"><span class="bill-row-label">固定分攤費</span><span class="bill-row-amount mono">$${v(m.fixedB.monthly_split).toLocaleString()}</span></div>`;
-  (vr.service_list||[]).forEach(i => { rowsC += `<div class="bill-row"><span class="bill-row-label">[服務費] ${i.desc}</span><span class="bill-row-amount mono">$${v(i.amount).toLocaleString()}</span></div>`; });
-  (vr.donation_fixed_list||[]).forEach(i => { rowsC += `<div class="bill-row"><span class="bill-row-label" style="color:#6d28d9">[固定捐款] ${i.desc}</span><span class="bill-row-amount mono" style="color:#6d28d9">$${v(i.amount).toLocaleString()}</span></div>`; });
-  (vr.donation_general_list||[]).forEach(i => { rowsC += `<div class="bill-row"><span class="bill-row-label" style="color:#9333ea">[一般捐款] ${i.desc}</span><span class="bill-row-amount mono" style="color:#9333ea">$${v(i.amount).toLocaleString()}</span></div>`; });
-  (vr.donation_list||[]).forEach(i => { rowsC += `<div class="bill-row"><span class="bill-row-label" style="color:#9333ea">[捐款] ${i.desc}</span><span class="bill-row-amount mono" style="color:#9333ea">$${v(i.amount).toLocaleString()}</span></div>`; });
+  if (v(m.fixedB?.monthly_split) > 0) rowsC += row('[服務經費] 固定分攤費', m.fixedB.monthly_split);
+  (vr.service_list||[]).forEach(i => { rowsC += row(`[服務經費] ${i.desc}`, i.amount, '', i.attachments); });
+  (vr.donation_fixed_list||[]).forEach(i => { rowsC += row(`[固定捐款] ${i.desc}`, i.amount, '#6d28d9', i.attachments); });
+  (vr.donation_general_list||[]).forEach(i => { rowsC += row(`[一般捐款] ${i.desc}`, i.amount, '#9333ea', i.attachments); });
+  (vr.donation_designated_list||[]).forEach(i => { rowsC += row(`[指定捐款] ${i.desc}`, i.amount, '#be185d', i.attachments); });
+  (vr.donation_list||[]).forEach(i => { rowsC += row(`[捐款] ${i.desc}`, i.amount, '#9333ea', i.attachments); });
 
   // 收款
   let rowsAdj = '';
@@ -160,9 +181,9 @@ function renderBill(m, settings) {
         ${rowsA ? `<div class="section-label">經常費</div>${rowsA}` : ''}
         ${sub('經常費合計 (A)', f.sumA)}
         ${rowsB ? `<div class="section-label">代付款</div>${rowsB}` : ''}
-        ${sub('代付款合計 (B)', f.sumC)}
+        ${sub('代付款合計 (C)', f.sumC)}
         ${rowsC ? `<div class="section-label">服務費（含捐款）</div>${rowsC}` : ''}
-        ${sub('服務費合計 (C)', f.sumB)}
+        ${sub('服務費合計 (B)', f.sumB)}
         ${sub('本期社費 (D = A+B+C)', f.sumD, '#002147', '#C9A84C')}
         ${rowsAdj ? `<div class="section-label">調整項目</div>${rowsAdj}` : ''}
         <div class="total-box">
@@ -173,8 +194,14 @@ function renderBill(m, settings) {
           <p style="margin-bottom:6px;font-size:12px;color:#333">親愛的洲美扶輪社社友您好：</p>
           <p style="margin-bottom:6px;font-size:12px;color:#333">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D=A+B+C) 為 <strong style="color:#002147">NT $${f.sumD.toLocaleString()}</strong>，本期未付款 (H) 為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'}">NT $${f.finalH.toLocaleString()}</strong>，煩請核對，若有錯誤請於<strong>三天內</strong>告知。謝謝！</p>
           <p style="margin-bottom:6px;font-size:12px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineText}</strong> 前繳清，以避免會籍被終止，謝謝！</p>
-          <p style="font-size:11px;color:#555;margin-bottom:4px">□ 核對無誤　　□ 核對有誤，原因（請於三天內告知）：＿＿＿＿＿＿＿＿</p>
-          <p style="font-size:11px;color:#555;margin-bottom:12px">請簽名：＿＿＿＿＿＿＿＿</p>
+          <div style="border:1.5px solid #e8e4da;border-radius:12px;padding:12px 14px;margin:10px 0 12px">
+            <p style="font-size:13px;color:#002147;font-weight:900;margin-bottom:4px">請核對帳單，點選下方按鈕回覆：</p>
+            <p style="font-size:11px;color:#888;margin-bottom:10px">按下後會開啟回信畫面，內容已填好，直接送出即可。</p>
+            <div style="display:flex;gap:10px">
+              <a href="${buildConfirmMailto(m, settings, true)}" style="flex:1;display:block;text-align:center;background:#16a34a;color:#fff;text-decoration:none;font-weight:900;font-size:14px;padding:12px 6px;border-radius:10px">✅ 核對無誤</a>
+              <a href="${buildConfirmMailto(m, settings, false)}" style="flex:1;display:block;text-align:center;background:#fff;color:#dc2626;border:1.5px solid #fecaca;text-decoration:none;font-weight:900;font-size:14px;padding:11px 6px;border-radius:10px">❌ 核對有誤</a>
+            </div>
+          </div>
           <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#444;line-height:1.8">
             <strong style="color:#002147">※ 繳費方式</strong><br>
             1.【信用卡】國泰世華（每月15日扣款）<br>
