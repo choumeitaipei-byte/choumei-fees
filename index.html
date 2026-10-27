@@ -346,6 +346,11 @@
           <input class="inp" type="text" id="cfg-email-subject" placeholder="留空則自動用預設格式">
           <p style="font-size:10px;color:#aaa;margin-top:4px">每個月自己填想要的主旨文字，系統會自動在後面加上「- 社友姓名」；留空則用預設格式：{對帳月份} 洲美扶輪社會費對帳單 - 姓名</p>
         </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">社友回信信箱（核對確認回覆用）</label>
+          <input class="inp" type="email" id="cfg-reply-to" placeholder="choumeitaipei@gmail.com">
+          <p style="font-size:10px;color:#aaa;margin-top:4px">社友按信件或帳單頁上的「核對無誤／核對有誤」按鈕，或直接按回覆時，信會寄到這個信箱；留空則用 choumeitaipei@gmail.com</p>
+        </div>
       </div>
       <button onclick="saveSettings()" class="btn-primary">儲存設定</button>
     </div>
@@ -1005,6 +1010,7 @@ function render() {
   document.getElementById('cfg-month').value = settings.currentMonth || '';
   document.getElementById('cfg-deadline').value = settings.paymentDeadline || calcDefaultDeadline(settings.currentMonth) || '';
   document.getElementById('cfg-email-subject').value = settings.emailSubjectOverride || '';
+  document.getElementById('cfg-reply-to').value = settings.replyToEmail || '';
   document.getElementById('cfg-default-monthly').value = settings.defaultMonthly || 0;
   document.getElementById('cfg-default-split').value = settings.defaultSplit || 0;
 }
@@ -1596,13 +1602,16 @@ async function saveEntryEdit() {
 // ══════════════════════════════════════════
 // 帳單
 // ══════════════════════════════════════════
-function buildBillHTML(m) {
+// opts.forExport = true：產生要轉成圖片的版本（下載 A4／批次 ZIP／寄信附圖共用），
+// 不輸出「修改」「✕」操作按鈕和 📎 附件連結（圖片上點不到，留著只會干擾社友閱讀）
+function buildBillHTML(m, opts = {}) {
+  const forExport = !!opts.forExport;
   const f = calcFees(m);
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const fs = settings.feeStructure;
-  const del = (mId, key, id) => `<button onclick="deleteEntry('${mId}','${key}','${id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
-  const editBtn = (mId, key, id) => `<button onclick="editEntry('${mId}','${key}','${id}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:11px;cursor:pointer;font-weight:700">修改</button>`;
-  const attachmentLinks = (attachments) => (attachments||[]).map((a,idx) =>
+  const del = (mId, key, id) => forExport ? '' : `<button onclick="deleteEntry('${mId}','${key}','${id}')" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:700">✕</button>`;
+  const editBtn = (mId, key, id) => forExport ? '' : `<button onclick="editEntry('${mId}','${key}','${id}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:11px;cursor:pointer;font-weight:700">修改</button>`;
+  const attachmentLinks = (attachments) => forExport ? '' : (attachments||[]).map((a,idx) =>
     `<a href="${a.url}" target="_blank" rel="noopener" style="font-size:11px;color:#7c3aed;text-decoration:none;font-weight:700;white-space:nowrap">📎${attachments.length>1?(idx+1):''}</a>`).join(' ');
   const billRow = (label, amount, color, mId, key, id, attachments) =>
     `<div class="bill-row" style="color:${color||'inherit'}"><span>${label}</span><div style="display:flex;align-items:center;gap:6px">${attachmentLinks(attachments)}<span class="mono">$${v(amount).toLocaleString()}</span>${mId?editBtn(mId,key,id):''}${mId?del(mId,key,id):''}</div></div>`;
@@ -1646,7 +1655,7 @@ function buildBillHTML(m) {
 
   const deadlineText = settings.paymentDeadline || '__月__日';
 
-  return `<div class="bill-wrap" id="bill-render-${m.id}">
+  return `<div class="bill-wrap" id="${forExport ? 'bill-export-' : 'bill-render-'}${m.id}">
     <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid var(--navy)">
       <div style="color:var(--navy);font-size:20px;font-weight:900;letter-spacing:0.1em">${settings.currentMonth} 會費對帳單</div>
       <div style="font-size:12px;color:#888;margin-top:4px">社團法人臺北市洲美扶輪社</div>
@@ -1712,11 +1721,53 @@ function closeBillOverlay() {
   document.getElementById('bill-overlay').classList.remove('show');
 }
 
+// 帳單預覽縮放（帳單固定 794px 寬，視窗較窄時縮小顯示；不影響下載／寄出的圖片）
+let billScale = 0.75;
+function applyBillScale() {
+  const wrapper = document.getElementById('bill-scale-wrapper');
+  const label = document.getElementById('bill-scale-label');
+  if (wrapper) wrapper.style.transform = `scale(${billScale})`;
+  if (label) label.textContent = Math.round(billScale * 100) + '%';
+}
+function setBillScale(val) {
+  if (val === 'fit') {
+    const wrapper = document.getElementById('bill-scale-wrapper');
+    const box = wrapper ? wrapper.parentElement : null;
+    const available = box ? box.clientWidth - 32 : 794;
+    billScale = Math.min(1, Math.max(0.3, available / 794));
+  } else {
+    billScale = Math.min(1.5, Math.max(0.3, Number(val) || 0.75));
+  }
+  applyBillScale();
+}
+function adjustBillScale(delta) {
+  setBillScale(Math.round((billScale + delta) * 10) / 10);
+}
+
+// 把某位社友的帳單轉成 PNG（data URL）。下載 A4、批次 ZIP、寄信附圖三處共用，
+// 一律用 forExport 版本，圖片上不會出現「修改」「✕」按鈕
+async function renderBillPng(m) {
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:794px';
+  tmp.innerHTML = buildBillHTML(m, { forExport: true });
+  document.body.appendChild(tmp);
+  try {
+    return await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
+  } finally {
+    document.body.removeChild(tmp);
+  }
+}
+
+// 寄信用的帳單圖片附件檔名：只用英數字，避免部分信箱把中文檔名顯示成亂碼
+function billImageFilename(m) {
+  const safeName = asciiSafeName(m.nickname) || asciiSafeName(m.id) || 'Member';
+  return `ChouMei_Bill_${toAsciiMonth(settings.currentMonth)}_${safeName}.png`;
+}
+
 async function downloadBillImage() {
-  const mId = currentBillMemberId;
-  const node = document.getElementById('bill-render-' + mId);
-  const m = members.find(x => x.id === mId);
-  const dataUrl = await htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff' });
+  const m = members.find(x => x.id === currentBillMemberId);
+  if (!m) return;
+  const dataUrl = await renderBillPng(m);
   const link = document.createElement('a');
   link.download = `洲美帳單_${m.name}_${settings.currentMonth}.png`;
   link.href = dataUrl; link.click();
@@ -1743,19 +1794,13 @@ async function exportAllBills() {
   const sorted = [...members].sort((a,b) => sortByNickname(a,b));
   for (let i = 0; i < sorted.length; i++) {
     const m = sorted[i];
-    // 建臨時 DOM
-    const tmp = document.createElement('div');
-    tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:680px';
-    tmp.innerHTML = buildBillHTML(m);
-    document.body.appendChild(tmp);
     try {
-      const dataUrl = await htmlToImage.toPng(tmp.querySelector('.bill-wrap'), { pixelRatio: 2, backgroundColor: '#ffffff' });
+      const dataUrl = await renderBillPng(m);
       const base64 = dataUrl.split(',')[1];
       const seq = String(i + 1).padStart(2, '0');
       const safeName = asciiSafeName(m.nickname) || asciiSafeName(m.id) || `Member${seq}`;
       zip.file(`${seq}_${safeName}.png`, base64, { base64: true });
     } catch(e) {}
-    document.body.removeChild(tmp);
   }
   const blob = await zip.generateAsync({ type: 'blob' });
   const link = document.createElement('a');
@@ -1774,7 +1819,7 @@ function copyShareLink() {
     url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
   } else {
     // 無 API 時退回 data-embedded（較長，但離線可用）
-    const minSettings = { currentMonth: settings.currentMonth, financialContact: settings.financialContact, feeStructure: settings.feeStructure, paymentDeadline: settings.paymentDeadline };
+    const minSettings = { currentMonth: settings.currentMonth, financialContact: settings.financialContact, feeStructure: settings.feeStructure, paymentDeadline: settings.paymentDeadline, replyToEmail: settings.replyToEmail };
     url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&data=' + encodeURIComponent(JSON.stringify({ m, settings: minSettings }));
   }
   navigator.clipboard.writeText(url).then(() => alert('✅ 分享連結已複製！\n對方用手機或電腦打開即可查看帳單。'));
@@ -1790,7 +1835,29 @@ function copySummaryLink() {
 // ══════════════════════════════════════════
 // 寄送帳單 Email
 // ══════════════════════════════════════════
-function buildBillEmailContent(m) {
+const DEFAULT_REPLY_TO = 'choumeitaipei@gmail.com';
+function getReplyToEmail() {
+  const e = (settings.replyToEmail || '').trim();
+  return e.includes('@') ? e : DEFAULT_REPLY_TO;
+}
+
+// 「核對無誤／核對有誤」一鍵回覆連結（mailto），主旨與內容預先填好
+// ⚠️ view.html 的 buildConfirmMailto 是同一套文字，修改時兩邊要一起改
+function buildConfirmMailto(m, isOk) {
+  const f = calcFees(m);
+  const status = isOk ? '核對無誤' : '核對有誤';
+  const subject = `${settings.currentMonth} 會費對帳 ${status} - ${m.name}`;
+  const body = isOk
+    ? `${m.name}（${m.id}）\n${settings.currentMonth} 會費對帳單核對無誤。\n本期未付款 (H)：NT $${f.finalH.toLocaleString()}\n`
+    : `${m.name}（${m.id}）\n${settings.currentMonth} 會費對帳單核對有誤。\n本期未付款 (H)：NT $${f.finalH.toLocaleString()}\n\n有誤的地方：\n`;
+  return `mailto:${getReplyToEmail()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// opts.hasBillImage：這封信有沒有成功附上帳單圖片（圖片產生失敗時仍會寄信，只是不提圖片）
+function buildBillEmailContent(m, opts = {}) {
+  const hasBillImage = !!opts.hasBillImage;
+  const okLink = buildConfirmMailto(m, true);
+  const ngLink = buildConfirmMailto(m, false);
   const f = calcFees(m);
   const base = location.href.replace('index.html','').replace(/\?.*$/,'');
   const link = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
@@ -1808,6 +1875,8 @@ function buildBillEmailContent(m) {
 本期未付款 (H) 為 NT $${f.finalH.toLocaleString()}。
 ${f.sumE ? `前期未付款 (E)：NT $${f.sumE.toLocaleString()}\n` : ''}
 應收款請於 ${deadlineText} 前繳清，以避免會籍被終止，謝謝！
+
+${hasBillImage ? '帳單圖片已附在本信件中，可直接在圖片上勾選、簽名後回覆本信。\n' : ''}核對無誤請直接回覆本信「核對無誤」；若有錯誤，請於三天內回覆說明有誤的地方。
 
 完整帳單明細請開啟：${link}
 
@@ -1828,8 +1897,18 @@ ${f.sumE ? `前期未付款 (E)：NT $${f.sumE.toLocaleString()}\n` : ''}
         <span style="font-family:monospace;font-weight:900;font-size:22px;color:${dueColor}">$${f.finalH.toLocaleString()}</span>
       </div>
       <p style="font-size:12px;color:#dc2626;font-weight:700;margin:0 0 18px">⚠️ 請於 ${deadlineText} 前繳清，以避免會籍被終止，謝謝！</p>
+      <div style="border:1.5px solid #e8e4da;border-radius:12px;padding:14px 16px;margin-bottom:16px">
+        <p style="font-size:13px;color:#002147;font-weight:900;margin:0 0 6px">請核對帳單，點選下方按鈕回覆：</p>
+        <p style="font-size:11px;color:#888;margin:0 0 12px;line-height:1.7">按下後會開啟回信畫面，內容已填好，直接送出即可。${hasBillImage ? '<br>也可以開啟信件附件的帳單圖片，在圖片上勾選、簽名後回覆本信。' : ''}</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0">
+          <tr>
+            <td width="50%" style="padding-right:5px"><a href="${okLink}" style="display:block;text-align:center;background:#16a34a;color:#ffffff;text-decoration:none;font-weight:900;font-size:14px;padding:12px 6px;border-radius:10px">✅ 核對無誤</a></td>
+            <td width="50%" style="padding-left:5px"><a href="${ngLink}" style="display:block;text-align:center;background:#ffffff;color:#dc2626;border:1.5px solid #fecaca;text-decoration:none;font-weight:900;font-size:14px;padding:11px 6px;border-radius:10px">❌ 核對有誤</a></td>
+          </tr>
+        </table>
+      </div>
       <a href="${link}" style="display:block;text-align:center;background:#002147;color:#C9A84C;text-decoration:none;font-weight:900;font-size:14px;padding:14px;border-radius:12px;margin-bottom:18px">查看完整帳單明細 →</a>
-      <p style="font-size:11px;color:#888;margin:0 0 4px">若對帳單內容有疑問，請於三天內告知社辦，將盡快為您處理。</p>
+      <p style="font-size:11px;color:#888;margin:0 0 4px">若對帳單內容有疑問，請於三天內回覆本信或告知社辦，將盡快為您處理。</p>
       <p style="font-size:12px;color:#002147;font-weight:700;margin:10px 0 0">財務聯絡：${settings.financialContact?.name || ''} ${settings.financialContact?.phone || ''}</p>
     </div>
   </div>`;
@@ -1859,7 +1938,7 @@ function openSendBillsModal() {
     tagFn: m => emailSentThisMonth(m) ? `<span style="margin-left:auto;font-size:10px;color:#16a34a;font-weight:900;background:#f0fdf4;border:1px solid #bbf7d0;padding:1px 8px;border-radius:99px">✅ 已寄</span>` : '',
     onConfirm: (ids) => {
       if (ids.length === 0) return;
-      if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出；帳單明細上有附件的社友，附件會自動夾帶在信件最下面。`)) return;
+      if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出，每封都會附上該社友的帳單圖片；帳單明細上有附件的社友，附件也會自動夾帶。`)) return;
       sendBillsToMembers(ids);
     }
   });
@@ -1881,6 +1960,16 @@ function collectMemberAttachments(m) {
   return list;
 }
 
+// 產生寄信用的帳單圖片附件 {filename, mimeType, base64}；產生失敗回傳 null（呼叫端照常寄信，只是不附圖）
+async function buildBillImageAttachment(m) {
+  try {
+    const dataUrl = await renderBillPng(m);
+    return { filename: billImageFilename(m), mimeType: 'image/png', base64: dataUrl.split(',')[1] };
+  } catch (e) {
+    return null;
+  }
+}
+
 // 記錄某社友在目前月份已成功寄送帳單 Email，存在社友資料裡，會跟著雲端同步，不會因換裝置消失
 function markEmailSent(m) {
   if (!m.emailLog) m.emailLog = {};
@@ -1898,17 +1987,22 @@ async function sendBillsToMembers(ids) {
   const targets = members.filter(m => ids.includes(m.id));
   let successCount = 0;
   const failed = [];
+  const noImage = []; // 帳單圖片產生失敗、改成只寄文字＋連結的社友
 
   showSync(`寄送中 0/${targets.length}...`);
   for (let i = 0; i < targets.length; i++) {
     const m = targets[i];
     showSync(`寄送中 ${i+1}/${targets.length}...（${m.name}）`);
     try {
-      const { subject, plainBody, htmlBody } = buildBillEmailContent(m);
+      const billImage = await buildBillImageAttachment(m);
+      if (!billImage) noImage.push(m.name);
+      const { subject, plainBody, htmlBody } = buildBillEmailContent(m, { hasBillImage: !!billImage });
       const r = await sendMemberEmailApi({
         action: 'sendMemberEmail',
         to: m.email.trim(),
+        replyTo: getReplyToEmail(),
         subject, plainBody, htmlBody,
+        attachments: billImage ? [billImage] : [],
         driveAttachments: collectMemberAttachments(m)
       });
       if (r.ok) { successCount++; markEmailSent(m); }
@@ -1922,6 +2016,7 @@ async function sendBillsToMembers(ids) {
 
   let msg = `✅ 寄送完成！成功 ${successCount} / ${targets.length} 封`;
   if (failed.length > 0) msg += `\n\n❌ 寄送失敗：\n${failed.join('\n')}`;
+  if (noImage.length > 0) msg += `\n\n⚠️ 以下社友的帳單圖片產生失敗，信件只附文字摘要與連結：\n${noImage.join('、')}`;
   alert(msg);
 }
 
@@ -1947,8 +2042,8 @@ function openSendSingleModal() {
   document.getElementById('send-single-attachments').value = '';
   const autoCount = collectMemberAttachments(m).length;
   document.getElementById('send-single-hint').textContent = autoCount > 0
-    ? `這位社友帳單明細上的 ${autoCount} 份附件會自動夾帶在信件最下面，不用另外選。`
-    : '';
+    ? `帳單圖片會自動附上；這位社友帳單明細上的 ${autoCount} 份附件也會自動夾帶，不用另外選。`
+    : '帳單圖片會自動附上，不用另外選。';
   document.getElementById('send-single-overlay').classList.add('show');
 }
 
@@ -1977,13 +2072,16 @@ async function sendSingleBillEmail() {
       const base64 = await fileToBase64(files[i]);
       attachments.push({ filename: files[i].name, mimeType: files[i].type || 'application/octet-stream', base64 });
     }
+    hint.textContent = '產生帳單圖片中...';
+    const billImage = await buildBillImageAttachment(m);
+    if (billImage) attachments.unshift(billImage); // 帳單圖片排在第一個附件
     hint.textContent = '寄送中...';
-    const { subject, plainBody, htmlBody } = buildBillEmailContent(m);
-    const r = await sendMemberEmailApi({ action: 'sendMemberEmail', to: toEmail, subject, plainBody, htmlBody, attachments, driveAttachments: collectMemberAttachments(m) });
+    const { subject, plainBody, htmlBody } = buildBillEmailContent(m, { hasBillImage: !!billImage });
+    const r = await sendMemberEmailApi({ action: 'sendMemberEmail', to: toEmail, replyTo: getReplyToEmail(), subject, plainBody, htmlBody, attachments, driveAttachments: collectMemberAttachments(m) });
     hint.textContent = '';
     if (r.ok) {
       markEmailSent(m);
-      alert(`✅ 已寄送到 ${toEmail}`);
+      alert(`✅ 已寄送到 ${toEmail}` + (billImage ? '' : '\n\n⚠️ 帳單圖片產生失敗，這封信只附文字摘要與連結。'));
       closeSendSingleModal();
     } else {
       alert('❌ 寄送失敗：' + (r.error || '未知錯誤'));
@@ -2111,6 +2209,7 @@ async function saveSettings() {
   settings.currentMonth = document.getElementById('cfg-month').value;
   settings.paymentDeadline = document.getElementById('cfg-deadline').value;
   settings.emailSubjectOverride = document.getElementById('cfg-email-subject').value.trim();
+  settings.replyToEmail = document.getElementById('cfg-reply-to').value.trim();
   settings.defaultMonthly = Number(document.getElementById('cfg-default-monthly').value) || 0;
   settings.defaultSplit = Number(document.getElementById('cfg-default-split').value) || 0;
   await pushToCloud('saveSettings', { settings });
