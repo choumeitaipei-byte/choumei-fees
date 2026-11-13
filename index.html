@@ -170,8 +170,7 @@
             <option value="fixedB">服務經費 (B)</option>
             <option value="advance_pay">代付款 (C)</option>
             <option value="donation">捐款</option>
-            <option value="receipt">收款錄入</option>
-            <option value="creditcard">信用卡扣款（自動帶入應付款）</option>
+            <option value="receipt">收款錄入（匯款／信用卡）</option>
           </select>
         </div>
         <div>
@@ -1268,19 +1267,7 @@ function renderSubjects() {
 function updateItemOptions() {
   const cat = document.getElementById('qi-category').value;
   const wrap = document.getElementById('qi-item-wrap');
-  if (cat === 'creditcard') {
-    // 自動帶入選定社友的應付款金額（僅單一社友模式適用；部分/全體模式沒有這個下拉選單）
-    wrap.innerHTML = '<input class="inp" id="qi-item" value="信用卡扣款" readonly style="background:#f0f9ff">';
-    const mEl = document.getElementById('qi-member');
-    const mId = mEl ? mEl.value : '';
-    if (mId) {
-      const m = members.find(x => x.id === mId);
-      if (m) {
-        const f = calcFees(m);
-        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
-      }
-    }
-  } else if (cat === 'advance_pay') {
+  if (cat === 'advance_pay') {
     wrap.innerHTML = '<input class="inp" type="text" id="qi-item" placeholder="代付內容說明">';
   } else if (cat === 'donation') {
     wrap.innerHTML = `<div style="display:flex;gap:6px">
@@ -1292,13 +1279,20 @@ function updateItemOptions() {
       <input class="inp" type="text" id="qi-item" placeholder="捐款項目說明" style="flex:1">
     </div>`;
   } else if (cat === 'receipt') {
-    wrap.innerHTML = '<select class="inp" id="qi-item"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
+    wrap.innerHTML = '<select class="inp" id="qi-item" onchange="onReceiptTypeChange()"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
+    // 記住上次選的收款方式，連續錄信用卡時不用每次重選
+    document.getElementById('qi-item').value = lastReceiptType;
   } else if (cat === 'fixedB') {
     const items = settings.feeStructure.fixedB?.items || {};
     wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
   } else {
     const items = settings.feeStructure[cat]?.items || {};
     wrap.innerHTML = `<select class="inp" id="qi-item">${Object.entries(items).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>`;
+  }
+  // 換到其他類別時，清掉信用卡自動帶入的金額
+  if (cardAutoFilled) {
+    document.getElementById('qi-amount').value = '';
+    cardAutoFilled = false;
   }
 }
 
@@ -1367,19 +1361,40 @@ function confirmMemberMultiSelect() {
 let quickInputMode = 'single'; // 'single' | 'partial' | 'all'
 let partialSelectedIds = [];    // 帳務錄入「部分選擇」已確認的社友清單
 
-function onMemberChange() {
-  // 如果目前類別是信用卡，自動帶入應付款金額
-  const cat = document.getElementById('qi-category').value;
-  if (cat === 'creditcard') {
-    const mId = document.getElementById('qi-member').value;
-    if (mId) {
-      const m = members.find(x => x.id === mId);
-      if (m) {
-        const f = calcFees(m);
-        document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
-      }
-    }
+// 收款錄入選「信用卡收款」時，自動帶入選定社友的本期未付款 H（可再手動修改）
+// 僅單一社友模式適用；部分選擇／全體同步時每人金額不同，不帶入
+function isCardReceiptSelected() {
+  if (document.getElementById('qi-category').value !== 'receipt') return false;
+  const item = document.getElementById('qi-item');
+  return !!item && item.value === 'receipt_card';
+}
+
+let lastReceiptType = 'receipt_transfer'; // 上次選的收款方式（匯款／信用卡）
+let cardAutoFilled = false; // 金額欄目前是不是自動帶入的值（切回匯款時只清空自動帶入的，不清掉手動輸入的）
+
+function autoFillCardAmount() {
+  if (quickInputMode !== 'single' || !isCardReceiptSelected()) return;
+  const mEl = document.getElementById('qi-member');
+  const m = mEl && mEl.value ? members.find(x => x.id === mEl.value) : null;
+  if (!m) return;
+  const f = calcFees(m);
+  document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
+  cardAutoFilled = true;
+}
+
+function onReceiptTypeChange() {
+  lastReceiptType = document.getElementById('qi-item').value;
+  if (isCardReceiptSelected()) {
+    autoFillCardAmount();
+  } else if (cardAutoFilled) {
+    // 從信用卡切回匯款：清掉自動帶入的金額，避免誤錄
+    document.getElementById('qi-amount').value = '';
+    cardAutoFilled = false;
   }
+}
+
+function onMemberChange() {
+  autoFillCardAmount();
 }
 
 function onTargetModeChange() {
@@ -1398,9 +1413,10 @@ function onTargetModeChange() {
     label.textContent = '套用對象';
     wrap.innerHTML = `<div class="inp" style="background:#f5f2ec;color:#888;cursor:default">全體社友（${members.length} 位）</div>`;
   }
-  // 切換模式時，若目前類別是信用卡，單一模式以外無法自動帶入金額，清空避免誤帶舊值
-  if (quickInputMode !== 'single' && document.getElementById('qi-category').value === 'creditcard') {
+  // 切換到部分選擇／全體同步時，清掉信用卡自動帶入的單一社友金額，避免整批誤錄同一個數字
+  if (quickInputMode !== 'single' && cardAutoFilled) {
     document.getElementById('qi-amount').value = '';
+    cardAutoFilled = false;
   }
 }
 
@@ -1515,11 +1531,6 @@ async function submitQuickInput() {
       else if (donationType === 'designated') m.variable.donation_designated_list.push(entry);
       else m.variable.donation_general_list.push(entry);
     }
-    else if (cat === 'creditcard') {
-      entry.desc = '信用卡扣款';
-      entry.type = 'receipt_card';
-      m.variable.receipt_list.push(entry);
-    }
     else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
     else if (cat === 'fixedB') {
       // 服務經費科目名稱有「捐款」或「EREY」→ 直接存成捐款，報表才抓得到
@@ -1534,6 +1545,7 @@ async function submitQuickInput() {
   document.getElementById('sync-btn').style.display = 'inline-block';
   render();
   document.getElementById('qi-amount').value = '';
+  cardAutoFilled = false;
   document.getElementById('qi-date').value = '';
   document.getElementById('qi-attachments').value = '';
 }
