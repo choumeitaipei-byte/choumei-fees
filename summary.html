@@ -85,22 +85,38 @@ function sortByNickname(a, b) {
   return 0;
 }
 
+// ⚠️ 這個 calcFees 必須跟 index.html 的 calcFees 完全一致，修改時一起改
 function calcFees(m) {
-  const v = getV;
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  // variable 有時被存成 [] 空陣列，統一修正為物件
   const vr = (m?.variable && !Array.isArray(m.variable)) ? m.variable : {};
-  const sumA = v(m?.fixedA?.monthly) + (vr.fixedA_list||[]).reduce((a,i)=>a+v(i.amount),0);
+  // A: 經常費合計
+  const sumA = v(m?.fixedA?.monthly)
+    + (vr.fixedA_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // B: 服務經費合計（含固定分攤、服務費、固定捐款、一般捐款、指定捐款）
   const sumB = v(m?.fixedB?.monthly_split)
-    + (vr.service_list||[]).reduce((a,i)=>a+v(i.amount),0)
-    + (vr.donation_fixed_list||[]).reduce((a,i)=>a+v(i.amount),0)
-    + (vr.donation_general_list||[]).reduce((a,i)=>a+v(i.amount),0)
-    + (vr.donation_list||[]).reduce((a,i)=>a+v(i.amount),0);
-  const sumC = (vr.advance_pay_list||[]).reduce((a,i)=>a+v(i.amount),0);
+    + (vr.service_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_fixed_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_general_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_designated_list || []).reduce((a,i) => a + v(i.amount), 0)
+    + (vr.donation_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // C: 代付款合計
+  const sumC = (vr.advance_pay_list || []).reduce((a,i) => a + v(i.amount), 0);
+  // D: 本期社費合計 = A+B+C
   const sumD = sumA + sumB + sumC;
+  // E: 前期未付款
   const sumE = v(m?.accounting?.previous_due);
-  const sumF = (vr.receipt_list||[]).filter(i=>i.type!=='receipt_card').reduce((a,i)=>a+v(i.amount),0);
-  const sumG = (vr.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((a,i)=>a+v(i.amount),0)
-    + (vr.credit_card_list||[]).reduce((a,i)=>a+v(i.amount),0)
+  // F: 已收匯款
+  const sumF = (vr.receipt_list || [])
+    .filter(i => i.type !== 'receipt_card')
+    .reduce((a,i) => a + v(i.amount), 0);
+  // G: 信用卡扣款（receipt_list 中 type=receipt_card + credit_card_list）
+  const sumG = (vr.receipt_list || [])
+    .filter(i => i.type === 'receipt_card')
+    .reduce((a,i) => a + v(i.amount), 0)
+    + (vr.credit_card_list || []).reduce((a,i) => a + v(i.amount), 0)
     + v(m?.accounting?.credit_card);
+  // H: 本期未付款 = D+E-F-G
   const H = sumD + sumE - sumF - sumG;
   return { sumA, sumB, sumC, sumD, sumE, sumF, sumG, finalH: H };
 }
