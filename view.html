@@ -129,7 +129,57 @@ function buildConfirmMailto(m, settings, isOk) {
   return `mailto:${replyTo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-function renderBill(m, settings) {
+// 確認頁連結（Apps Script 網頁，送出後社辦系統會記錄回覆）
+// ⚠️ 跟 index.html 的 buildConfirmLink 是同一套網址格式，修改時兩邊要一起改
+// confirm = { api, token }；沒有驗證碼時（離線分享連結、Code.gs 未更新）退回 mailto 回信
+function buildConfirmLink(m, settings, isOk, confirm) {
+  if (!confirm || !confirm.api || !confirm.token) return buildConfirmMailto(m, settings, isOk);
+  const f = calcFees(m);
+  return `${confirm.api}?action=confirmPage&id=${encodeURIComponent(m.id)}&month=${encodeURIComponent(settings.currentMonth)}&t=${encodeURIComponent(confirm.token)}&s=${isOk ? 'ok' : 'issue'}&h=${f.finalH}`;
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// 捐款分類歸位：說明有「捐款」或「EREY」的項目一律算捐款（仍計入服務費 B，金額不變）
+// ⚠️ 跟 index.html 的 donationListKeyFor / moveDonationsOutOfService 是同一套規則，修改時兩邊要一起改
+function donationListKeyFor(desc) {
+  const s = String(desc || '');
+  if (!/捐款|EREY/i.test(s)) return null;
+  if (s.includes('固定捐款')) return 'donation_fixed_list';
+  if (s.includes('指定捐款')) return 'donation_designated_list';
+  return 'donation_general_list';
+}
+
+function moveDonationsOutOfService(m) {
+  const vr = m && m.variable;
+  if (!vr || Array.isArray(vr) || !Array.isArray(vr.service_list)) return 0;
+  const keep = [];
+  let moved = 0;
+  vr.service_list.forEach(i => {
+    const key = donationListKeyFor(i && i.desc);
+    if (key) {
+      if (!Array.isArray(vr[key])) vr[key] = [];
+      vr[key].push(i);
+      moved++;
+    } else {
+      keep.push(i);
+    }
+  });
+  if (moved > 0) vr.service_list = keep;
+  return moved;
+}
+
+function renderBill(m, settings, confirm = null) {
+  // 在複本上歸位捐款分類，帳單標籤跟主系統一致（不改動原始資料）
+  m = JSON.parse(JSON.stringify(m));
+  moveDonationsOutOfService(m);
+  const useConfirmPage = !!(confirm && confirm.api && confirm.token);
+  const existing = confirm && confirm.existing;
+  const existingNote = existing
+    ? `<p style="font-size:12px;background:${existing.status==='issue'?'#fef2f2':'#f0fdf4'};color:${existing.status==='issue'?'#dc2626':'#16a34a'};border-radius:8px;padding:6px 10px;margin-bottom:10px;font-weight:700">您已回覆「${existing.status==='issue'?'核對有誤':'核對無誤'}」${existing.respondedAt ? '（' + escHtml(new Date(existing.respondedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})) + '）' : ''}，如需修改可再按一次。</p>`
+    : '';
   const f = calcFees(m);
   const v = getV;
   const fs = settings.feeStructure || {};
@@ -196,10 +246,11 @@ function renderBill(m, settings) {
           <p style="margin-bottom:6px;font-size:12px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineText}</strong> 前繳清，以避免會籍被終止，謝謝！</p>
           <div style="border:1.5px solid #e8e4da;border-radius:12px;padding:12px 14px;margin:10px 0 12px">
             <p style="font-size:13px;color:#002147;font-weight:900;margin-bottom:4px">請核對帳單，點選下方按鈕回覆：</p>
-            <p style="font-size:11px;color:#888;margin-bottom:10px">按下後會開啟回信畫面，內容已填好，直接送出即可。</p>
+            <p style="font-size:11px;color:#888;margin-bottom:10px">${useConfirmPage ? '按下後會開啟確認頁面，送出後社辦就會收到您的回覆。' : '按下後會開啟回信畫面，內容已填好，直接送出即可。'}</p>
+            ${existingNote}
             <div style="display:flex;gap:10px">
-              <a href="${buildConfirmMailto(m, settings, true)}" style="flex:1;display:block;text-align:center;background:#16a34a;color:#fff;text-decoration:none;font-weight:900;font-size:14px;padding:12px 6px;border-radius:10px">✅ 核對無誤</a>
-              <a href="${buildConfirmMailto(m, settings, false)}" style="flex:1;display:block;text-align:center;background:#fff;color:#dc2626;border:1.5px solid #fecaca;text-decoration:none;font-weight:900;font-size:14px;padding:11px 6px;border-radius:10px">❌ 核對有誤</a>
+              <a href="${buildConfirmLink(m, settings, true, confirm)}" style="flex:1;display:block;text-align:center;background:#16a34a;color:#fff;text-decoration:none;font-weight:900;font-size:14px;padding:12px 6px;border-radius:10px">✅ 核對無誤</a>
+              <a href="${buildConfirmLink(m, settings, false, confirm)}" style="flex:1;display:block;text-align:center;background:#fff;color:#dc2626;border:1.5px solid #fecaca;text-decoration:none;font-weight:900;font-size:14px;padding:11px 6px;border-radius:10px">❌ 核對有誤</a>
             </div>
           </div>
           <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#444;line-height:1.8">
@@ -257,7 +308,10 @@ function init() {
         if (!data.ok) throw new Error(data.error);
         const m = data.members.find(x => x.id === memberId);
         if (!m) throw new Error('找不到社友資料');
-        renderBill(m, data.settings);
+        const month = data.settings && data.settings.currentMonth;
+        const token = (data.confirmTokensMonth === month && data.confirmTokens) ? data.confirmTokens[m.id] : '';
+        const existing = (data.confirmations || []).find(c => String(c.id) === String(m.id) && c.month === month) || null;
+        renderBill(m, data.settings, { api: apiUrl, token, existing });
       })
       .catch(err => {
         document.getElementById('content').innerHTML = `
