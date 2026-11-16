@@ -2133,6 +2133,19 @@ async function adminConfirmOp(op) {
   }
 }
 
+// 信件裡的「前期款項」說明文字；沒有前期款項時回傳 null
+// 本期收款（F+G）先抵前期 (E)：抵完 → 已繳清（綠）；抵一部分／還沒繳／溢繳 → 藍色說明（不用紅字，避免嚇到社友）
+function buildPrevBalanceNote(f) {
+  const E = f.sumE;
+  if (!E) return null;
+  const fmt = n => n.toLocaleString();
+  if (E < 0) return { text: `前期溢繳 NT $${fmt(-E)}，已自本期扣抵。`, color: '#1d4ed8' };
+  const paid = f.sumF + f.sumG;
+  if (paid >= E) return { text: `前期款項 NT $${fmt(E)} 已繳清，謝謝！`, color: '#16a34a' };
+  if (paid > 0) return { text: `前期款項 NT $${fmt(E)}，已繳 $${fmt(paid)}，尚有 $${fmt(E - paid)} 併入本期未付款。`, color: '#1d4ed8' };
+  return { text: `前期款項 NT $${fmt(E)} 尚未繳納，已併入本期未付款。`, color: '#1d4ed8' };
+}
+
 // opts.hasBillImage：這封信有沒有成功附上帳單圖片（圖片產生失敗時仍會寄信，只是不提圖片）
 function buildBillEmailContent(m, opts = {}) {
   const hasBillImage = !!opts.hasBillImage;
@@ -2152,12 +2165,15 @@ function buildBillEmailContent(m, opts = {}) {
     : `${settings.currentMonth} 洲美扶輪社會費對帳單`;
   const subject = `${subjectBase} - ${m.name}`;
 
+  // 前期款項說明：本期收款（匯款 F＋信用卡 G）先抵前期 (E)，依抵扣結果顯示狀態，避免已繳清的社友看到大筆金額嚇一跳
+  const prevNote = buildPrevBalanceNote(f);
+
   const plainBody =
 `${m.name} 您好，
 
 您 ${settings.currentMonth} 本期社費合計 (D) 為 NT $${f.sumD.toLocaleString()}，
 本期未付款 (H) 為 NT $${f.finalH.toLocaleString()}。
-${f.sumE ? `前期未付款 (E)：NT $${f.sumE.toLocaleString()}\n` : ''}
+${prevNote ? prevNote.text + '\n' : ''}
 應收款請於 ${deadlineText} 前繳清，以避免會籍被終止，謝謝！
 
 ${useConfirmPage ? `請核對帳單後點選回覆：\n核對無誤：${okLink}\n核對有誤：${ngLink}\n` : '核對無誤請直接回覆本信「核對無誤」；若有錯誤，請於三天內回覆說明有誤的地方。\n'}${hasBillImage ? '帳單圖片已附在本信件中，也可以在圖片上勾選、簽名後回覆本信。\n' : ''}
@@ -2175,7 +2191,7 @@ ${useConfirmPage ? `請核對帳單後點選回覆：\n核對無誤：${okLink}\
     </div>
     <div style="background:#fff;padding:20px 24px;border-radius:0 0 16px 16px">
       <p style="font-size:13px;color:#333;margin:0 0 10px">${m.name} 您好：</p>
-      <p style="font-size:13px;color:#333;margin:0 0 14px;line-height:1.8">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D) 為 <strong style="color:#002147">NT $${f.sumD.toLocaleString()}</strong>${f.sumE ? `，前期未付款 (E) 為 NT $${f.sumE.toLocaleString()}` : ''}。</p>
+      <p style="font-size:13px;color:#333;margin:0 0 14px;line-height:1.8">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D) 為 <strong style="color:#002147">NT $${f.sumD.toLocaleString()}</strong>${prevNote ? `，<span style="color:${prevNote.color};font-weight:700">${prevNote.text}</span>` : '。'}</p>
       <div style="background:${f.finalH>0?'#fef2f2':'#f0fdf4'};border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <span style="font-size:12px;color:#888">本期未付款 (H)</span>
         <span style="font-family:monospace;font-weight:900;font-size:22px;color:${dueColor}">$${f.finalH.toLocaleString()}</span>
@@ -2811,15 +2827,28 @@ function getReportData() {
 //   collectMonthlyColumns() 只負責「有哪些欄位」
 //   buildMemberRowData()    只負責「這個人每一欄多少錢」，合計一律取自 calcFees()，不自行加總
 // ══════════════════════════════════════════
+// 經常費明細要放進哪一個「科目欄」：回傳科目 key，找不到回傳 null（放進額外欄）
+// 每筆明細只會對到一欄，避免名稱相近的科目（例如「指定捐款-講師費」「指定捐款-經常費收入」）重複顯示同一筆
+//   ① 說明（去掉開頭日期）與科目名稱完全相同 → 那個科目
+//   ② 否則用 subjectGroupKey 寬鬆比對（例如「月費-社長」→ 月費），取第一個符合的科目
+function fixedAColumnFor(desc, fixedAItems) {
+  if (!desc) return null;
+  const norm = x => String(x || '').replace(/\s+/g, '');
+  const exact = norm(String(desc).trim().replace(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{3,4})(\s+|-)/, ''));
+  let hit = fixedAItems.find(([, l]) => norm(l) === exact);
+  if (hit) return hit[0];
+  const gk = subjectGroupKey(desc);
+  hit = fixedAItems.find(([, l]) => subjectGroupKey(l) === gk);
+  return hit ? hit[0] : null;
+}
+
 function collectMonthlyColumns(mList) {
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
 
   const fixedAItems = Object.entries(settings.feeStructure?.fixedA?.items || { monthly: '月費' });
-  const fixedAItemGroupKeys = new Set(fixedAItems.map(([,l])=>subjectGroupKey(l)));
   const fixedAExtraSet = new Set();
   mList.forEach(m => (m.variable?.fixedA_list||[]).forEach(i => {
-    const gk = subjectGroupKey(i.desc);
-    if(i.desc && !fixedAItemGroupKeys.has(gk)) fixedAExtraSet.add(gk);
+    if (i.desc && fixedAColumnFor(i.desc, fixedAItems) === null) fixedAExtraSet.add(subjectGroupKey(i.desc));
   }));
 
   const serviceSet = new Set();
@@ -2858,13 +2887,11 @@ function buildMemberRowData(m, cols) {
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
   const f = calcFees(m); // 合計一律以 calcFees 為準，與個人帳單、財務總表同一個來源
 
-  const faV = cols.fixedAItems.map(([k, label]) => {
-    const labelKey = subjectGroupKey(label);
-    let a = v(m.fixedA?.[k]);
-    a += (m.variable?.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===labelKey).reduce((s,i)=>s+v(i.amount),0);
-    return a;
-  });
-  const feV = cols.fixedAExtras.map(d => (m.variable?.fixedA_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
+  // 每筆經常費明細先決定歸屬欄位（只會有一欄），再分別加總
+  const faList = (m.variable?.fixedA_list||[]).map(i => ({ amount: v(i.amount), col: fixedAColumnFor(i.desc, cols.fixedAItems), gk: subjectGroupKey(i.desc) }));
+  const faV = cols.fixedAItems.map(([k]) =>
+    v(m.fixedA?.[k]) + faList.filter(x => x.col === k).reduce((s,x)=>s+x.amount,0));
+  const feV = cols.fixedAExtras.map(d => faList.filter(x => x.col === null && x.gk === d).reduce((s,x)=>s+x.amount,0));
   const adV = cols.advanceItems.map(d => (m.variable?.advance_pay_list||[]).filter(i=>advGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
   const svV = cols.serviceItems.map(d => d==='__split__' ? v(m.fixedB?.monthly_split) : (m.variable?.service_list||[]).filter(i=>subjectGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
   const dfV = cols.donFixedItems.map(d => (m.variable?.donation_fixed_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
