@@ -378,8 +378,12 @@ function init() {
   const apiUrl = apiUrlFromParam || localStorage.getItem('choumei_api_url');
 
   if (memberId && apiUrl) {
-    fetch(apiUrl + '?action=getAll')
+    // 只向雲端要「這一位社友」的資料（getBill），不會下載其他社友的資料
+    const t = params.get('t') || '';
+    fetch(apiUrl + '?action=getBill&id=' + encodeURIComponent(memberId) + (t ? '&t=' + encodeURIComponent(t) : ''))
       .then(r => r.json())
+      // 過渡用：Apps Script 還沒部署新版本時（不認得 getBill），暫時改用舊的讀法
+      .then(d => (d && !d.ok && /Unknown action/.test(d.error || '')) ? fetch(apiUrl + '?action=getAll').then(r => r.json()) : d)
       .then(data => {
         if (!data.ok) throw new Error(data.error);
         VIEW_STATE = { data, memberId, apiUrl };
