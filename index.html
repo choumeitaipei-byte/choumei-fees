@@ -3002,12 +3002,15 @@ function parseRocMonth(month) {
 function monthInPeriod(month, period) {
   const p = parseRocMonth(month);
   if (!p || !period) return false;
+  if (period === 'ALL') return true;
   if (period.startsWith('R:')) return getRotaryYear(month) === period.slice(2);
   if (period.startsWith('C:')) return p.y === parseInt(period.slice(2));
   return false;
 }
 
-function periodLabel(period) {
+// range（選填）＝ [第一個月, 最後一個月]，用在「全部期間」顯示實際起訖月份
+function periodLabel(period, range) {
+  if (period === 'ALL') return range && range[0] ? `全部期間（${range[0]}–${range[1]}）` : '全部期間';
   if (period.startsWith('R:')) {
     const [a, b] = period.slice(2).split('-').map(Number);
     return `扶輪年度 ${a + 1911}.07 – ${b + 1911}.06（${a}年07月–${b}年06月）`;
@@ -3041,16 +3044,21 @@ function fillPersonReportOptions() {
     .map(m => `<option value="${escHtml(m.id)}">${escHtml(m.name)}${m.nickname ? '（' + escHtml(m.nickname) + '）' : ''}</option>`).join('');
   if (prevPerson && people[prevPerson]) personSel.value = prevPerson;
 
-  // 期間：只列出有資料的扶輪年度與曆年，新的排前面
-  const months = snaps.map(sn => sn.month).filter(m => parseRocMonth(m));
+  // 期間：全部期間＋有資料的扶輪年度與曆年（新的排前面）
+  const months = snaps.map(sn => sn.month).filter(m => parseRocMonth(m))
+    .sort((a, b) => { const pa = parseRocMonth(a), pb = parseRocMonth(b); return (pa.y * 12 + pa.mo) - (pb.y * 12 + pb.mo); });
   const rotary = [...new Set(months.map(m => getRotaryYear(m)))].sort((a, b) => parseInt(b) - parseInt(a)).map(r => 'R:' + r);
   const calendar = [...new Set(months.map(m => parseRocMonth(m).y))].sort((a, b) => b - a).map(y => 'C:' + y);
   const periodSel = document.getElementById('report-period');
   const prevPeriod = periodSel.value;
   periodSel.innerHTML =
+    `<optgroup label="全部"><option value="ALL">${periodLabel('ALL', [months[0], months[months.length - 1]])}</option></optgroup>` +
     `<optgroup label="扶輪年度（7月–隔年6月）">${rotary.map(p => `<option value="${p}">${periodLabel(p)}</option>`).join('')}</optgroup>` +
     `<optgroup label="全年（1月–12月）">${calendar.map(p => `<option value="${p}">${periodLabel(p)}</option>`).join('')}</optgroup>`;
-  if (prevPeriod && [...rotary, ...calendar].includes(prevPeriod)) periodSel.value = prevPeriod;
+  // 保留上次選的期間；第一次打開預設「本扶輪年度」
+  const thisRotary = 'R:' + getRotaryYear(settings.currentMonth);
+  if (prevPeriod && (prevPeriod === 'ALL' || [...rotary, ...calendar].includes(prevPeriod))) periodSel.value = prevPeriod;
+  else if (rotary.includes(thisRotary)) periodSel.value = thisRotary;
 }
 
 // 一位社友某個月的每一筆明細（分類與金額跟 calcFees 完全對應，各類加總 = A/B/C/F/G）
@@ -3097,9 +3105,15 @@ function buildPersonYearData(memberId, period) {
   return { personName: person.name || '', personNickname: person.nickname || '', rows, totals };
 }
 
+// 這位社友在報表裡實際有資料的第一個月與最後一個月（rows 已依時間排序）
+function personRowRange(data) {
+  const rows = data.rows || [];
+  return rows.length ? [rows[0].month, rows[rows.length - 1].month] : null;
+}
+
 function renderPersonYearReport(data) {
   const money = n => n === 0 ? '-' : (n < 0 ? '-$' + Math.abs(n).toLocaleString() : '$' + n.toLocaleString());
-  const title = `${escHtml(data.personName)}${data.personNickname ? '（' + escHtml(data.personNickname) + '）' : ''}・${escHtml(periodLabel(data.period || ''))}`;
+  const title = `${escHtml(data.personName)}${data.personNickname ? '（' + escHtml(data.personNickname) + '）' : ''}・${escHtml(periodLabel(data.period || '', personRowRange(data)))}`;
   if (!data.rows.length) {
     return `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">${title}<br>這段期間沒有這位社友的資料</div>`;
   }
@@ -3156,7 +3170,7 @@ function renderPersonYearReport(data) {
 function buildPersonYearCsv(data) {
   const q = s => `"${String(s == null ? '' : s).replace(/"/g, '""')}"`;
   let csv = `${q('社友')},${q(data.personName + (data.personNickname ? '（' + data.personNickname + '）' : ''))}\n`;
-  csv += `${q('期間')},${q(periodLabel(data.period || ''))}\n\n`;
+  csv += `${q('期間')},${q(periodLabel(data.period || '', personRowRange(data)))}\n\n`;
   csv += ['月份', '類別', '項目', '金額'].map(q).join(',') + '\n';
   data.rows.forEach(r => {
     r.items.forEach(i => {
