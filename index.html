@@ -99,6 +99,9 @@
 <div id="api-banner" class="hidden text-white text-center py-3 px-4 text-sm font-bold" style="font-family:'Noto Sans TC',sans-serif">
   ⚠️ 尚未設定 Google Apps Script API 網址，請前往「系統設定」填入後儲存。目前為離線展示模式。
 </div>
+<div id="key-banner" style="display:none;background:#b45309;color:white;text-align:center;padding:12px 16px;font-size:13px;font-weight:700">
+  🔒 需要管理密碼才能讀寫雲端資料：請在 Apps Script 編輯器執行 <code style="background:rgba(255,255,255,0.2);padding:1px 6px;border-radius:4px">showKeys</code>，把「管理密碼」填到「系統設定 → API 網址」下方後儲存。
+</div>
 
 <!-- 側欄 -->
 <div id="sidebar">
@@ -324,6 +327,11 @@
         <button onclick="saveApiUrl()" class="btn-primary">儲存連線</button>
         <button onclick="testApi()" style="background:#f5f2ec;color:var(--navy);padding:10px 20px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;border:none">測試連線</button>
       </div>
+      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+        <input class="inp" type="password" id="admin-key-input" placeholder="管理密碼（在 Apps Script 執行 showKeys 取得）" style="flex:1" autocomplete="off">
+        <button onclick="toggleKeyVisible()" style="background:#f5f2ec;color:var(--navy);padding:10px 14px;border-radius:12px;font-weight:700;font-size:12px;cursor:pointer;border:none;white-space:nowrap">👁 顯示</button>
+      </div>
+      <p style="font-size:11px;color:#aaa;margin-top:6px">管理密碼只存在這台電腦的瀏覽器裡，不會出現在任何連結中。每台要使用會費系統的電腦都要填一次。</p>
       <div id="api-status" style="margin-top:12px;font-size:12px;color:#888"></div>
     </div>
 
@@ -681,6 +689,48 @@
 // 核心資料與狀態
 // ══════════════════════════════════════════
 let API_URL = localStorage.getItem('choumei_api_url') || '';
+// 管理密碼：只存在這台電腦，所有寫入雲端的動作都要帶上（帳單連結裡看不到）
+let ADMIN_KEY = (() => { try { return localStorage.getItem('choumei_admin_key') || ''; } catch (e) { return ''; } })();
+// ── 歷史紀錄（已結轉月份的快照）──
+// 完整歷史只放在記憶體（historyCache），每次打開都從雲端讀取；
+// 瀏覽器只保存「還沒成功備份到雲端」的月份（choumei_history），
+// 避免佔用 choumeitaipei-byte.github.io 底下所有網站共用的 5MB 瀏覽器空間
+let historyCache = sortHistory(loadPendingHistory());
+
+function loadPendingHistory() {
+  try { return JSON.parse(localStorage.getItem('choumei_history') || '[]').filter(h => h && h.month); } catch (e) { return []; }
+}
+function savePendingHistory(list) {
+  try { localStorage.setItem('choumei_history', JSON.stringify(list)); }
+  catch (e) { console.warn('瀏覽器空間不足，無法暫存歷史紀錄：', e.message); }
+}
+function sortHistory(list) {
+  const val = h => { const mt = (h.month || '').match(/(\d+)年(\d+)月/); return mt ? parseInt(mt[1]) * 12 + parseInt(mt[2]) : 0; };
+  return [...list].sort((a, b) => val(b) - val(a)); // 新的在前
+}
+function getHistoryList() { return historyCache; }
+
+// 雲端讀回來的歷史＋本機尚未備份的月份 → 記憶體；本機只留雲端沒有的月份
+function mergeCloudHistory(cloudList) {
+  const byMonth = {};
+  cloudList.forEach(h => { if (h && h.month) byMonth[h.month] = h; });
+  const pending = loadPendingHistory().filter(h => !byMonth[h.month]);
+  pending.forEach(h => { byMonth[h.month] = h; });
+  historyCache = sortHistory(Object.values(byMonth));
+  savePendingHistory(pending);
+}
+
+// 結轉時新增一個月份：先放記憶體與本機暫存，雲端備份成功後再從本機移除
+function addHistorySnapshot(snap) {
+  historyCache = sortHistory([snap, ...historyCache.filter(h => h.month !== snap.month)]);
+  savePendingHistory([snap, ...loadPendingHistory().filter(h => h.month !== snap.month)]);
+}
+function markHistorySaved(month) {
+  savePendingHistory(loadPendingHistory().filter(h => h.month !== month));
+}
+
+let billTokens = {};   // { 社友id: 帳單連結驗證碼 }，由雲端 getAll 提供
+let summaryReadKey = ''; // 財務總表的唯讀密碼，由雲端 getAll 提供（只有管理密碼正確時才會給）
 // ══════════════════════════════════════════
 // 捐款分類歸位：說明有「捐款」或「EREY」的項目一律算捐款（仍計入服務費 B，金額不變）
 // 用途：修正誤存成「服務經費」的捐款，讓捐款報表抓得到
@@ -763,6 +813,7 @@ let confirmTokensMonth = '';   // confirmTokens 對應的月份
 // ── 初始化 ──
 window.onload = async () => {
   document.getElementById('api-url-input').value = API_URL;
+  document.getElementById('admin-key-input').value = ADMIN_KEY;
   if (!API_URL) {
     document.getElementById('api-banner').classList.remove('hidden');
   } else {
@@ -780,35 +831,53 @@ window.onload = async () => {
 // ══════════════════════════════════════════
 // API 通訊
 // ══════════════════════════════════════════
-async function callApi(data) {
+// 所有寫入／管理動作一律用 POST（資料放在本文，沒有網址長度限制），並帶上管理密碼
+// Content-Type 用 text/plain，避免觸發瀏覽器 CORS 預檢（Apps Script 不支援 OPTIONS）
+async function apiPost(action, data = {}) {
   if (!API_URL) throw new Error('API 網址未設定');
-  const action = data.action || 'getAll';
-  // 資料小的用 GET，資料大的用 no-cors form POST
-  const payload = JSON.stringify(data);
-  if (payload.length < 1500) {
-    // 短資料用 GET
-    const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload);
-    const res = await fetch(url);
-    return res.json();
-  } else {
-    // 長資料用 form POST（繞過 CORS preflight）
-    const form = new FormData();
-    form.append('action', action);
-    form.append('payload', payload);
-    // Apps Script 接受 form data，用 GET 帶 action 參數
-    const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload.substring(0, 1400));
-    const res = await fetch(url);
-    return res.json();
-  }
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ ...data, action, key: ADMIN_KEY })
+  });
+  const r = await res.json();
+  if (r && r.error === 'UNAUTHORIZED') showKeyNeeded();
+  return r;
+}
+
+function showKeyNeeded() {
+  const el = document.getElementById('key-banner');
+  if (el) el.style.display = 'block';
+}
+
+function toggleKeyVisible() {
+  const el = document.getElementById('admin-key-input');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+async function callApi(data) {
+  return apiPost(data.action || 'getAll', data);
+}
+
+// 社友帳單連結：帶上專屬驗證碼 t（舊連結沒有 t 也能看，但只看得到自己）
+function billLink(base, m, month) {
+  const t = billTokens[m.id] ? '&t=' + encodeURIComponent(billTokens[m.id]) : '';
+  return base + 'view.html?id=' + encodeURIComponent(m.id) + t
+    + (API_URL ? '&api=' + encodeURIComponent(API_URL) : '')
+    + (month ? '&month=' + encodeURIComponent(month) : '');
 }
 
 async function loadFromCloud() {
   try {
     showSync('從雲端載入...');
-    const url = API_URL + '?action=getAll';
+    const url = API_URL + '?action=getAll&key=' + encodeURIComponent(ADMIN_KEY);
     const res = await fetch(url);
     const r = await res.json();
+    if (r && r.error === 'UNAUTHORIZED') showKeyNeeded();
     if (r.ok) {
+      document.getElementById('key-banner').style.display = 'none';
+      if (r.billTokens) billTokens = r.billTokens;
+      if (r.readKey) summaryReadKey = r.readKey;
       const raw = r.members || members;
       // 去重複
       const seen = {};
@@ -833,18 +902,7 @@ async function loadFromCloud() {
         });
       }
       // 合併雲端歷史快照：以月份為鍵，雲端有的以雲端為準，本機獨有的（還沒備份上去）保留
-      if (Array.isArray(r.history)) {
-        const localHistory = JSON.parse(localStorage.getItem('choumei_history') || '[]');
-        const byMonth = {};
-        localHistory.forEach(h => { if (h && h.month) byMonth[h.month] = h; });
-        r.history.forEach(h => { if (h && h.month) byMonth[h.month] = h; });
-        const merged = Object.values(byMonth).sort((a, b) => {
-          const ma = (a.month||'').match(/(\d+)年(\d+)月/), mb = (b.month||'').match(/(\d+)年(\d+)月/);
-          if (!ma || !mb) return 0;
-          return (parseInt(mb[1])*12+parseInt(mb[2])) - (parseInt(ma[1])*12+parseInt(ma[2])); // 新的在前
-        });
-        localStorage.setItem('choumei_history', JSON.stringify(merged));
-      }
+      if (Array.isArray(r.history)) mergeCloudHistory(r.history);
       applyConfirmData(r);
       saveLocal();
     }
@@ -859,12 +917,9 @@ async function loadFromCloud() {
 async function saveHistoryToCloud(snapshot) {
   if (!API_URL || !snapshot || !snapshot.month) return { ok: false };
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'saveHistorySnapshot', snapshot })
-    });
-    return await res.json();
+    const r = await apiPost('saveHistorySnapshot', { snapshot });
+    if (r && r.ok) markHistorySaved(snapshot.month); // 雲端存好了，本機不用再留這個月
+    return r;
   } catch (e) {
     console.warn('歷史快照雲端備份失敗:', e.message);
     return { ok: false, error: e.message };
@@ -887,10 +942,7 @@ async function pushToCloud(action, data) {
       for (let i = 0; i < data.members.length; i++) {
         const m = data.members[i];
         showSync(`同步中 ${i+1}/${data.members.length}...`);
-        const payload = JSON.stringify({ member: m });
-        const url = API_URL + '?action=saveMember&payload=' + encodeURIComponent(payload);
-        const res = await fetch(url);
-        const r = await res.json();
+        const r = await apiPost('saveMember', { member: m });
         if (!r.ok) throw new Error(r.error + ' (' + m.name + ')');
       }
       saveLocal();
@@ -907,10 +959,8 @@ async function pushToCloud(action, data) {
   // 其他 action 用原本方式
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const payload = JSON.stringify(data);
-      const url = API_URL + '?action=' + action + '&payload=' + encodeURIComponent(payload);
-      const res = await fetch(url);
-      const r = await res.json();
+      const r = await apiPost(action, data);
+      if (r && r.error === 'UNAUTHORIZED') break; // 密碼錯誤，重試也沒用
       if (!r.ok) throw new Error(r.error);
       saveLocal();
       hideSync();
@@ -947,15 +997,11 @@ async function retrySync() {
     // 逐筆儲存社友
     for (let i = 0; i < members.length; i++) {
       showSync(`重新同步 ${i+1}/${members.length}...`);
-      const url = API_URL + '?action=saveMember&payload=' + encodeURIComponent(JSON.stringify({member: members[i]}));
-      const res = await fetch(url);
-      const r = await res.json();
+      const r = await apiPost('saveMember', { member: members[i] });
       if (!r.ok) throw new Error(r.error);
     }
     // 儲存設定
-    const url2 = API_URL + '?action=saveSettings&payload=' + encodeURIComponent(JSON.stringify({settings}));
-    const res2 = await fetch(url2);
-    const r2 = await res2.json();
+    const r2 = await apiPost('saveSettings', { settings });
     if (r2.ok) { hideSync(); alert('✅ 同步成功！'); return; }
     throw new Error('設定同步失敗');
   } catch(e) {
@@ -1243,9 +1289,7 @@ function renderBillsGrid() {
     .sort((a,b) => sortByNickname(a, b))
     .map(m => {
       const f = calcFees(m);
-      const shareUrl = API_URL
-        ? `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}&api=${encodeURIComponent(API_URL)}&month=${encodeURIComponent(settings.currentMonth)}`
-        : `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}&month=${encodeURIComponent(settings.currentMonth)}`;
+      const shareUrl = billLink(`${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/`, m, settings.currentMonth);
       return `<div class="card" style="padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
           <div style="font-size:18px;font-weight:900;color:var(--navy)">${m.name}</div>
@@ -1459,12 +1503,7 @@ function fileToBase64(file) {
 }
 
 async function uploadAttachmentApi(payload) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
-  });
-  return res.json();
+  return apiPost(payload.action, payload);
 }
 
 // 讀取某個 file input 目前選取的檔案，逐一上傳到 Drive，回傳 [{id,url,name}, ...]
@@ -1955,7 +1994,7 @@ function copyShareLink() {
   let url;
   if (API_URL) {
     // 短網址：只帶 id + api，view.html 自己去抓資料
-    url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL) + '&month=' + encodeURIComponent(settings.currentMonth);
+    url = billLink(base, m, settings.currentMonth);
   } else {
     // 無 API 時退回 data-embedded（較長，但離線可用）
     const minSettings = { currentMonth: settings.currentMonth, financialContact: settings.financialContact, feeStructure: settings.feeStructure, paymentDeadline: settings.paymentDeadline, replyToEmail: settings.replyToEmail };
@@ -1967,7 +2006,8 @@ function copyShareLink() {
 function copySummaryLink() {
   if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，財務總表需要連線雲端資料才能使用。'); return; }
   const base = location.href.replace('index.html','').replace(/\?.*$/,'');
-  const url = base + 'summary.html?api=' + encodeURIComponent(API_URL);
+  if (!summaryReadKey) { alert('還拿不到財務總表的唯讀密碼。\n\n請確認：① Code.gs 已部署新版本　② 「系統設定」已填入正確的管理密碼，然後重新整理頁面再試一次。'); return; }
+  const url = base + 'summary.html?api=' + encodeURIComponent(API_URL) + '&key=' + encodeURIComponent(summaryReadKey);
   navigator.clipboard.writeText(url).then(() => alert('✅ 財務總表連結已複製！\n這是唯讀連結，對方打開後可以看到全體社友的帳務彙總，但無法修改任何資料。\n\n⚠️ 請確認 summary.html 這個檔案已經和 index.html 放在同一個資料夾／同一個網址下，連結才能正常開啟。'));
 }
 
@@ -2173,7 +2213,7 @@ function buildBillEmailContent(m, opts = {}) {
   const f = calcFees(m);
   const base = location.href.replace('index.html','').replace(/\?.*$/,'');
   // 連結帶上月份：社友之後點舊信件，仍會看到當時那個月的帳單
-  const link = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL) + '&month=' + encodeURIComponent(settings.currentMonth);
+  const link = billLink(base, m, settings.currentMonth);
   const deadlineText = settings.paymentDeadline || '__月__日';
   const dueColor = f.finalH > 0 ? '#dc2626' : '#16a34a';
   const subjectBase = (settings.emailSubjectOverride && settings.emailSubjectOverride.trim())
@@ -2233,13 +2273,7 @@ ${useConfirmPage ? `請核對帳單後點選回覆：\n核對無誤：${okLink}\
 }
 
 async function sendMemberEmailApi(payload) {
-  // 用 text/plain 避免觸發瀏覽器的 CORS 預檢請求（Apps Script 不支援 OPTIONS）
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
-  });
-  return res.json();
+  return apiPost(payload.action || 'sendMemberEmail', payload);
 }
 
 function openSendBillsModal() {
@@ -2501,9 +2535,11 @@ async function deleteMember(mId) {
 function saveApiUrl() {
   API_URL = document.getElementById('api-url-input').value.trim();
   localStorage.setItem('choumei_api_url', API_URL);
+  ADMIN_KEY = document.getElementById('admin-key-input').value.trim();
+  try { localStorage.setItem('choumei_admin_key', ADMIN_KEY); } catch (e) {}
   document.getElementById('api-banner').classList.toggle('hidden', !!API_URL);
   if (API_URL) loadFromCloud().then(render);
-  alert('API 網址已儲存！');
+  alert('API 網址與管理密碼已儲存！');
 }
 
 async function testApi() {
@@ -2511,9 +2547,13 @@ async function testApi() {
   if (!url) return alert('請先輸入 API 網址');
   document.getElementById('api-status').textContent = '測試中...';
   try {
-    const r = await fetch(url + '?action=getAll');
+    const key = document.getElementById('admin-key-input').value.trim();
+    const r = await fetch(url + '?action=getAll&key=' + encodeURIComponent(key));
     const d = await r.json();
-    document.getElementById('api-status').textContent = d.ok ? '✅ 連線成功！' : '❌ 回應異常：' + d.error;
+    document.getElementById('api-status').textContent = d.ok
+      ? (d.readKey ? '✅ 連線成功，管理密碼正確！' : '⚠️ 連線成功，但這組是唯讀密碼，無法修改資料，請改填管理密碼')
+      : d.error === 'UNAUTHORIZED' ? '🔒 連線成功，但管理密碼錯誤或未填（在 Apps Script 執行 showKeys 查看）'
+      : '❌ 回應異常：' + d.error;
   } catch(e) {
     document.getElementById('api-status').textContent = '❌ 連線失敗：' + e.message;
   }
@@ -2585,10 +2625,7 @@ async function executeCarryOver() {
   const nums0 = (settings.currentMonth || '').match(/\d+/g);
   const snapshotMonth = settings.currentMonth;
   const snapshot = { month: snapshotMonth, members: JSON.parse(JSON.stringify(members)), savedAt: new Date().toISOString() };
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
-  history.unshift(snapshot);
-  if (history.length > 24) history.pop();
-  localStorage.setItem('choumei_history', JSON.stringify(history));
+  addHistorySnapshot(snapshot);
   // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
   const histSaved = await saveHistoryToCloud(snapshot);
   warnHistoryBackupFailed(snapshotMonth, histSaved);
@@ -2728,10 +2765,7 @@ ${removed.join('、')}
     savedAt: new Date().toISOString(),
     isYearEnd: true
   };
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
-  history.unshift(yearEndSnapshot);
-  if (history.length > 24) history.pop();
-  localStorage.setItem('choumei_history', JSON.stringify(history));
+  addHistorySnapshot(yearEndSnapshot);
   // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
   const histSaved = await saveHistoryToCloud(yearEndSnapshot);
   warnHistoryBackupFailed(yearEndSnapshot.month, histSaved);
@@ -2795,7 +2829,7 @@ function updateReportOptions() {
   const yearSel = document.getElementById('report-year');
 
   // 月份選項：現在的月份 + 歷史記錄
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const history = getHistoryList();
   const months = [...new Set([settings.currentMonth, ...history.map(h => h.month)])].filter(Boolean);
   monthSel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
   
@@ -2814,7 +2848,7 @@ function updateReportOptions() {
 
 function getReportData() {
   const type = document.getElementById('report-type').value;
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const history = getHistoryList();
 
   if (type === 'monthly' || type === 'advance' || type === 'donation') {
     const month = document.getElementById('report-month').value;
@@ -3021,7 +3055,7 @@ function periodLabel(period, range) {
 
 // 所有可用月份的資料：歷史快照＋目前月份（還沒結轉的即時資料），同一月份只取一份
 function getAllMonthSnapshots() {
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const history = getHistoryList();
   const list = [];
   const seen = new Set();
   if (!history.some(h => h.month === settings.currentMonth)) {
@@ -3671,10 +3705,10 @@ function downloadCSV(csv, filename) {
 // 一次性把本機既有的歷史快照全部補寫到雲端（啟用雲端備份前累積的紀錄）
 async function backfillHistoryToCloud() {
   if (!API_URL) { alert('請先到上方設定並儲存 API 網址。'); return; }
-  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
-  const valid = history.filter(h => h && h.month);
-  if (valid.length === 0) { alert('本機目前沒有歷史紀錄可以備份。'); return; }
-  if (!confirm(`準備把本機的 ${valid.length} 筆月份歷史紀錄備份到雲端，確定嗎？\n\n（同月份若雲端已有，會以本機這份覆蓋更新）`)) return;
+  // 只需要補「這台電腦上、雲端還沒有」的月份（雲端已有的月份每次打開都會自動讀回來）
+  const valid = loadPendingHistory();
+  if (valid.length === 0) { alert('✅ 這台電腦沒有尚未備份的月份，雲端的歷史紀錄已經是完整的。'); return; }
+  if (!confirm(`這台電腦有 ${valid.length} 個月份（${valid.map(h => h.month).join('、')}）還沒備份到雲端，現在上傳嗎？`)) return;
 
   const statusEl = document.getElementById('history-backfill-status');
   let success = 0;
