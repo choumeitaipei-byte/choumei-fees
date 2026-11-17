@@ -301,8 +301,17 @@ function rocMonthValue(month) {
   return mt ? parseInt(mt[1]) * 12 + parseInt(mt[2]) : 0;
 }
 
+// 扶輪年度：7 月起算，例如 115年07月～116年06月 → '115-116'
+function rotaryYearOf(month) {
+  const mt = String(month || '').match(/(\d+)年(\d+)月/);
+  if (!mt) return '';
+  const y = parseInt(mt[1]), mo = parseInt(mt[2]);
+  return mo >= 7 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+}
+
 // 這位社友有資料的月份（本期＋已結轉的歷史月份），新的排前面
-function listMemberMonths() {
+// 選單只列「本期所在的扶輪年度」（7 月～隔年 6 月）；keepMonth＝目前正在看的月份，即使是上一年度（點舊信件連結進來）也保留在選單裡
+function listMemberMonths(keepMonth = '') {
   const { data, memberId } = VIEW_STATE;
   const same = x => x && String(x.id) === String(memberId);
   const current = data.settings && data.settings.currentMonth;
@@ -313,13 +322,16 @@ function listMemberMonths() {
       list.push({ month: h.month, isCurrent: false });
     }
   });
-  return list.sort((a, b) => rocMonthValue(b.month) - rocMonthValue(a.month));
+  const thisYear = rotaryYearOf(current);
+  return list
+    .filter(x => x.isCurrent || rotaryYearOf(x.month) === thisYear || x.month === keepMonth)
+    .sort((a, b) => rocMonthValue(b.month) - rocMonthValue(a.month));
 }
 
 function showMonth(month, notice = '') {
   const { data, memberId, apiUrl } = VIEW_STATE;
   const same = x => x && String(x.id) === String(memberId);
-  const months = listMemberMonths();
+  const months = listMemberMonths(month);
   const current = data.settings && data.settings.currentMonth;
   if (month === current) {
     const m = (data.members || []).find(same);
@@ -371,9 +383,9 @@ function init() {
       .then(data => {
         if (!data.ok) throw new Error(data.error);
         VIEW_STATE = { data, memberId, apiUrl };
-        const months = listMemberMonths();
-        if (!months.length) throw new Error('找不到社友資料');
         const wanted = params.get('month');
+        const months = listMemberMonths(wanted || '');
+        if (!months.length) throw new Error('找不到社友資料');
         if (wanted && !months.some(x => x.month === wanted)) {
           showMonth(months[0].month, `找不到 ${wanted} 的帳單，先顯示最新月份。`);
         } else {
