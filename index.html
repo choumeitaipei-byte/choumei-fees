@@ -279,7 +279,16 @@
             <option value="yearly">年度報表</option>
             <option value="advance">代付款明細報表</option>
             <option value="donation">捐款明細報表</option>
+            <option value="person">個人年度明細</option>
           </select>
+        </div>
+        <div id="report-person-wrap" style="display:none">
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇社友</label>
+          <select class="inp" id="report-person" onchange="generateReportPreview()" style="width:180px"></select>
+        </div>
+        <div id="report-period-wrap" style="display:none">
+          <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">期間</label>
+          <select class="inp" id="report-period" onchange="generateReportPreview()" style="width:360px;max-width:100%"></select>
         </div>
         <div id="report-month-wrap">
           <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">選擇月份</label>
@@ -1229,8 +1238,8 @@ function renderBillsGrid() {
     .map(m => {
       const f = calcFees(m);
       const shareUrl = API_URL
-        ? `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}&api=${encodeURIComponent(API_URL)}`
-        : `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}`;
+        ? `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}&api=${encodeURIComponent(API_URL)}&month=${encodeURIComponent(settings.currentMonth)}`
+        : `${location.origin}${location.pathname.replace('index.html','').replace(/\/$/,'')}/view.html?id=${encodeURIComponent(m.id)}&month=${encodeURIComponent(settings.currentMonth)}`;
       return `<div class="card" style="padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
           <div style="font-size:18px;font-weight:900;color:var(--navy)">${m.name}</div>
@@ -1940,7 +1949,7 @@ function copyShareLink() {
   let url;
   if (API_URL) {
     // 短網址：只帶 id + api，view.html 自己去抓資料
-    url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
+    url = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL) + '&month=' + encodeURIComponent(settings.currentMonth);
   } else {
     // 無 API 時退回 data-embedded（較長，但離線可用）
     const minSettings = { currentMonth: settings.currentMonth, financialContact: settings.financialContact, feeStructure: settings.feeStructure, paymentDeadline: settings.paymentDeadline, replyToEmail: settings.replyToEmail };
@@ -2157,7 +2166,8 @@ function buildBillEmailContent(m, opts = {}) {
     : '按下後會開啟回信畫面，內容已填好，直接送出即可。';
   const f = calcFees(m);
   const base = location.href.replace('index.html','').replace(/\?.*$/,'');
-  const link = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL);
+  // 連結帶上月份：社友之後點舊信件，仍會看到當時那個月的帳單
+  const link = base + 'view.html?id=' + encodeURIComponent(m.id) + '&api=' + encodeURIComponent(API_URL) + '&month=' + encodeURIComponent(settings.currentMonth);
   const deadlineText = settings.paymentDeadline || '__月__日';
   const dueColor = f.finalH > 0 ? '#dc2626' : '#16a34a';
   const subjectBase = (settings.emailSubjectOverride && settings.emailSubjectOverride.trim())
@@ -2768,6 +2778,9 @@ function updateReportOptions() {
   const needMonth = type === 'monthly' || type === 'advance' || type === 'donation';
   document.getElementById('report-month-wrap').style.display = needMonth ? 'block' : 'none';
   document.getElementById('report-year-wrap').style.display = type === 'yearly' ? 'block' : 'none';
+  document.getElementById('report-person-wrap').style.display = type === 'person' ? 'block' : 'none';
+  document.getElementById('report-period-wrap').style.display = type === 'person' ? 'block' : 'none';
+  if (type === 'person') fillPersonReportOptions();
 
   // 從備份歷史或現有月份產生選項
   const monthSel = document.getElementById('report-month');
@@ -2807,6 +2820,10 @@ function getReportData() {
       data.forEach(m => moveDonationsOutOfService(m));
     }
     return { type, month, members: data };
+  } else if (type === 'person') {
+    const memberId = document.getElementById('report-person').value;
+    const period = document.getElementById('report-period').value;
+    return { type, memberId, period, ...buildPersonYearData(memberId, period) };
   } else {
     // 年度報表：改用扶輪年度（7月～隔年6月）分組。
     // history 只有「已經結轉過」的月份快照，這裡把目前這個月（還沒結轉）的即時資料也一併補進來，
@@ -2964,11 +2981,204 @@ function collectDonationGroups(mList) {
   return { fixedGroups, generalGroups, designatedGroups, sortMap };
 }
 
+// ══════════════════════════════════════════
+// 個人年度明細：選一位社友＋一段期間（扶輪年度 7–6 月，或 1–12 月），列出每個月的明細與全年總覽
+// ══════════════════════════════════════════
+// 月份字串 '115年10月' → { y:115, mo:10 }
+function parseRocMonth(month) {
+  const mt = String(month || '').match(/(\d+)年(\d+)月/);
+  return mt ? { y: parseInt(mt[1]), mo: parseInt(mt[2]) } : null;
+}
+
+// 期間代碼：'R:114-115' = 扶輪年度（114年07月～115年06月）；'C:114' = 114年01月～12月
+function monthInPeriod(month, period) {
+  const p = parseRocMonth(month);
+  if (!p || !period) return false;
+  if (period.startsWith('R:')) return getRotaryYear(month) === period.slice(2);
+  if (period.startsWith('C:')) return p.y === parseInt(period.slice(2));
+  return false;
+}
+
+function periodLabel(period) {
+  if (period.startsWith('R:')) {
+    const [a, b] = period.slice(2).split('-').map(Number);
+    return `扶輪年度 ${a + 1911}.07 – ${b + 1911}.06（${a}年07月–${b}年06月）`;
+  }
+  const y = parseInt(period.slice(2));
+  return `全年 ${y + 1911}.01 – ${y + 1911}.12（${y}年01月–${y}年12月）`;
+}
+
+// 所有可用月份的資料：歷史快照＋目前月份（還沒結轉的即時資料），同一月份只取一份
+function getAllMonthSnapshots() {
+  const history = JSON.parse(localStorage.getItem('choumei_history') || '[]');
+  const list = [];
+  const seen = new Set();
+  if (!history.some(h => h.month === settings.currentMonth)) {
+    list.push({ month: settings.currentMonth, members, isCurrent: true });
+    seen.add(settings.currentMonth);
+  }
+  history.forEach(h => { if (h && h.month && !seen.has(h.month)) { seen.add(h.month); list.push(h); } });
+  return list;
+}
+
+function fillPersonReportOptions() {
+  const snaps = getAllMonthSnapshots();
+  // 社友：目前名單＋歷史月份出現過的社友（已離社的也查得到）
+  const people = {};
+  snaps.forEach(sn => (sn.members || []).forEach(m => { if (m && m.id && !people[m.id]) people[m.id] = m; }));
+  members.forEach(m => { people[m.id] = m; });
+  const personSel = document.getElementById('report-person');
+  const prevPerson = personSel.value;
+  personSel.innerHTML = Object.values(people).sort(sortByNickname)
+    .map(m => `<option value="${escHtml(m.id)}">${escHtml(m.name)}${m.nickname ? '（' + escHtml(m.nickname) + '）' : ''}</option>`).join('');
+  if (prevPerson && people[prevPerson]) personSel.value = prevPerson;
+
+  // 期間：只列出有資料的扶輪年度與曆年，新的排前面
+  const months = snaps.map(sn => sn.month).filter(m => parseRocMonth(m));
+  const rotary = [...new Set(months.map(m => getRotaryYear(m)))].sort((a, b) => parseInt(b) - parseInt(a)).map(r => 'R:' + r);
+  const calendar = [...new Set(months.map(m => parseRocMonth(m).y))].sort((a, b) => b - a).map(y => 'C:' + y);
+  const periodSel = document.getElementById('report-period');
+  const prevPeriod = periodSel.value;
+  periodSel.innerHTML =
+    `<optgroup label="扶輪年度（7月–隔年6月）">${rotary.map(p => `<option value="${p}">${periodLabel(p)}</option>`).join('')}</optgroup>` +
+    `<optgroup label="全年（1月–12月）">${calendar.map(p => `<option value="${p}">${periodLabel(p)}</option>`).join('')}</optgroup>`;
+  if (prevPeriod && [...rotary, ...calendar].includes(prevPeriod)) periodSel.value = prevPeriod;
+}
+
+// 一位社友某個月的每一筆明細（分類與金額跟 calcFees 完全對應，各類加總 = A/B/C/F/G）
+function personBillItems(m) {
+  const v = x => isNaN(Number(x)) ? 0 : Number(x);
+  const vr = (m.variable && !Array.isArray(m.variable)) ? m.variable : {};
+  const items = [];
+  const add = (group, cat, desc, amount) => items.push({ group, cat, desc: desc || '', amount: v(amount) });
+  if (v(m.fixedA?.monthly)) add('A', '經常費', settings.feeStructure?.fixedA?.items?.monthly || '月費', m.fixedA.monthly);
+  (vr.fixedA_list || []).forEach(i => add('A', '經常費', i.desc, i.amount));
+  if (v(m.fixedB?.monthly_split)) add('B', '服務經費', '固定分攤費', m.fixedB.monthly_split);
+  (vr.service_list || []).forEach(i => add('B', '服務經費', i.desc, i.amount));
+  (vr.donation_fixed_list || []).forEach(i => add('B', '固定捐款', i.desc, i.amount));
+  [...(vr.donation_general_list || []), ...(vr.donation_list || [])].forEach(i => add('B', '一般捐款', i.desc, i.amount));
+  (vr.donation_designated_list || []).forEach(i => add('B', '指定捐款', i.desc, i.amount));
+  (vr.advance_pay_list || []).forEach(i => add('C', '代付款', i.desc, i.amount));
+  (vr.receipt_list || []).forEach(i => i.type === 'receipt_card'
+    ? add('G', '信用卡收款', i.desc && i.desc !== '信用卡收款' ? i.desc : '', i.amount)
+    : add('F', '匯款收款', i.desc && i.desc !== '匯款收款' ? i.desc : '', i.amount));
+  (vr.credit_card_list || []).forEach(i => add('G', '信用卡收款', i.desc, i.amount));
+  if (v(m.accounting?.credit_card)) add('G', '信用卡收款', '', m.accounting.credit_card);
+  return items;
+}
+
+function buildPersonYearData(memberId, period) {
+  const rows = getAllMonthSnapshots()
+    .filter(sn => monthInPeriod(sn.month, period))
+    .map(sn => {
+      const found = (sn.members || []).find(x => String(x.id) === String(memberId));
+      if (!found) return null;
+      // 在複本上處理，不改動快照或目前資料；舊資料裡誤存成服務經費的捐款照規則歸位
+      const m = JSON.parse(JSON.stringify(found));
+      moveDonationsOutOfService(m);
+      return { month: sn.month, isCurrent: !!sn.isCurrent, f: calcFees(m), items: personBillItems(m), name: m.name, nickname: m.nickname || '' };
+    })
+    .filter(Boolean)
+    .sort((a, b) => { const pa = parseRocMonth(a.month), pb = parseRocMonth(b.month); return (pa.y * 12 + pa.mo) - (pb.y * 12 + pb.mo); });
+  const person = members.find(x => String(x.id) === String(memberId)) || rows[rows.length - 1] || {};
+  const totals = rows.reduce((t, r) => {
+    ['sumA', 'sumB', 'sumC', 'sumD', 'sumF', 'sumG'].forEach(k => { t[k] += r.f[k]; });
+    return t;
+  }, { sumA: 0, sumB: 0, sumC: 0, sumD: 0, sumF: 0, sumG: 0 });
+  totals.lastH = rows.length ? rows[rows.length - 1].f.finalH : 0;
+  return { personName: person.name || '', personNickname: person.nickname || '', rows, totals };
+}
+
+function renderPersonYearReport(data) {
+  const money = n => n === 0 ? '-' : (n < 0 ? '-$' + Math.abs(n).toLocaleString() : '$' + n.toLocaleString());
+  const title = `${escHtml(data.personName)}${data.personNickname ? '（' + escHtml(data.personNickname) + '）' : ''}・${escHtml(periodLabel(data.period || ''))}`;
+  if (!data.rows.length) {
+    return `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">${title}<br>這段期間沒有這位社友的資料</div>`;
+  }
+  const td = (val, color = '#333', bold = false) => `<td style="padding:6px 10px;text-align:right;font-family:monospace;font-size:12px;border-bottom:1px solid #f0ece4;color:${color};${bold ? 'font-weight:900' : ''}">${val}</td>`;
+  const th = (t, align = 'right') => `<th style="padding:7px 10px;text-align:${align};font-size:11px;color:#6b6358;background:#f5f2ec;white-space:nowrap">${t}</th>`;
+  const monthName = r => `${escHtml(r.month)}${r.isCurrent ? ' <span style="font-size:10px;color:#b45309;background:#fef3cd;padding:1px 6px;border-radius:99px">本月（尚未結轉）</span>' : ''}`;
+
+  const summaryRows = data.rows.map(r => `<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0ece4;font-weight:700;white-space:nowrap;font-size:12px">${monthName(r)}</td>
+      ${td(money(r.f.sumA))}${td(money(r.f.sumB))}${td(money(r.f.sumC), '#7c3aed')}${td(money(r.f.sumD), '#002147', true)}
+      ${td(money(r.f.sumE), '#92400e')}${td(money(r.f.sumF), '#166534')}${td(money(r.f.sumG), '#7c3aed')}
+      ${td(money(r.f.finalH), r.f.finalH > 0 ? '#dc2626' : '#16a34a', true)}
+    </tr>`).join('');
+  const t = data.totals;
+  const ftd = (val, c = '#C9A84C') => `<td style="padding:8px 10px;text-align:right;font-family:monospace;font-weight:900;color:${c}">${val}</td>`;
+  const summary = `
+    <div style="overflow-x:auto;margin-bottom:20px"><table style="border-collapse:collapse;white-space:nowrap;min-width:100%">
+      <thead><tr>${th('月份', 'left')}${th('經常費 A')}${th('服務費 B')}${th('代付款 C')}${th('社費 D')}${th('前期 E')}${th('匯款 F')}${th('信用卡 G')}${th('未付款 H')}</tr></thead>
+      <tbody>${summaryRows}</tbody>
+      <tfoot><tr style="background:#002147;color:white">
+        <td style="padding:8px 10px;font-weight:900">期間合計（${data.rows.length} 個月）</td>
+        ${ftd(money(t.sumA), '#93c5fd')}${ftd(money(t.sumB), '#bbf7d0')}${ftd(money(t.sumC), '#e9d5ff')}${ftd(money(t.sumD))}
+        ${ftd('—', '#fde68a')}${ftd(money(t.sumF), '#6ee7b7')}${ftd(money(t.sumG), '#c4b5fd')}${ftd(money(t.lastH))}
+      </tr></tfoot>
+    </table></div>
+    <div style="font-size:11px;color:#999;margin:-12px 0 20px">※ 前期 E 與未付款 H 是逐月滾動的餘額，不加總；合計列的 H 為期間最後一個月的未付款。</div>`;
+
+  const groupColor = { A: '#1e40af', B: '#166534', C: '#7c3aed', F: '#166534', G: '#7c3aed' };
+  const cards = data.rows.map(r => {
+    const list = r.items.map(i => `<tr>
+        <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:${groupColor[i.group]};font-weight:700;white-space:nowrap">${escHtml(i.cat)}</td>
+        <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px">${escHtml(i.desc)}</td>
+        <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700;color:${i.group === 'F' || i.group === 'G' ? '#16a34a' : '#333'}">${i.group === 'F' || i.group === 'G' ? '−' : ''}$${i.amount.toLocaleString()}</td>
+      </tr>`).join('') || `<tr><td colspan="3" style="padding:8px 12px;color:#bbb;font-size:12px">本月沒有明細</td></tr>`;
+    const f = r.f;
+    return `<div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:14px">
+      <div style="background:#002147;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="color:#C9A84C;font-size:14px;font-weight:900">${monthName(r)}</div>
+        <div style="color:rgba(255,255,255,0.75);font-size:12px">社費 D <b style="color:#C9A84C;font-family:monospace">$${f.sumD.toLocaleString()}</b>　未付款 H <b style="color:#C9A84C;font-family:monospace">${money(f.finalH)}</b></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse"><tbody>${list}</tbody>
+        <tfoot><tr style="background:#eef4ff"><td colspan="3" style="padding:6px 12px;font-size:11px;color:#002147;font-weight:700">
+          A $${f.sumA.toLocaleString()}　B $${f.sumB.toLocaleString()}　C $${f.sumC.toLocaleString()}　｜　前期 E ${money(f.sumE)}　匯款 F ${money(f.sumF)}　信用卡 G ${money(f.sumG)}
+        </td></tr></tfoot>
+      </table></div>`;
+  }).join('');
+
+  return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;font-weight:900;color:var(--navy)">${title}</div>
+      <div style="background:#002147;color:#C9A84C;font-family:monospace;font-size:13px;font-weight:900;padding:4px 14px;border-radius:99px">期間社費合計 $${t.sumD.toLocaleString()}</div>
+    </div>${summary}${cards}`;
+}
+
+function buildPersonYearCsv(data) {
+  const q = s => `"${String(s == null ? '' : s).replace(/"/g, '""')}"`;
+  let csv = `${q('社友')},${q(data.personName + (data.personNickname ? '（' + data.personNickname + '）' : ''))}\n`;
+  csv += `${q('期間')},${q(periodLabel(data.period || ''))}\n\n`;
+  csv += ['月份', '類別', '項目', '金額'].map(q).join(',') + '\n';
+  data.rows.forEach(r => {
+    r.items.forEach(i => {
+      const amt = (i.group === 'F' || i.group === 'G') ? -i.amount : i.amount;
+      csv += [q(r.month), q(i.cat), q(i.desc), amt].join(',') + '\n';
+    });
+  });
+  csv += '\n' + ['月份', '經常費(A)', '服務費(B)', '代付款(C)', '本期社費(D)', '前期(E)', '匯款(F)', '信用卡(G)', '未付款(H)'].map(q).join(',') + '\n';
+  data.rows.forEach(r => {
+    const f = r.f;
+    csv += [q(r.month + (r.isCurrent ? '（尚未結轉）' : '')), f.sumA, f.sumB, f.sumC, f.sumD, f.sumE, f.sumF, f.sumG, f.finalH].join(',') + '\n';
+  });
+  const t = data.totals;
+  csv += [q('期間合計'), t.sumA, t.sumB, t.sumC, t.sumD, q(''), t.sumF, t.sumG, t.lastH].join(',') + '\n';
+  return csv;
+}
+
 function generateReportPreview() {
   try {
   const data = getReportData();
   const preview = document.getElementById('report-preview');
   const v = x => isNaN(Number(x)) ? 0 : Number(x);
+
+  // ── 個人年度明細 ──────────────────────────────────────────
+  if (data.type === 'person') {
+    preview.innerHTML = (data.memberId && data.period)
+      ? renderPersonYearReport(data)
+      : `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">尚無資料</div>`;
+    return;
+  }
 
   // variable 有時被存成 [] 空陣列而非物件，統一修正
   const mList = (data.members || members).map(m => ({
@@ -3268,6 +3478,14 @@ function exportReport(format) {
   };
 
   let csv = '';
+
+  // ── 個人年度明細 CSV ──────────────────────────────────────
+  if (data.type === 'person') {
+    if (!data.rows || !data.rows.length) { alert('這段期間沒有這位社友的資料'); return; }
+    const safe = s => String(s || '').replace(/[\\/:*?"<>|]/g, '');
+    downloadCSV(buildPersonYearCsv(data), `洲美個人明細_${safe(data.personName)}_${safe(periodLabel(data.period).split('（')[0])}.csv`);
+    return;
+  }
 
   // ── 代付款明細 CSV ────────────────────────────────────────
   if (data.type === 'advance') {
