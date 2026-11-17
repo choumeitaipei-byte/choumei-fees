@@ -148,7 +148,9 @@ function render(members, settings, apiUrl) {
     const badge = f.finalH > 0
       ? `<span class="badge-due">${money(f.finalH)}</span>`
       : `<span class="badge-ok">${money(f.finalH)}</span>`;
-    const detailUrl = base + 'view.html?id=' + encodeURIComponent(m.id) + (apiUrl ? '&api=' + encodeURIComponent(apiUrl) : '');
+    const detailUrl = base + 'view.html?id=' + encodeURIComponent(m.id)
+      + (BILL_TOKENS[m.id] ? '&t=' + encodeURIComponent(BILL_TOKENS[m.id]) : '')
+      + (apiUrl ? '&api=' + encodeURIComponent(apiUrl) : '');
     return `<tr class="${m.onLeave ? 'on-leave' : ''}">
       <td>
         <div class="name-cell">${m.name}${m.onLeave ? '<span class="badge-leave">請假</span>' : ''}</div>
@@ -245,6 +247,8 @@ function showError(msg) {
     </div>`;
 }
 
+let BILL_TOKENS = {}; // 每位社友帳單連結的驗證碼（由雲端提供）
+
 function init() {
   const params = new URLSearchParams(location.search);
   const apiUrlFromParam = params.get('api');
@@ -258,10 +262,14 @@ function init() {
     return;
   }
 
-  fetch(apiUrl + '?action=getAll')
+  // 財務總表需要唯讀密碼（連結裡的 key，由會費系統「複製財務總表連結」自動產生）
+  const key = params.get('key') || '';
+  fetch(apiUrl + '?action=getAll&key=' + encodeURIComponent(key))
     .then(r => r.json())
     .then(data => {
+      if (data.error === 'UNAUTHORIZED') throw new Error('這個財務總表連結已失效，請向社辦索取最新的財務總表連結。');
       if (!data.ok) throw new Error(data.error || '讀取失敗');
+      BILL_TOKENS = data.billTokens || {};
       render(data.members || [], data.settings || {}, apiUrl);
     })
     .catch(err => showError(err.message));
