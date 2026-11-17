@@ -171,7 +171,9 @@ function moveDonationsOutOfService(m) {
   return moved;
 }
 
-function renderBill(m, settings, confirm = null) {
+// view = { isPast: 是否為已結轉的過去月份, months: 可切換的月份清單（新→舊）, notice: 額外提示文字 }
+function renderBill(m, settings, confirm = null, view = {}) {
+  const isPast = !!view.isPast;
   // 在複本上歸位捐款分類，帳單標籤跟主系統一致（不改動原始資料）
   m = JSON.parse(JSON.stringify(m));
   moveDonationsOutOfService(m);
@@ -220,7 +222,20 @@ function renderBill(m, settings, confirm = null) {
 
   const deadlineText = settings.paymentDeadline || '__月__日';
 
-  document.getElementById('content').innerHTML = `
+  const months = view.months || [];
+  const switcher = months.length > 1
+    ? `<div style="max-width:480px;margin:0 auto 12px;display:flex;align-items:center;gap:10px;background:white;border:1.5px solid #e8e4da;border-radius:14px;padding:10px 14px">
+        <span style="font-size:12px;font-weight:700;color:#888;white-space:nowrap">查看其他月份</span>
+        <select onchange="showMonth(this.value)" style="flex:1;font-size:14px;font-weight:700;color:#002147;border:1.5px solid #e8e4da;border-radius:10px;padding:8px 10px;background:#faf8f4">
+          ${months.map(x => `<option value="${escHtml(x.month)}"${x.month === settings.currentMonth ? ' selected' : ''}>${escHtml(x.month)}${x.isCurrent ? '（本期）' : ''}</option>`).join('')}
+        </select>
+      </div>`
+    : '';
+  const banner = (isPast || view.notice)
+    ? `<div style="max-width:480px;margin:0 auto 12px;background:#eff6ff;border:1.5px solid #bfdbfe;color:#1d4ed8;border-radius:12px;padding:10px 14px;font-size:12px;font-weight:700;line-height:1.6">${view.notice ? escHtml(view.notice) + (isPast ? '<br>' : '') : ''}${isPast ? `這是 ${escHtml(settings.currentMonth)} 的帳單（已結轉）` : ''}</div>`
+    : '';
+
+  document.getElementById('content').innerHTML = `${switcher}${banner}
     <div class="bill-card">
       <div class="bill-top">
         <div class="bill-month">${settings.currentMonth} 會費對帳單</div>
@@ -243,8 +258,8 @@ function renderBill(m, settings, confirm = null) {
         <div class="bill-footer">
           <p style="margin-bottom:6px;font-size:12px;color:#333">親愛的洲美扶輪社社友您好：</p>
           <p style="margin-bottom:6px;font-size:12px;color:#333">您 <strong>${settings.currentMonth}</strong> 本期社費合計 (D=A+B+C) 為 <strong style="color:#002147">NT $${f.sumD.toLocaleString()}</strong>，本期未付款 (H) 為 <strong style="color:${f.finalH>0?'#dc2626':'#16a34a'}">NT $${f.finalH.toLocaleString()}</strong>，煩請核對，若有錯誤請於<strong>三天內</strong>告知。謝謝！</p>
-          <p style="margin-bottom:6px;font-size:12px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineText}</strong> 前繳清，以避免會籍被終止，謝謝！</p>
-          <div style="border:1.5px solid #e8e4da;border-radius:12px;padding:12px 14px;margin:10px 0 12px">
+          ${isPast ? '' : `<p style="margin-bottom:6px;font-size:12px;color:#dc2626;font-weight:700">⚠️ 提醒您，本月應收款請於 <strong>${deadlineText}</strong> 前繳清，以避免會籍被終止，謝謝！</p>`}
+          ${isPast ? `<div style="border:1.5px solid #bfdbfe;background:#eff6ff;border-radius:12px;padding:12px 14px;margin:10px 0 12px;font-size:12px;color:#1d4ed8;line-height:1.7">這是已結轉的 <strong>${escHtml(settings.currentMonth)}</strong> 帳單，僅供查看。<br>如有疑問，請直接回覆帳單信件或聯絡社辦。</div>` : `<div style="border:1.5px solid #e8e4da;border-radius:12px;padding:12px 14px;margin:10px 0 12px">
             <p style="font-size:13px;color:#002147;font-weight:900;margin-bottom:4px">請核對帳單，點選下方按鈕回覆：</p>
             <p style="font-size:11px;color:#888;margin-bottom:10px">${useConfirmPage ? '按下後會開啟確認頁面，送出後社辦就會收到您的回覆。' : '按下後會開啟回信畫面，內容已填好，直接送出即可。'}</p>
             ${existingNote}
@@ -252,7 +267,7 @@ function renderBill(m, settings, confirm = null) {
               <a href="${buildConfirmLink(m, settings, true, confirm)}" style="flex:1;display:block;text-align:center;background:#16a34a;color:#fff;text-decoration:none;font-weight:900;font-size:14px;padding:12px 6px;border-radius:10px">✅ 核對無誤</a>
               <a href="${buildConfirmLink(m, settings, false, confirm)}" style="flex:1;display:block;text-align:center;background:#fff;color:#dc2626;border:1.5px solid #fecaca;text-decoration:none;font-weight:900;font-size:14px;padding:11px 6px;border-radius:10px">❌ 核對有誤</a>
             </div>
-          </div>
+          </div>`}
           <div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:#444;line-height:1.8">
             <strong style="color:#002147">※ 繳費方式</strong><br>
             1.【信用卡】國泰世華（每月15日扣款）<br>
@@ -278,6 +293,55 @@ function shareThis() {
 }
 
 // 從 URL 參數讀取資料
+// ── 月份切換：連結帶 &month= 時顯示該月；舊連結沒帶月份就顯示本期，可從選單切到過去月份 ──
+let VIEW_STATE = null; // { data: getAll 回傳的資料, memberId, apiUrl }
+
+function rocMonthValue(month) {
+  const mt = String(month || '').match(/(\d+)年(\d+)月/);
+  return mt ? parseInt(mt[1]) * 12 + parseInt(mt[2]) : 0;
+}
+
+// 這位社友有資料的月份（本期＋已結轉的歷史月份），新的排前面
+function listMemberMonths() {
+  const { data, memberId } = VIEW_STATE;
+  const same = x => x && String(x.id) === String(memberId);
+  const current = data.settings && data.settings.currentMonth;
+  const list = [];
+  if (current && (data.members || []).some(same)) list.push({ month: current, isCurrent: true });
+  (data.history || []).forEach(h => {
+    if (h && h.month && h.month !== current && !list.some(x => x.month === h.month) && (h.members || []).some(same)) {
+      list.push({ month: h.month, isCurrent: false });
+    }
+  });
+  return list.sort((a, b) => rocMonthValue(b.month) - rocMonthValue(a.month));
+}
+
+function showMonth(month, notice = '') {
+  const { data, memberId, apiUrl } = VIEW_STATE;
+  const same = x => x && String(x.id) === String(memberId);
+  const months = listMemberMonths();
+  const current = data.settings && data.settings.currentMonth;
+  if (month === current) {
+    const m = (data.members || []).find(same);
+    const token = (data.confirmTokensMonth === current && data.confirmTokens) ? data.confirmTokens[m.id] : '';
+    const existing = (data.confirmations || []).find(c => String(c.id) === String(m.id) && c.month === current) || null;
+    renderBill(m, data.settings, { api: apiUrl, token, existing }, { months, notice });
+  } else {
+    const snap = (data.history || []).find(h => h && h.month === month);
+    const m = snap && (snap.members || []).find(same);
+    if (!m) return;
+    // 過去月份：帳單標題用那個月份；不顯示本期繳費期限與核對按鈕
+    renderBill(m, { ...data.settings, currentMonth: month }, null, { isPast: true, months, notice });
+  }
+  // 網址同步帶上月份，社友轉傳或重新整理時仍是同一個月
+  try {
+    const params = new URLSearchParams(location.search);
+    params.set('month', month);
+    history.replaceState(null, '', location.pathname + '?' + params.toString());
+  } catch (e) {}
+  window.scrollTo(0, 0);
+}
+
 function init() {
   const params = new URLSearchParams(location.search);
 
@@ -306,12 +370,15 @@ function init() {
       .then(r => r.json())
       .then(data => {
         if (!data.ok) throw new Error(data.error);
-        const m = data.members.find(x => x.id === memberId);
-        if (!m) throw new Error('找不到社友資料');
-        const month = data.settings && data.settings.currentMonth;
-        const token = (data.confirmTokensMonth === month && data.confirmTokens) ? data.confirmTokens[m.id] : '';
-        const existing = (data.confirmations || []).find(c => String(c.id) === String(m.id) && c.month === month) || null;
-        renderBill(m, data.settings, { api: apiUrl, token, existing });
+        VIEW_STATE = { data, memberId, apiUrl };
+        const months = listMemberMonths();
+        if (!months.length) throw new Error('找不到社友資料');
+        const wanted = params.get('month');
+        if (wanted && !months.some(x => x.month === wanted)) {
+          showMonth(months[0].month, `找不到 ${wanted} 的帳單，先顯示最新月份。`);
+        } else {
+          showMonth(wanted || months[0].month);
+        }
       })
       .catch(err => {
         document.getElementById('content').innerHTML = `
