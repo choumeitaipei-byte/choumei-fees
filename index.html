@@ -871,6 +871,12 @@ async function saveHistoryToCloud(snapshot) {
   }
 }
 
+// 結轉時歷史紀錄雲端備份失敗：明顯提醒（之前失敗不會有任何提示，資料只留在這台電腦）
+function warnHistoryBackupFailed(month, result) {
+  if (!API_URL || (result && result.ok)) return;
+  alert(`⚠️ ${month} 的歷史紀錄沒有成功備份到雲端！\n\n資料目前只存在這台電腦的瀏覽器裡，其他電腦和社友的帳單頁面看不到這個月。\n\n請確認網路正常、Code.gs 已部署新版本後，到「系統設定」按「☁️ 補齊歷史紀錄備份」再試一次。\n\n錯誤訊息：${(result && result.error) || '無法連線'}`);
+}
+
 async function pushToCloud(action, data) {
   if (!API_URL) { saveLocal(); return; }
   showSync('同步至雲端...');
@@ -2584,7 +2590,8 @@ async function executeCarryOver() {
   if (history.length > 24) history.pop();
   localStorage.setItem('choumei_history', JSON.stringify(history));
   // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
-  await saveHistoryToCloud(snapshot);
+  const histSaved = await saveHistoryToCloud(snapshot);
+  warnHistoryBackupFailed(snapshotMonth, histSaved);
 
   // ② 結轉：清空 variable、套下月預設費用
   members.forEach(m => {
@@ -2726,7 +2733,8 @@ ${removed.join('、')}
   if (history.length > 24) history.pop();
   localStorage.setItem('choumei_history', JSON.stringify(history));
   // 同步備份到雲端，避免換裝置／清除瀏覽器資料後歷史紀錄消失
-  await saveHistoryToCloud(yearEndSnapshot);
+  const histSaved = await saveHistoryToCloud(yearEndSnapshot);
+  warnHistoryBackupFailed(yearEndSnapshot.month, histSaved);
 
   // 只保留留任社友，重置所有費用
   members = members.filter(m => checked.includes(m.id)).map(m => ({
