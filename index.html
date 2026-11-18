@@ -201,7 +201,7 @@
 
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <input class="inp" type="text" id="member-search" placeholder="🔍 搜尋姓名／暱稱" oninput="renderMembersTable()" style="width:220px">
+        <input class="inp" type="search" id="member-search" name="choumei-member-filter" autocomplete="off" placeholder="🔍 搜尋姓名／暱稱" oninput="renderMembersTable()" style="width:220px">
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#374151;cursor:pointer;background:#f5f2ec;padding:8px 14px;border-radius:12px">
           <input type="checkbox" id="unpaid-only-toggle" onchange="renderMembersTable()" style="width:15px;height:15px;accent-color:#dc2626;cursor:pointer">
           只顯示未付款
@@ -323,12 +323,12 @@
       <h3 style="font-size:15px;font-weight:900;margin-bottom:6px;color:var(--navy)">🔌 Google Apps Script API 網址</h3>
       <p style="font-size:12px;color:#888;margin-bottom:16px">部署 Code.gs 後，將「網頁應用程式」的 URL 貼到這裡</p>
       <div style="display:flex;gap:12px">
-        <input class="inp" type="url" id="api-url-input" placeholder="https://script.google.com/macros/s/..." style="flex:1">
+        <input class="inp" type="url" id="api-url-input" name="choumei-api-url" autocomplete="off" placeholder="https://script.google.com/macros/s/..." style="flex:1">
         <button onclick="saveApiUrl()" class="btn-primary">儲存連線</button>
         <button onclick="testApi()" style="background:#f5f2ec;color:var(--navy);padding:10px 20px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;border:none">測試連線</button>
       </div>
       <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-        <input class="inp" type="password" id="admin-key-input" placeholder="管理密碼（在 Apps Script 執行 showKeys 取得）" style="flex:1" autocomplete="off">
+        <input class="inp" type="text" id="admin-key-input" name="choumei-admin-key" autocomplete="off" spellcheck="false" placeholder="管理密碼（在 Apps Script 執行 showKeys 取得）" style="flex:1;-webkit-text-security:disc">
         <button onclick="toggleKeyVisible()" style="background:#f5f2ec;color:var(--navy);padding:10px 14px;border-radius:12px;font-weight:700;font-size:12px;cursor:pointer;border:none;white-space:nowrap">👁 顯示</button>
       </div>
       <p style="font-size:11px;color:#aaa;margin-top:6px">管理密碼只存在這台電腦的瀏覽器裡，不會出現在任何連結中。每台要使用會費系統的電腦都要填一次。</p>
@@ -486,6 +486,7 @@
     </div>
     <div style="padding:28px;display:grid;gap:16px">
       <div id="send-single-target-name" style="font-size:13px;color:#888"></div>
+      <div id="send-single-quota" style="font-size:12px;font-weight:700;margin-top:4px"></div>
       <div id="send-single-sent-note" style="display:none;font-size:12px;color:#16a34a;font-weight:700;background:#f0fdf4;border:1px solid #bbf7d0;padding:8px 12px;border-radius:10px"></div>
       <div>
         <label style="font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px">收件人 Email（可修改，例如改成自己的信箱測試）</label>
@@ -812,6 +813,8 @@ let confirmTokensMonth = '';   // confirmTokens 對應的月份
 
 // ── 初始化 ──
 window.onload = async () => {
+  clearMemberSearch();
+  setTimeout(clearMemberSearch, 800);
   document.getElementById('api-url-input').value = API_URL;
   document.getElementById('admin-key-input').value = ADMIN_KEY;
   if (!API_URL) {
@@ -850,9 +853,16 @@ function showKeyNeeded() {
   if (el) el.style.display = 'block';
 }
 
+// 管理密碼欄位用一般文字框＋CSS 遮罩（不用 type=password），Chrome 才不會把它當成帳號密碼存起來、再亂填到搜尋框
 function toggleKeyVisible() {
   const el = document.getElementById('admin-key-input');
-  el.type = el.type === 'password' ? 'text' : 'password';
+  el.style.webkitTextSecurity = el.style.webkitTextSecurity === 'none' ? 'disc' : 'none';
+}
+
+// 瀏覽器自動填入可能把網址之類的文字塞進搜尋框，導致社友全被篩掉：開頁面時清空，稍後再檢查一次
+function clearMemberSearch() {
+  const el = document.getElementById('member-search');
+  if (el && el.value) { el.value = ''; renderMembersTable(); }
 }
 
 async function callApi(data) {
@@ -860,11 +870,20 @@ async function callApi(data) {
 }
 
 // 社友帳單連結：帶上專屬驗證碼 t（舊連結沒有 t 也能看，但只看得到自己）
+// view.html／summary.html 內建的 Apps Script 網址；系統設定的網址跟它相同時，連結就不用再帶 api=
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbxt5r9yZHNGB6s5pPAXu60AcEBMDaeqqxz5VRiBcWVUit3FM79new0RfGPJpDGyYR8x/exec';
+
+// 連結用的短月份：115年10月 → 11510
+function monthToShort(month) {
+  const mt = String(month || '').match(/(\d+)年(\d+)月/);
+  return mt ? mt[1] + String(mt[2]).padStart(2, '0') : '';
+}
+
 function billLink(base, m, month) {
   const t = billTokens[m.id] ? '&t=' + encodeURIComponent(billTokens[m.id]) : '';
   return base + 'view.html?id=' + encodeURIComponent(m.id) + t
-    + (API_URL ? '&api=' + encodeURIComponent(API_URL) : '')
-    + (month ? '&month=' + encodeURIComponent(month) : '');
+    + (API_URL && API_URL !== DEFAULT_API ? '&api=' + encodeURIComponent(API_URL) : '')
+    + (month ? '&m=' + monthToShort(month) : '');
 }
 
 async function loadFromCloud() {
@@ -1137,9 +1156,12 @@ function calcFees(m) {
   const sumD = sumA + sumB + sumC;
   // E: 前期未付款
   const sumE = v(m?.accounting?.previous_due);
-  // F: 已收匯款
+  // F: 已收匯款（扣掉「退款給社友」退還的溢繳款，type=refund）
   const sumF = (vr.receipt_list || [])
-    .filter(i => i.type !== 'receipt_card')
+    .filter(i => i.type !== 'receipt_card' && i.type !== 'refund')
+    .reduce((a,i) => a + v(i.amount), 0)
+    - (vr.receipt_list || [])
+    .filter(i => i.type === 'refund')
     .reduce((a,i) => a + v(i.amount), 0);
   // G: 信用卡扣款（receipt_list 中 type=receipt_card + credit_card_list）
   const sumG = (vr.receipt_list || [])
@@ -1338,7 +1360,7 @@ function updateItemOptions() {
       <input class="inp" type="text" id="qi-item" placeholder="捐款項目說明" style="flex:1">
     </div>`;
   } else if (cat === 'receipt') {
-    wrap.innerHTML = '<select class="inp" id="qi-item" onchange="onReceiptTypeChange()"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option></select>';
+    wrap.innerHTML = '<select class="inp" id="qi-item" onchange="onReceiptTypeChange()"><option value="receipt_transfer">匯款收款</option><option value="receipt_card">信用卡收款</option><option value="refund">退款給社友（退還溢繳）</option></select>';
     // 記住上次選的收款方式，連續錄信用卡時不用每次重選
     document.getElementById('qi-item').value = lastReceiptType;
   } else if (cat === 'fixedB') {
@@ -1431,19 +1453,29 @@ function isCardReceiptSelected() {
 let lastReceiptType = 'receipt_transfer'; // 上次選的收款方式（匯款／信用卡）
 let cardAutoFilled = false; // 金額欄目前是不是自動帶入的值（切回匯款時只清空自動帶入的，不清掉手動輸入的）
 
+// 收款錄入選「退款給社友」時，自動帶入該社友的溢繳金額（未付款 H 為負數的部分）
+function isRefundSelected() {
+  if (document.getElementById('qi-category').value !== 'receipt') return false;
+  const item = document.getElementById('qi-item');
+  return !!item && item.value === 'refund';
+}
+
 function autoFillCardAmount() {
-  if (quickInputMode !== 'single' || !isCardReceiptSelected()) return;
+  if (quickInputMode !== 'single') return;
+  const card = isCardReceiptSelected(), refund = isRefundSelected();
+  if (!card && !refund) return;
   const mEl = document.getElementById('qi-member');
   const m = mEl && mEl.value ? members.find(x => x.id === mEl.value) : null;
   if (!m) return;
   const f = calcFees(m);
-  document.getElementById('qi-amount').value = f.finalH > 0 ? f.finalH : 0;
+  document.getElementById('qi-amount').value = card ? (f.finalH > 0 ? f.finalH : 0) : (f.finalH < 0 ? -f.finalH : 0);
   cardAutoFilled = true;
 }
 
 function onReceiptTypeChange() {
-  lastReceiptType = document.getElementById('qi-item').value;
-  if (isCardReceiptSelected()) {
+  // 「退款給社友」不記住：避免下一位社友又預設成退款而誤錄
+  if (!isRefundSelected()) lastReceiptType = document.getElementById('qi-item').value;
+  if (isCardReceiptSelected() || isRefundSelected()) {
     autoFillCardAmount();
   } else if (cardAutoFilled) {
     // 從信用卡切回匯款：清掉自動帶入的金額，避免誤錄
@@ -1585,7 +1617,7 @@ async function submitQuickInput() {
       else if (donationType === 'designated') m.variable.donation_designated_list.push(entry);
       else m.variable.donation_general_list.push(entry);
     }
-    else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
+    else if (cat === 'receipt') { entry.desc = item === 'receipt_card' ? '信用卡收款' : item === 'refund' ? (dateVal ? `${dateVal} 退還溢繳` : '退還溢繳') : '匯款收款'; entry.type = item; m.variable.receipt_list.push(entry); }
     else if (cat === 'fixedB') {
       // 服務經費科目名稱有「捐款」或「EREY」→ 直接存成捐款，報表才抓得到
       const donKey = donationListKeyFor(entry.desc);
@@ -1827,6 +1859,11 @@ function buildBillHTML(m, opts = {}) {
   let rowsReceipt = '';
   if (v(m.accounting?.previous_due) !== 0) rowsReceipt += `<div class="bill-row" style="color:#888"><span>前期未付款 (E)</span><span class="mono">$${v(m.accounting.previous_due).toLocaleString()}</span></div>`;
   (m.variable?.receipt_list||[]).forEach(i => {
+    if (i.type === 'refund') {
+      // 退款給社友：退還溢繳款，未付款會增加（顯示為 ＋）
+      rowsReceipt += `<div class="bill-row" style="color:#b45309"><span>[退款] ${i.desc || '退還溢繳'}</span><div style="display:flex;align-items:center;gap:6px"><span class="mono">+$${v(i.amount).toLocaleString()}</span>${editBtn(m.id,'receipt_list',i.id)}${del(m.id,'receipt_list',i.id)}</div></div>`;
+      return;
+    }
     const isCard = i.type === 'receipt_card';
     rowsReceipt += `<div class="bill-row" style="color:${isCard?'#7c3aed':'#16a34a'}"><span>[${isCard?'信用卡收款 (G)':'匯款收款 (F)'}]</span><div style="display:flex;align-items:center;gap:6px"><span class="mono">-$${v(i.amount).toLocaleString()}</span>${editBtn(m.id,'receipt_list',i.id)}${del(m.id,'receipt_list',i.id)}</div></div>`;
   });
@@ -2007,7 +2044,8 @@ function copySummaryLink() {
   if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，財務總表需要連線雲端資料才能使用。'); return; }
   const base = location.href.replace('index.html','').replace(/\?.*$/,'');
   if (!summaryReadKey) { alert('還拿不到財務總表的唯讀密碼。\n\n請確認：① Code.gs 已部署新版本　② 「系統設定」已填入正確的管理密碼，然後重新整理頁面再試一次。'); return; }
-  const url = base + 'summary.html?api=' + encodeURIComponent(API_URL) + '&key=' + encodeURIComponent(summaryReadKey);
+  const url = base + 'summary.html?key=' + encodeURIComponent(summaryReadKey)
+    + (API_URL !== DEFAULT_API ? '&api=' + encodeURIComponent(API_URL) : '');
   navigator.clipboard.writeText(url).then(() => alert('✅ 財務總表連結已複製！\n這是唯讀連結，對方打開後可以看到全體社友的帳務彙總，但無法修改任何資料。\n\n⚠️ 請確認 summary.html 這個檔案已經和 index.html 放在同一個資料夾／同一個網址下，連結才能正常開啟。'));
 }
 
@@ -2190,11 +2228,17 @@ async function adminConfirmOp(op) {
 
 // 信件裡的「前期款項」說明文字；沒有前期款項時回傳 null
 // 本期收款（F+G）先抵前期 (E)：抵完 → 已繳清（綠）；抵一部分／還沒繳／溢繳 → 藍色說明（不用紅字，避免嚇到社友）
-function buildPrevBalanceNote(f) {
+function buildPrevBalanceNote(f, m) {
   const E = f.sumE;
   if (!E) return null;
   const fmt = n => n.toLocaleString();
-  if (E < 0) return { text: `前期溢繳 NT $${fmt(-E)}，已自本期扣抵。`, color: '#1d4ed8' };
+  if (E < 0) {
+    // 本期有「退款給社友」：說明已退還，而不是扣抵
+    const vr = (m && m.variable && !Array.isArray(m.variable)) ? m.variable : {};
+    const refunded = (vr.receipt_list || []).filter(i => i.type === 'refund').reduce((a, i) => a + (Number(i.amount) || 0), 0);
+    if (refunded > 0) return { text: `前期溢繳 NT $${fmt(-E)}，本期已退還 NT $${fmt(refunded)}。`, color: '#1d4ed8' };
+    return { text: `前期溢繳 NT $${fmt(-E)}，已自本期扣抵。`, color: '#1d4ed8' };
+  }
   const paid = f.sumF + f.sumG;
   if (paid >= E) return { text: `前期款項 NT $${fmt(E)} 已繳清，謝謝！`, color: '#16a34a' };
   if (paid > 0) return { text: `前期款項 NT $${fmt(E)}，已繳 $${fmt(paid)}，尚有 $${fmt(E - paid)} 併入本期未付款。`, color: '#1d4ed8' };
@@ -2222,7 +2266,7 @@ function buildBillEmailContent(m, opts = {}) {
   const subject = `${subjectBase} - ${m.name}`;
 
   // 前期款項說明：本期收款（匯款 F＋信用卡 G）先抵前期 (E)，依抵扣結果顯示狀態，避免已繳清的社友看到大筆金額嚇一跳
-  const prevNote = buildPrevBalanceNote(f);
+  const prevNote = buildPrevBalanceNote(f, m);
 
   const plainBody =
 `${m.name} 您好，
@@ -2276,6 +2320,19 @@ async function sendMemberEmailApi(payload) {
   return apiPost(payload.action || 'sendMemberEmail', payload);
 }
 
+// 今天還能寄幾封（Gmail 每日上限）；查詢失敗回傳 null，不擋寄信
+async function getMailQuota() {
+  try {
+    const r = await apiPost('getMailQuota');
+    return (r && r.ok && typeof r.remaining === 'number') ? r.remaining : null;
+  } catch (e) { return null; }
+}
+
+function mailQuotaText(remaining) {
+  if (remaining === null) return '（無法取得今天的寄信額度）';
+  return remaining < 10 ? `⚠️ 今天只剩 ${remaining} 封可以寄` : `📧 今天還可以寄 ${remaining} 封`;
+}
+
 function openSendBillsModal() {
   if (!API_URL) { alert('請先到「系統設定」設定並儲存 API 網址，寄送 Email 需要連線雲端資料才能使用。'); return; }
   const withEmail = members.filter(m => (m.email || '').trim() && !m.withdrawn);
@@ -2286,10 +2343,26 @@ function openSendBillsModal() {
     initialIds: withEmail.filter(m => !emailSentThisMonth(m)).map(m => m.id),
     filterFn: m => (m.email || '').trim() && !m.withdrawn,
     tagFn: m => `<span style="margin-left:auto;display:flex;gap:4px;align-items:center">${emailSentThisMonth(m) ? `<span style="font-size:10px;color:#16a34a;font-weight:900;background:#f0fdf4;border:1px solid #bbf7d0;padding:1px 8px;border-radius:99px">📧 已寄</span>` : ''}${getConfirmation(m) ? confirmBadge(m, false) : ''}</span>`,
-    onConfirm: (ids) => {
+    onConfirm: async (ids) => {
       if (ids.length === 0) return;
-      if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n\n信件會用你自己的 Gmail 帳號寄出，每封都會附上該社友的帳單圖片；帳單明細上有附件的社友，附件也會自動夾帶。`)) return;
+      // 先確認今天的寄信額度，避免寄到一半才失敗
+      const remaining = await getMailQuota();
+      if (remaining !== null && remaining <= 0) {
+        alert('⚠️ 今天的寄信額度已經用完了（Gmail 每天約 100 封），請明天再寄。\n\n已寄過的社友會標示「📧 已寄」，明天補寄時很好找。');
+        return;
+      }
+      if (remaining !== null && ids.length > remaining) {
+        if (!confirm(`⚠️ 今天只剩 ${remaining} 封可以寄，但你選了 ${ids.length} 位。\n\n按「確定」：先寄前 ${remaining} 位，其餘 ${ids.length - remaining} 位明天再寄（他們不會被標示「已寄」）\n按「取消」：這次先不寄`)) return;
+        ids = ids.slice(0, remaining);
+      } else if (!confirm(`確定寄送帳單 Email 給 ${ids.length} 位社友嗎？\n${mailQuotaText(remaining)}\n\n信件會用你自己的 Gmail 帳號寄出，每封都會附上該社友的帳單圖片；帳單明細上有附件的社友，附件也會自動夾帶。`)) return;
       sendBillsToMembers(ids);
+    }
+  });
+  // 標題後面補上今天的寄信額度（非同步查詢，查到再顯示）
+  getMailQuota().then(remaining => {
+    const el = document.getElementById('member-multiselect-title');
+    if (el && document.getElementById('member-multiselect-overlay').classList.contains('show')) {
+      el.innerHTML = escHtml(el.textContent) + `<div style="font-size:12px;font-weight:700;margin-top:4px;color:${remaining !== null && remaining < 10 ? '#b45309' : '#16a34a'}">${mailQuotaText(remaining)}</div>`;
     }
   });
 }
@@ -2396,6 +2469,16 @@ function openSendSingleModal() {
     ? `帳單圖片會自動附上；這位社友帳單明細上的 ${autoCount} 份附件也會自動夾帶，不用另外選。`
     : '帳單圖片會自動附上，不用另外選。';
   document.getElementById('send-single-overlay').classList.add('show');
+  // 顯示今天的寄信額度
+  const quotaEl = document.getElementById('send-single-quota');
+  if (quotaEl) {
+    quotaEl.textContent = '查詢今天的寄信額度中...';
+    quotaEl.style.color = '#888';
+    getMailQuota().then(remaining => {
+      quotaEl.textContent = mailQuotaText(remaining);
+      quotaEl.style.color = remaining !== null && remaining < 10 ? '#b45309' : '#16a34a';
+    });
+  }
 }
 
 function closeSendSingleModal() {
@@ -2408,6 +2491,8 @@ async function sendSingleBillEmail() {
   const toEmail = document.getElementById('send-single-email').value.trim();
   if (!toEmail) return alert('請輸入收件人 Email');
   if (!toEmail.includes('@')) return alert('Email 格式看起來不太對，請確認後再試一次。');
+  const remaining = await getMailQuota();
+  if (remaining !== null && remaining <= 0) return alert('⚠️ 今天的寄信額度已經用完了（Gmail 每天約 100 封），請明天再寄。');
 
   const fileInput = document.getElementById('send-single-attachments');
   const files = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
@@ -2957,8 +3042,9 @@ function buildMemberRowData(m, cols) {
   const dgV = cols.donGeneralItems.map(d => [...(m.variable?.donation_general_list||[]),...(m.variable?.donation_list||[])].filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
   const ddV = cols.donDesignatedItems.map(d => (m.variable?.donation_designated_list||[]).filter(i=>donationGroupKey(i.desc)===d).reduce((s,i)=>s+v(i.amount),0));
 
-  const transfer = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_transfer').reduce((s,i)=>s+v(i.amount),0);
-  const card = (m.variable?.receipt_list||[]).filter(i=>i.type==='receipt_card').reduce((s,i)=>s+v(i.amount),0);
+  // F／G 跟帳單同一個來源（calcFees）：F 已扣掉退款，各欄加總才會等於 H
+  const transfer = f.sumF;
+  const card = f.sumG;
 
   return {
     faV, feV, adV, svV, dfV, dgV, ddV,
@@ -3111,7 +3197,9 @@ function personBillItems(m) {
   (vr.advance_pay_list || []).forEach(i => add('C', '代付款', i.desc, i.amount));
   (vr.receipt_list || []).forEach(i => i.type === 'receipt_card'
     ? add('G', '信用卡收款', i.desc && i.desc !== '信用卡收款' ? i.desc : '', i.amount)
-    : add('F', '匯款收款', i.desc && i.desc !== '匯款收款' ? i.desc : '', i.amount));
+    : i.type === 'refund'
+      ? add('F', '退款給社友', i.desc || '退還溢繳', -v(i.amount)) // 負數：從 F 扣回
+      : add('F', '匯款收款', i.desc && i.desc !== '匯款收款' ? i.desc : '', i.amount));
   (vr.credit_card_list || []).forEach(i => add('G', '信用卡收款', i.desc, i.amount));
   if (v(m.accounting?.credit_card)) add('G', '信用卡收款', '', m.accounting.credit_card);
   return items;
@@ -3180,7 +3268,7 @@ function renderPersonYearReport(data) {
     const list = r.items.map(i => `<tr>
         <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:11px;color:${groupColor[i.group]};font-weight:700;white-space:nowrap">${escHtml(i.cat)}</td>
         <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;font-size:12px">${escHtml(i.desc)}</td>
-        <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700;color:${i.group === 'F' || i.group === 'G' ? '#16a34a' : '#333'}">${i.group === 'F' || i.group === 'G' ? '−' : ''}$${i.amount.toLocaleString()}</td>
+        <td style="padding:5px 12px;border-bottom:1px solid #f0ece4;text-align:right;font-family:monospace;font-size:12px;font-weight:700;color:${(i.group === 'F' || i.group === 'G') ? (i.amount < 0 ? '#b45309' : '#16a34a') : '#333'}">${(i.group === 'F' || i.group === 'G') ? (i.amount < 0 ? '+' : '−') : ''}$${Math.abs(i.amount).toLocaleString()}</td>
       </tr>`).join('') || `<tr><td colspan="3" style="padding:8px 12px;color:#bbb;font-size:12px">本月沒有明細</td></tr>`;
     const f = r.f;
     return `<div style="border:1.5px solid #e8e4da;border-radius:14px;overflow:hidden;margin-bottom:14px">
