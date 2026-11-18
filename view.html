@@ -100,9 +100,12 @@ function calcFees(m) {
   const sumD = sumA + sumB + sumC;
   // E: 前期未付款
   const sumE = v(m?.accounting?.previous_due);
-  // F: 已收匯款
+  // F: 已收匯款（扣掉「退款給社友」退還的溢繳款，type=refund）
   const sumF = (vr.receipt_list || [])
-    .filter(i => i.type !== 'receipt_card')
+    .filter(i => i.type !== 'receipt_card' && i.type !== 'refund')
+    .reduce((a,i) => a + v(i.amount), 0)
+    - (vr.receipt_list || [])
+    .filter(i => i.type === 'refund')
     .reduce((a,i) => a + v(i.amount), 0);
   // G: 信用卡扣款（receipt_list 中 type=receipt_card + credit_card_list）
   const sumG = (vr.receipt_list || [])
@@ -216,6 +219,11 @@ function renderBill(m, settings, confirm = null, view = {}) {
   let rowsAdj = '';
   if (f.sumE !== 0) rowsAdj += `<div class="bill-row"><span class="bill-row-label" style="color:#888">前期未付款 (E)</span><span class="bill-row-amount mono" style="color:#888">$${f.sumE.toLocaleString()}</span></div>`;
   (vr.receipt_list||[]).forEach(i => {
+    if (i.type === 'refund') {
+      // 退款給社友：退還溢繳款，未付款會增加（顯示為 ＋）
+      rowsAdj += `<div class="bill-row" style="color:#b45309"><span class="bill-row-label" style="color:#b45309">[退款] ${escHtml(i.desc || '退還溢繳')}</span><span class="bill-row-amount mono">+$${v(i.amount).toLocaleString()}</span></div>`;
+      return;
+    }
     const isCard = i.type === 'receipt_card';
     rowsAdj += `<div class="bill-row credit" style="color:${isCard?'#7c3aed':'#16a34a'}"><span class="bill-row-label">${isCard?'已收信用卡 (G)':'已收匯款 (F)'}</span><span class="bill-row-amount mono">$${v(i.amount).toLocaleString()}</span></div>`;
   });
@@ -294,7 +302,21 @@ function shareThis() {
 
 // 從 URL 參數讀取資料
 // ── 月份切換：連結帶 &month= 時顯示該月；舊連結沒帶月份就顯示本期，可從選單切到過去月份 ──
-let VIEW_STATE = null; // { data: getAll 回傳的資料, memberId, apiUrl }
+let VIEW_STATE = null;
+
+// 預設的 Apps Script 網址：新連結不用再帶一長串 api=（舊連結帶的 api= 一樣可用）
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbxt5r9yZHNGB6s5pPAXu60AcEBMDaeqqxz5VRiBcWVUit3FM79new0RfGPJpDGyYR8x/exec';
+
+// 連結裡的月份：新格式 m=11510（115年10月），舊格式 month=115年10月 一樣看得懂
+function monthFromParams(params) {
+  const short = (params.get('m') || '').match(/^(\d{2,3})(\d{2})$/);
+  if (short) return `${short[1]}年${short[2]}月`;
+  return params.get('month') || '';
+}
+function monthToShort(month) {
+  const mt = String(month || '').match(/(\d+)年(\d+)月/);
+  return mt ? mt[1] + String(mt[2]).padStart(2, '0') : '';
+} // { data: getAll 回傳的資料, memberId, apiUrl }
 
 function rocMonthValue(month) {
   const mt = String(month || '').match(/(\d+)年(\d+)月/);
@@ -348,7 +370,8 @@ function showMonth(month, notice = '') {
   // 網址同步帶上月份，社友轉傳或重新整理時仍是同一個月
   try {
     const params = new URLSearchParams(location.search);
-    params.set('month', month);
+    params.delete('month');
+    params.set('m', monthToShort(month));
     history.replaceState(null, '', location.pathname + '?' + params.toString());
   } catch (e) {}
   window.scrollTo(0, 0);
@@ -375,7 +398,7 @@ function init() {
     // 自動存入 localStorage，讓下次瀏覽同一裝置不需再帶參數
     localStorage.setItem('choumei_api_url', apiUrlFromParam);
   }
-  const apiUrl = apiUrlFromParam || localStorage.getItem('choumei_api_url');
+  const apiUrl = apiUrlFromParam || DEFAULT_API;
 
   if (memberId && apiUrl) {
     // 只向雲端要「這一位社友」的資料（getBill），不會下載其他社友的資料
@@ -387,7 +410,7 @@ function init() {
       .then(data => {
         if (!data.ok) throw new Error(data.error);
         VIEW_STATE = { data, memberId, apiUrl };
-        const wanted = params.get('month');
+        const wanted = monthFromParams(params);
         const months = listMemberMonths(wanted || '');
         if (!months.length) throw new Error('找不到社友資料');
         if (wanted && !months.some(x => x.month === wanted)) {
