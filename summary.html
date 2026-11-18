@@ -106,9 +106,12 @@ function calcFees(m) {
   const sumD = sumA + sumB + sumC;
   // E: 前期未付款
   const sumE = v(m?.accounting?.previous_due);
-  // F: 已收匯款
+  // F: 已收匯款（扣掉「退款給社友」退還的溢繳款，type=refund）
   const sumF = (vr.receipt_list || [])
-    .filter(i => i.type !== 'receipt_card')
+    .filter(i => i.type !== 'receipt_card' && i.type !== 'refund')
+    .reduce((a,i) => a + v(i.amount), 0)
+    - (vr.receipt_list || [])
+    .filter(i => i.type === 'refund')
     .reduce((a,i) => a + v(i.amount), 0);
   // G: 信用卡扣款（receipt_list 中 type=receipt_card + credit_card_list）
   const sumG = (vr.receipt_list || [])
@@ -150,7 +153,7 @@ function render(members, settings, apiUrl) {
       : `<span class="badge-ok">${money(f.finalH)}</span>`;
     const detailUrl = base + 'view.html?id=' + encodeURIComponent(m.id)
       + (BILL_TOKENS[m.id] ? '&t=' + encodeURIComponent(BILL_TOKENS[m.id]) : '')
-      + (apiUrl ? '&api=' + encodeURIComponent(apiUrl) : '');
+      + (apiUrl && apiUrl !== DEFAULT_API ? '&api=' + encodeURIComponent(apiUrl) : '');
     return `<tr class="${m.onLeave ? 'on-leave' : ''}">
       <td>
         <div class="name-cell">${m.name}${m.onLeave ? '<span class="badge-leave">請假</span>' : ''}</div>
@@ -247,7 +250,9 @@ function showError(msg) {
     </div>`;
 }
 
-let BILL_TOKENS = {}; // 每位社友帳單連結的驗證碼（由雲端提供）
+let BILL_TOKENS = {};
+// 預設的 Apps Script 網址：新連結不用再帶 api=（舊連結帶的 api= 一樣可用）
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbxt5r9yZHNGB6s5pPAXu60AcEBMDaeqqxz5VRiBcWVUit3FM79new0RfGPJpDGyYR8x/exec'; // 每位社友帳單連結的驗證碼（由雲端提供）
 
 function init() {
   const params = new URLSearchParams(location.search);
@@ -255,7 +260,7 @@ function init() {
   if (apiUrlFromParam) {
     localStorage.setItem('choumei_api_url', apiUrlFromParam);
   }
-  const apiUrl = apiUrlFromParam || localStorage.getItem('choumei_api_url');
+  const apiUrl = apiUrlFromParam || DEFAULT_API;
 
   if (!apiUrl) {
     showError('這個連結缺少 API 網址參數，請確認連結是否完整（需包含 ?api=...）。');
